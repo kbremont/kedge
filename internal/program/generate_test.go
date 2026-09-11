@@ -33,7 +33,7 @@ type expectedSet struct {
 	amrap  bool
 }
 
-// TestBlockMainWork walks every training day in the ten-week block with a
+// TestBlockMainWork walks every training day in the ten-round block with a
 // training max of 300 and pins the prescribed main work. 300 is chosen so
 // that every percentage lands on a clean multiple of five and the expected
 // values can be verified by hand.
@@ -44,28 +44,28 @@ func TestBlockMainWork(t *testing.T) {
 	cases := []struct {
 		name     string
 		cycleIdx int
-		week     int
+		round    int
 		want     []expectedSet
 	}{
 		// Leader cycles run 5's PRO: book percentages, all fives, no AMRAP.
-		{"leader1 wk1", 0, 1, []expectedSet{{195, 5, false}, {225, 5, false}, {255, 5, false}}},
-		{"leader1 wk2", 0, 2, []expectedSet{{210, 5, false}, {240, 5, false}, {270, 5, false}}},
-		{"leader1 wk3", 0, 3, []expectedSet{{225, 5, false}, {255, 5, false}, {285, 5, false}}},
-		{"leader2 wk1", 1, 1, []expectedSet{{195, 5, false}, {225, 5, false}, {255, 5, false}}},
-		{"leader2 wk2", 1, 2, []expectedSet{{210, 5, false}, {240, 5, false}, {270, 5, false}}},
-		{"leader2 wk3", 1, 3, []expectedSet{{225, 5, false}, {255, 5, false}, {285, 5, false}}},
+		{"leader1 r1", 0, 1, []expectedSet{{195, 5, false}, {225, 5, false}, {255, 5, false}}},
+		{"leader1 r2", 0, 2, []expectedSet{{210, 5, false}, {240, 5, false}, {270, 5, false}}},
+		{"leader1 r3", 0, 3, []expectedSet{{225, 5, false}, {255, 5, false}, {285, 5, false}}},
+		{"leader2 r1", 1, 1, []expectedSet{{195, 5, false}, {225, 5, false}, {255, 5, false}}},
+		{"leader2 r2", 1, 2, []expectedSet{{210, 5, false}, {240, 5, false}, {270, 5, false}}},
+		{"leader2 r3", 1, 3, []expectedSet{{225, 5, false}, {255, 5, false}, {285, 5, false}}},
 
 		{"deload", 2, 1, []expectedSet{{120, 5, false}, {150, 5, false}, {180, 5, false}}},
 
 		// The anchor restores the rep targets and the PR set.
-		{"anchor wk1", 3, 1, []expectedSet{{195, 5, false}, {225, 5, false}, {255, 5, true}}},
-		{"anchor wk2", 3, 2, []expectedSet{{210, 3, false}, {240, 3, false}, {270, 3, true}}},
-		{"anchor wk3", 3, 3, []expectedSet{{225, 5, false}, {255, 3, false}, {285, 1, true}}},
+		{"anchor r1", 3, 1, []expectedSet{{195, 5, false}, {225, 5, false}, {255, 5, true}}},
+		{"anchor r2", 3, 2, []expectedSet{{210, 3, false}, {240, 3, false}, {270, 3, true}}},
+		{"anchor r3", 3, 3, []expectedSet{{225, 5, false}, {255, 3, false}, {285, 1, true}}},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			w, err := GenerateWorkout(cfg, tc.cycleIdx, tc.week, 300, s)
+			w, err := GenerateWorkout(cfg, tc.cycleIdx, tc.round, 300, s)
 			if err != nil {
 				t.Fatalf("GenerateWorkout: %v", err)
 			}
@@ -96,10 +96,10 @@ func TestOnlyAnchorHasAMRAP(t *testing.T) {
 	s := testSettings()
 
 	for ci, cycle := range cfg.Cycles {
-		for week := 1; week <= cycle.Weeks; week++ {
-			w, err := GenerateWorkout(cfg, ci, week, 300, s)
+		for round := 1; round <= cycle.Rounds; round++ {
+			w, err := GenerateWorkout(cfg, ci, round, 300, s)
 			if err != nil {
-				t.Fatalf("cycle %d week %d: %v", ci, week, err)
+				t.Fatalf("cycle %d round %d: %v", ci, round, err)
 			}
 			var amraps int
 			for _, set := range w.Sets {
@@ -112,7 +112,7 @@ func TestOnlyAnchorHasAMRAP(t *testing.T) {
 				want = 1
 			}
 			if amraps != want {
-				t.Errorf("%s week %d: got %d AMRAP sets, want %d", cycle.Label, week, amraps, want)
+				t.Errorf("%s round %d: got %d AMRAP sets, want %d", cycle.Label, round, amraps, want)
 			}
 		}
 	}
@@ -133,63 +133,63 @@ func TestBBBIsFixedPercentage(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		for week := 1; week <= 3; week++ {
-			w, err := GenerateWorkout(cfg, tc.cycleIdx, week, 300, s)
+		for round := 1; round <= 3; round++ {
+			w, err := GenerateWorkout(cfg, tc.cycleIdx, round, 300, s)
 			if err != nil {
-				t.Fatalf("cycle %d week %d: %v", tc.cycleIdx, week, err)
+				t.Fatalf("cycle %d round %d: %v", tc.cycleIdx, round, err)
 			}
 			supp := setsOfKind(w, KindSupp)
 			if len(supp) != 5 {
-				t.Fatalf("cycle %d week %d: got %d supplemental sets, want 5", tc.cycleIdx, week, len(supp))
+				t.Fatalf("cycle %d round %d: got %d supplemental sets, want 5", tc.cycleIdx, round, len(supp))
 			}
 			for i, set := range supp {
 				if !nearly(set.Weight, tc.wantWeight) {
-					t.Errorf("cycle %d week %d set %d: weight = %v, want %v", tc.cycleIdx, week, i, set.Weight, tc.wantWeight)
+					t.Errorf("cycle %d round %d set %d: weight = %v, want %v", tc.cycleIdx, round, i, set.Weight, tc.wantWeight)
 				}
 				if set.TargetReps != 10 {
-					t.Errorf("cycle %d week %d set %d: reps = %d, want 10", tc.cycleIdx, week, i, set.TargetReps)
+					t.Errorf("cycle %d round %d set %d: reps = %d, want 10", tc.cycleIdx, round, i, set.TargetReps)
 				}
 				if set.IsAMRAP {
-					t.Errorf("cycle %d week %d set %d: BBB should never be an AMRAP", tc.cycleIdx, week, i)
+					t.Errorf("cycle %d round %d set %d: BBB should never be an AMRAP", tc.cycleIdx, round, i)
 				}
 			}
 		}
 	}
 }
 
-// TestFSLTracksWeeklyOpener checks that First Set Last follows the week's
+// TestFSLTracksRoundOpener checks that First Set Last follows the round's
 // opening percentage rather than sitting at a fixed load like BBB.
-func TestFSLTracksWeeklyOpener(t *testing.T) {
+func TestFSLTracksRoundOpener(t *testing.T) {
 	cfg := LeaderAnchorBBB()
 	s := testSettings()
 
 	want := map[int]float64{1: 195, 2: 210, 3: 225} // 65%, 70%, 75% of 300
 
-	for week, wantWeight := range want {
-		w, err := GenerateWorkout(cfg, 3, week, 300, s)
+	for round, wantWeight := range want {
+		w, err := GenerateWorkout(cfg, 3, round, 300, s)
 		if err != nil {
-			t.Fatalf("anchor week %d: %v", week, err)
+			t.Fatalf("anchor round %d: %v", round, err)
 		}
 		supp := setsOfKind(w, KindSupp)
 		if len(supp) != 5 {
-			t.Fatalf("anchor week %d: got %d FSL sets, want 5", week, len(supp))
+			t.Fatalf("anchor round %d: got %d FSL sets, want 5", round, len(supp))
 		}
 		main := setsOfKind(w, KindMain)
 		for i, set := range supp {
 			if !nearly(set.Weight, wantWeight) {
-				t.Errorf("anchor week %d set %d: weight = %v, want %v", week, i, set.Weight, wantWeight)
+				t.Errorf("anchor round %d set %d: weight = %v, want %v", round, i, set.Weight, wantWeight)
 			}
 			if !nearly(set.Weight, main[0].Weight) {
-				t.Errorf("anchor week %d set %d: FSL weight %v does not match first main set %v", week, i, set.Weight, main[0].Weight)
+				t.Errorf("anchor round %d set %d: FSL weight %v does not match first main set %v", round, i, set.Weight, main[0].Weight)
 			}
 			if set.TargetReps != 5 {
-				t.Errorf("anchor week %d set %d: reps = %d, want 5", week, i, set.TargetReps)
+				t.Errorf("anchor round %d set %d: reps = %d, want 5", round, i, set.TargetReps)
 			}
 		}
 	}
 }
 
-// TestDeloadHasNoWarmupsOrSupplemental keeps the light week light: its working
+// TestDeloadHasNoWarmupsOrSupplemental keeps the light round light: its working
 // sets are already 40/50/60, so warmups would duplicate them.
 func TestDeloadHasNoWarmupsOrSupplemental(t *testing.T) {
 	cfg := LeaderAnchorBBB()
@@ -306,29 +306,29 @@ func TestGenerateWorkoutErrors(t *testing.T) {
 	cases := []struct {
 		name     string
 		cycleIdx int
-		week     int
+		round    int
 		tm       float64
 	}{
 		{"negative cycle", -1, 1, 300},
 		{"cycle past end of block", 4, 1, 300},
-		{"week zero", 0, 0, 300},
-		{"week past end of cycle", 0, 4, 300},
-		{"deload has only one week", 2, 2, 300},
+		{"round zero", 0, 0, 300},
+		{"round past end of cycle", 0, 4, 300},
+		{"deload has only one round", 2, 2, 300},
 		{"zero training max", 0, 1, 0},
 		{"negative training max", 0, 1, -100},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := GenerateWorkout(cfg, tc.cycleIdx, tc.week, tc.tm, s); err == nil {
+			if _, err := GenerateWorkout(cfg, tc.cycleIdx, tc.round, tc.tm, s); err == nil {
 				t.Error("expected an error, got nil")
 			}
 		})
 	}
 }
 
-func TestWeeksPerBlock(t *testing.T) {
-	if got := LeaderAnchorBBB().WeeksPerBlock(); got != 10 {
-		t.Errorf("WeeksPerBlock() = %d, want 10", got)
+func TestRoundsPerBlock(t *testing.T) {
+	if got := LeaderAnchorBBB().RoundsPerBlock(); got != 10 {
+		t.Errorf("RoundsPerBlock() = %d, want 10", got)
 	}
 }
 

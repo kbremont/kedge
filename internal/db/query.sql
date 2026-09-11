@@ -75,17 +75,17 @@ SELECT COUNT(*) FROM blocks;
 -- name: ListWorkoutsInBlock :many
 SELECT * FROM workouts
 WHERE block_id = ?
-ORDER BY cycle_index, week, id;
+ORDER BY cycle_index, round_number, id;
 
 -- name: GetWorkout :one
 SELECT * FROM workouts WHERE id = ?;
 
 -- name: GetWorkoutAt :one
 SELECT * FROM workouts
-WHERE block_id = ? AND cycle_index = ? AND week = ? AND lift_slug = ?;
+WHERE block_id = ? AND cycle_index = ? AND round_number = ? AND lift_slug = ?;
 
 -- name: InsertWorkout :one
-INSERT INTO workouts (block_id, lift_slug, cycle_index, cycle_label, phase, week, training_max)
+INSERT INTO workouts (block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
@@ -127,7 +127,7 @@ WHERE workout_id = ? AND idx = ?;
 SELECT COUNT(*) FROM sets WHERE workout_id = ? AND completed_at IS NULL;
 
 -- ListAMRAPSets feeds the progress chart and PR list. Leader cycles run 5's
--- PRO, so this only yields data from anchor weeks.
+-- PRO, so this only yields data from anchor rounds.
 --
 -- name: ListAMRAPSets :many
 SELECT s.weight, s.actual_reps, w.completed_at, w.training_max
@@ -141,3 +141,14 @@ ORDER BY w.completed_at, w.id;
 
 -- name: DismissCycle :exec
 UPDATE settings SET dismissed_cycle = ? WHERE id = 1;
+
+-- name: SetBlockStartCycle :exec
+UPDATE blocks SET start_cycle_index = ? WHERE id = ?;
+
+-- InsertCompletedSet writes a set that was performed before the app knew about
+-- it, during first-run onboarding.
+--
+-- name: InsertCompletedSet :exec
+INSERT INTO sets (workout_id, idx, kind, weight, pct, target_reps, is_amrap,
+                  actual_reps, completed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'));

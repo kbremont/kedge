@@ -50,7 +50,7 @@ func (s *Server) handleStartWorkout(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	generated, err := program.GenerateWorkout(state.Config, pos.CycleIndex, pos.Week, tm, state.Settings)
+	generated, err := program.GenerateWorkout(state.Config, pos.CycleIndex, pos.Round, tm, state.Settings)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -64,7 +64,7 @@ func (s *Server) handleStartWorkout(w http.ResponseWriter, r *http.Request) {
 			CycleIndex:  int64(pos.CycleIndex),
 			CycleLabel:  state.Config.Describe(pos),
 			Phase:       cycle.Phase,
-			Week:        int64(pos.Week),
+			Round:       int64(pos.Round),
 			TrainingMax: tm,
 		})
 		if err != nil {
@@ -278,7 +278,7 @@ func (s *Server) workoutWithSets(ctx context.Context, rawID string) (db.Workout,
 }
 
 // bestE1RM returns the best estimated one rep max recorded for a lift. Only
-// anchor weeks produce AMRAP sets, so this stays empty through the leaders.
+// anchor rounds produce AMRAP sets, so this stays empty through the leaders.
 func (s *Server) bestE1RM(ctx context.Context, slug string) (float64, error) {
 	rows, err := s.q.ListAMRAPSets(ctx, slug)
 	if err != nil {

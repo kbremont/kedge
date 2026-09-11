@@ -48,28 +48,28 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		vm.Next = &views.NextUp{
-			LiftName:     lift.Name,
-			LiftSlug:     lift.Slug,
-			CycleLabel:   state.InProgress.CycleLabel,
-			Phase:        state.InProgress.Phase,
-			TrainingMax:  state.InProgress.TrainingMax,
-			InProgress:   true,
-			WorkoutID:    state.InProgress.ID,
-			BlockNumber:  int(state.Block.Number),
-			WeekOfBlock:  weekOfBlock(state.Config, program.Position{CycleIndex: int(state.InProgress.CycleIndex), Week: int(state.InProgress.Week)}),
-			WeeksInBlock: state.Config.WeeksPerBlock(),
+			LiftName:      lift.Name,
+			LiftSlug:      lift.Slug,
+			CycleLabel:    state.InProgress.CycleLabel,
+			Phase:         state.InProgress.Phase,
+			TrainingMax:   state.InProgress.TrainingMax,
+			InProgress:    true,
+			WorkoutID:     state.InProgress.ID,
+			BlockNumber:   int(state.Block.Number),
+			RoundOfBlock:  roundOfBlock(state.Config, program.Position{CycleIndex: int(state.InProgress.CycleIndex), Round: int(state.InProgress.Round)}),
+			RoundsInBlock: state.Config.RoundsPerBlock(),
 		}
 	case state.HasNext:
 		lift := state.LiftByDay[state.Next.Day]
 		vm.Next = &views.NextUp{
-			LiftName:     lift.Name,
-			LiftSlug:     lift.Slug,
-			CycleLabel:   state.Config.Describe(state.Next),
-			TrainingMax:  state.TMs[lift.Slug],
-			Day:          state.Next.Day,
-			BlockNumber:  int(state.Block.Number),
-			WeekOfBlock:  weekOfBlock(state.Config, state.Next),
-			WeeksInBlock: state.Config.WeeksPerBlock(),
+			LiftName:      lift.Name,
+			LiftSlug:      lift.Slug,
+			CycleLabel:    state.Config.Describe(state.Next),
+			TrainingMax:   state.TMs[lift.Slug],
+			Day:           state.Next.Day,
+			BlockNumber:   int(state.Block.Number),
+			RoundOfBlock:  roundOfBlock(state.Config, state.Next),
+			RoundsInBlock: state.Config.RoundsPerBlock(),
 		}
 		if cycle, err := state.Config.CycleAt(state.Next.CycleIndex); err == nil {
 			vm.Next.Phase = cycle.Phase
@@ -94,10 +94,13 @@ func (s *Server) addCycleRollover(vm *views.DashboardVM, state *blockState) {
 	if state.InProgress != nil || !state.HasNext {
 		return
 	}
-	// A cycle boundary is the first day of the first week of a cycle, with
-	// something behind it.
-	atBoundary := state.Next.Week == 1 && state.Next.Day == 1 &&
-		(state.Next.CycleIndex > 0 || state.Block.Number > 1)
+	// A cycle boundary is the first day of the first round of a cycle, with
+	// something behind it. "Behind it" is measured from where this block
+	// actually starts: a block joined at the anchor during setup has no earlier
+	// cycle to have finished, and must not open with a rollover prompt for work
+	// the app never saw.
+	atBoundary := state.Next.Round == 1 && state.Next.Day == 1 &&
+		(state.Next.CycleIndex > int(state.Block.StartCycleIndex) || state.Block.Number > 1)
 	if !atBoundary {
 		return
 	}
@@ -205,7 +208,9 @@ func (s *Server) handleSetupSave(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	// Training maxes alone are not enough to know which session is next; ask
+	// where in the programme they are before opening the dashboard.
+	http.Redirect(w, r, "/setup/position", http.StatusSeeOther)
 }
 
 func (s *Server) renderSetupError(w http.ResponseWriter, r *http.Request, lifts []db.Lift, msg string) {

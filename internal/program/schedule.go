@@ -5,12 +5,12 @@ import "fmt"
 // Position identifies a single training day within a block.
 type Position struct {
 	CycleIndex int
-	Week       int // 1-indexed within the cycle
-	Day        int // 1-indexed within the week, matching a lift's day order
+	Round      int // 1-indexed within the cycle
+	Day        int // 1-indexed within the round, matching a lift's day order
 }
 
 func (p Position) String() string {
-	return fmt.Sprintf("c%d/w%d/d%d", p.CycleIndex, p.Week, p.Day)
+	return fmt.Sprintf("c%d/r%d/d%d", p.CycleIndex, p.Round, p.Day)
 }
 
 // CycleAt returns the cycle at idx.
@@ -23,15 +23,31 @@ func (c Config) CycleAt(idx int) (CycleSpec, error) {
 
 // Schedule lays out every training day in one block, in the order they are
 // performed.
-func (c Config) Schedule(daysPerWeek int) []Position {
-	if daysPerWeek < 1 {
+func (c Config) Schedule(daysPerRound int) []Position {
+	return c.ScheduleFrom(daysPerRound, 0)
+}
+
+// ScheduleFrom lays out the training days in a block from startCycleIndex
+// onward, for a block joined partway through.
+//
+// Cycles before the start are not part of this block's schedule at all, which
+// is what lets someone begin mid-programme without the app inventing completed
+// sessions to represent the work it was never told about.
+func (c Config) ScheduleFrom(daysPerRound, startCycleIndex int) []Position {
+	if daysPerRound < 1 {
 		return nil
+	}
+	if startCycleIndex < 0 {
+		startCycleIndex = 0
 	}
 	var out []Position
 	for ci, cycle := range c.Cycles {
-		for week := 1; week <= cycle.Weeks; week++ {
-			for day := 1; day <= daysPerWeek; day++ {
-				out = append(out, Position{CycleIndex: ci, Week: week, Day: day})
+		if ci < startCycleIndex {
+			continue
+		}
+		for round := 1; round <= cycle.Rounds; round++ {
+			for day := 1; day <= daysPerRound; day++ {
+				out = append(out, Position{CycleIndex: ci, Round: round, Day: day})
 			}
 		}
 	}
@@ -54,14 +70,14 @@ func NextPosition(schedule []Position, done map[Position]bool) (Position, bool) 
 }
 
 // Describe renders a position as the label shown at the top of a session,
-// for example "Leader 2 - Week 3".
+// for example "Leader 2 - Round 3".
 func (c Config) Describe(p Position) string {
 	cycle, err := c.CycleAt(p.CycleIndex)
 	if err != nil {
 		return p.String()
 	}
-	if cycle.Weeks == 1 {
+	if cycle.Rounds == 1 {
 		return cycle.Label
 	}
-	return fmt.Sprintf("%s - Week %d", cycle.Label, p.Week)
+	return fmt.Sprintf("%s - Round %d", cycle.Label, p.Round)
 }

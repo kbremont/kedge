@@ -8,3 +8,7 @@ sql:
         package: "db"
         out: "internal/db"
         emit_empty_slices: true
+        rename:
+          # The column avoids the bare name "round" because ROUND() is a SQLite
+          # builtin; the Go field does not need to carry that workaround.
+          round_number: "Round"

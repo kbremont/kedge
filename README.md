@@ -12,20 +12,34 @@ phone at the gym.
 
 ## The program
 
-The default block is ten weeks and then repeats:
+The default block is ten rounds and then repeats:
 
-| Weeks | Cycle | Main work | Supplemental |
-|-------|-------|-----------|--------------|
-| 1–3   | Leader 1 | 5's PRO — 5/5/5, no rep-max sets | BBB 5×10 @ 50% |
-| 4–6   | Leader 2 | 5's PRO | BBB 5×10 @ 60% |
-| 7     | Deload | 40/50/60 × 5 | — |
-| 8–10  | Anchor | 5/3/1 with a PR set | FSL 5×5 |
+| Rounds | Cycle | Main work | Supplemental |
+|--------|-------|-----------|--------------|
+| 1–3    | Leader 1 | 5's PRO — 5/5/5, no rep-max sets | BBB 5×10 @ 50% |
+| 4–6    | Leader 2 | 5's PRO | BBB 5×10 @ 60% |
+| 7      | Deload | 40/50/60 × 5 | — |
+| 8–10   | Anchor | 5/3/1 with a PR set | FSL 5×5 |
 
-Four days a week, one lift per day: press, deadlift, bench, squat.
+Four sessions to a round, one lift each: press, deadlift, bench, squat.
 Supplemental work is on the same lift as the main work.
+
+A **round** is four sessions, not a calendar week. The two drift apart the first
+time life gets in the way — round 1's bench and squat can easily land on the
+following Monday and Tuesday — so the app counts rounds and leaves the calendar
+alone.
 
 Programs are data, not code — see `LeaderAnchorBBB` in
 `internal/program/program.go`. Adding a template is a config change.
+
+### Starting partway through
+
+You almost certainly do not start using this on round 1, day 1. On first run,
+after entering your training maxes, the app asks which cycle you are on and
+which of that cycle's sessions you have already done. Cycles before the one you
+pick are left out of the block entirely, so there is no old history to key in
+and nothing invented to represent it. The first session you leave unticked is
+where the app picks up.
 
 ### Training maxes never move on their own
 
@@ -44,7 +58,8 @@ cp .env.example .env      # set AUTH_PASSWORD
 docker compose up -d
 ```
 
-Then open the app, enter your training maxes, and start training.
+Then open the app, enter your training maxes, tell it where in the programme
+you are, and start training.
 
 ### Serving it over HTTPS with Tailscale
 
@@ -110,7 +125,7 @@ internal/assets     embedded CSS and icons
 ```
 
 `internal/program` is where the arithmetic lives — percentages, rounding,
-plate math, which weeks carry a rep-max set. It has no dependencies and is the
+plate math, which rounds carry a rep-max set. It has no dependencies and is the
 first place to look when something prescribes the wrong number.
 
 ### Deploying to the Pi

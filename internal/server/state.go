@@ -151,8 +151,6 @@ func (s *Server) loadState(ctx context.Context) (*blockState, error) {
 		tms[r.Slug] = r.Value
 	}
 
-	schedule := cfg.Schedule(len(lifts))
-
 	// Two passes at most: if the open block is already complete, close it,
 	// open the next, and look again.
 	var state *blockState
@@ -161,6 +159,10 @@ func (s *Server) loadState(ctx context.Context) (*blockState, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// The schedule depends on the block, not just the program: a block
+		// joined partway through during setup starts at its own cycle.
+		schedule := cfg.ScheduleFrom(len(lifts), int(block.StartCycleIndex))
 
 		workouts, err := s.q.ListWorkoutsInBlock(ctx, block.ID)
 		if err != nil {
@@ -172,7 +174,7 @@ func (s *Server) loadState(ctx context.Context) (*blockState, error) {
 		for i, w := range workouts {
 			pos := program.Position{
 				CycleIndex: int(w.CycleIndex),
-				Week:       int(w.Week),
+				Round:      int(w.Round),
 				Day:        dayBySlug[w.LiftSlug],
 			}
 			if w.CompletedAt.Valid {
@@ -209,17 +211,17 @@ func (s *Server) loadState(ctx context.Context) (*blockState, error) {
 	return state, nil
 }
 
-// weekOfBlock converts a position into its 1-indexed week within the whole
-// block, for the "week 7 of 10" line on the dashboard.
-func weekOfBlock(cfg program.Config, p program.Position) int {
-	week := 0
+// roundOfBlock converts a position into its 1-indexed round within the whole
+// block, for the "round 7 of 10" line on the dashboard.
+func roundOfBlock(cfg program.Config, p program.Position) int {
+	round := 0
 	for i, cycle := range cfg.Cycles {
 		if i == p.CycleIndex {
-			return week + p.Week
+			return round + p.Round
 		}
-		week += cycle.Weeks
+		round += cycle.Rounds
 	}
-	return week
+	return round
 }
 
 // parsePlates accepts the comma-separated list shown in settings and returns

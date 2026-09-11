@@ -3,7 +3,7 @@
 //
 // Everything in this package is pure. No database, no HTTP, no clock. That
 // keeps the part of the app most likely to harbour a bug -- percentages,
-// rounding, and which weeks carry an AMRAP set -- exhaustively testable.
+// rounding, and which rounds carry an AMRAP set -- exhaustively testable.
 package program
 
 // MainScheme selects the set/rep pattern used for the main work of a cycle.
@@ -14,11 +14,11 @@ const (
 	// set is a flat 5 reps and nothing is taken to a rep max.
 	SchemeFivesPro MainScheme = "5s_pro"
 
-	// Scheme531PR is textbook 5/3/1, where the final set of each week is
+	// Scheme531PR is textbook 5/3/1, where the final set of each round is
 	// taken for as many reps as possible.
 	Scheme531PR MainScheme = "531_pr"
 
-	// SchemeDeload is the light week: 40/50/60 for 5s, no AMRAP.
+	// SchemeDeload is the light round: 40/50/60 for 5s, no AMRAP.
 	SchemeDeload MainScheme = "deload"
 )
 
@@ -32,8 +32,8 @@ const (
 	// the training max, performed on the same lift as the main work.
 	SuppBBB SuppKind = "bbb"
 
-	// SuppFSL is First Set Last: repeats the week's opening main-set
-	// percentage, so the load tracks the week rather than being fixed.
+	// SuppFSL is First Set Last: repeats the round's opening main-set
+	// percentage, so the load tracks the round rather than being fixed.
 	SuppFSL SuppKind = "fsl"
 )
 
@@ -57,14 +57,14 @@ type Supplemental struct {
 	Pct float64
 }
 
-// CycleSpec is one cycle within a block: a run of weeks sharing a main
+// CycleSpec is one cycle within a block: a run of rounds sharing a main
 // scheme and supplemental.
 type CycleSpec struct {
-	Label string
-	Phase string // leader, deload, or anchor
-	Main  MainScheme
-	Supp  Supplemental
-	Weeks int
+	Label  string
+	Phase  string // leader, deload, or anchor
+	Main   MainScheme
+	Supp   Supplemental
+	Rounds int
 }
 
 // Config is a complete program. The sequence of cycles repeats indefinitely;
@@ -105,7 +105,7 @@ type Set struct {
 type Workout struct {
 	CycleLabel string
 	Phase      string
-	Week       int // 1-indexed within the cycle
+	Round      int // 1-indexed within the cycle
 	Sets       []Set
 }
 
@@ -122,39 +122,39 @@ func DefaultSettings() Settings {
 }
 
 // LeaderAnchorBBB is the default program: two leader cycles of 5's PRO with
-// Boring But Big, a deload week, then an anchor cycle of 5/3/1 with a PR set
-// and First Set Last. Ten weeks, then it repeats.
+// Boring But Big, a deload round, then an anchor cycle of 5/3/1 with a PR set
+// and First Set Last. Ten rounds, then it repeats.
 func LeaderAnchorBBB() Config {
 	return Config{
 		Name: "5's PRO + BBB / 5-3-1 + FSL",
 		Cycles: []CycleSpec{
 			{
-				Label: "Leader 1",
-				Phase: "leader",
-				Main:  SchemeFivesPro,
-				Supp:  Supplemental{Kind: SuppBBB, Sets: 5, Reps: 10, Pct: 0.50},
-				Weeks: 3,
+				Label:  "Leader 1",
+				Phase:  "leader",
+				Main:   SchemeFivesPro,
+				Supp:   Supplemental{Kind: SuppBBB, Sets: 5, Reps: 10, Pct: 0.50},
+				Rounds: 3,
 			},
 			{
-				Label: "Leader 2",
-				Phase: "leader",
-				Main:  SchemeFivesPro,
-				Supp:  Supplemental{Kind: SuppBBB, Sets: 5, Reps: 10, Pct: 0.60},
-				Weeks: 3,
+				Label:  "Leader 2",
+				Phase:  "leader",
+				Main:   SchemeFivesPro,
+				Supp:   Supplemental{Kind: SuppBBB, Sets: 5, Reps: 10, Pct: 0.60},
+				Rounds: 3,
 			},
 			{
-				Label: "Deload",
-				Phase: "deload",
-				Main:  SchemeDeload,
-				Supp:  Supplemental{Kind: SuppNone},
-				Weeks: 1,
+				Label:  "Deload",
+				Phase:  "deload",
+				Main:   SchemeDeload,
+				Supp:   Supplemental{Kind: SuppNone},
+				Rounds: 1,
 			},
 			{
-				Label: "Anchor",
-				Phase: "anchor",
-				Main:  Scheme531PR,
-				Supp:  Supplemental{Kind: SuppFSL, Sets: 5, Reps: 5},
-				Weeks: 3,
+				Label:  "Anchor",
+				Phase:  "anchor",
+				Main:   Scheme531PR,
+				Supp:   Supplemental{Kind: SuppFSL, Sets: 5, Reps: 5},
+				Rounds: 3,
 			},
 		},
 		TMIncrementUpper: 5,
@@ -162,12 +162,12 @@ func LeaderAnchorBBB() Config {
 	}
 }
 
-// WeeksPerBlock is the total number of training weeks in one pass through the
+// RoundsPerBlock is the total number of training rounds in one pass through the
 // program.
-func (c Config) WeeksPerBlock() int {
+func (c Config) RoundsPerBlock() int {
 	total := 0
 	for _, cy := range c.Cycles {
-		total += cy.Weeks
+		total += cy.Rounds
 	}
 	return total
 }

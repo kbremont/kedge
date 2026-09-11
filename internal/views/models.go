@@ -61,11 +61,11 @@ type NextUp struct {
 	TrainingMax float64
 	Day         int
 	// InProgress is set when a session has been started but not finished.
-	InProgress   bool
-	WorkoutID    int64
-	BlockNumber  int
-	WeekOfBlock  int
-	WeeksInBlock int
+	InProgress    bool
+	WorkoutID     int64
+	BlockNumber   int
+	RoundOfBlock  int
+	RoundsInBlock int
 }
 
 // DashboardVM is the home screen.
@@ -100,7 +100,7 @@ type HistoryItem struct {
 	LiftSlug   string
 	CycleLabel string
 	Date       string
-	Summary    string // "255 x 8" for anchor weeks, otherwise the top set
+	Summary    string // "255 x 8" for anchor rounds, otherwise the top set
 }
 
 // HistoryVM is the history list.
@@ -153,4 +153,48 @@ type SetupVM struct {
 	Lifts []LiftTM
 	Unit  string
 	Error string
+}
+
+// SetupCycleOption is one choice on the "where are you?" screen.
+type SetupCycleOption struct {
+	Index  int
+	Label  string
+	Detail string
+}
+
+// SetupPositionVM asks a new user which cycle they are currently on, so the
+// app can start the block there rather than at the beginning.
+type SetupPositionVM struct {
+	Cycles []SetupCycleOption
+}
+
+// SetupDayVM is one session in the onboarding checklist. The weight of the top
+// main set is shown so the session is recognisable at a glance.
+type SetupDayVM struct {
+	Slug      string
+	Name      string
+	TopWeight float64
+	PRTarget  int
+	Field     string // form field name for the "done" checkbox
+	RepsField string // form field name for the PR set reps
+}
+
+// SetupRoundVM groups the sessions of one round.
+type SetupRoundVM struct {
+	Round int
+	Days  []SetupDayVM
+}
+
+// SetupHistoryVM is the checklist of sessions already completed in the chosen
+// cycle. Whichever box is left unticked first becomes the next session, so this
+// one screen answers both "what have you done" and "where are you".
+type SetupHistoryVM struct {
+	CycleIndex int
+	CycleLabel string
+	Unit       string
+	// AsksReps is set for anchor cycles, where the PR set is the only number
+	// worth recording; leader rounds are 5's PRO and fully determined.
+	AsksReps bool
+	Rounds   []SetupRoundVM
+	Error    string
 }

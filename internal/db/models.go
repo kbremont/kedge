@@ -9,11 +9,12 @@ import (
 )
 
 type Block struct {
-	ID          int64
-	ProgramID   int64
-	Number      int64
-	StartedAt   string
-	CompletedAt sql.NullString
+	ID              int64
+	ProgramID       int64
+	Number          int64
+	StartCycleIndex int64
+	StartedAt       string
+	CompletedAt     sql.NullString
 }
 
 type Lift struct {
@@ -70,7 +71,7 @@ type Workout struct {
 	CycleIndex  int64
 	CycleLabel  string
 	Phase       string
-	Week        int64
+	Round       int64
 	TrainingMax float64
 	StartedAt   string
 	CompletedAt sql.NullString

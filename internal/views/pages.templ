@@ -54,7 +54,7 @@ templ nextUpCard(n NextUp, unit string) {
 		<div class="muted small tnum" style="margin-bottom:16px">
 			{ n.CycleLabel } &middot; TM { FmtWeightUnit(n.TrainingMax, unit) }
 			<br/>
-			Block { FmtInt(n.BlockNumber) } &middot; week { FmtInt(n.WeekOfBlock) } of { FmtInt(n.WeeksInBlock) }
+			Block { FmtInt(n.BlockNumber) } &middot; round { FmtInt(n.RoundOfBlock) } of { FmtInt(n.RoundsInBlock) }
 		</div>
 		if n.InProgress {
 			<a class="btn btn-primary" href={ templ.URL(fmt.Sprintf("/workout/%d", n.WorkoutID)) }>Resume session</a>
@@ -141,7 +141,7 @@ templ LiftDetail(l LiftVM) {
 		<h2>Estimated max from PR sets</h2>
 		if len(l.Points) < 2 {
 			<div class="card empty">
-				Not enough data yet. PR sets only happen on anchor weeks, so the
+				Not enough data yet. PR sets only happen on anchor rounds, so the
 				first points arrive at the end of a block.
 			</div>
 		} else {
@@ -305,6 +305,91 @@ templ Setup(s SetupVM) {
 				}
 			</div>
 			<button class="btn btn-primary" type="submit">Start training</button>
+		</form>
+	}
+}
+
+// SetupPosition asks which cycle the user is currently on. The options come
+// from the program config, so renaming or reordering cycles needs no change
+// here.
+templ SetupPosition(vm SetupPositionVM) {
+	@Bare("Where are you?") {
+		<div class="next" style="margin-bottom:16px">
+			<div class="lift">Where are you?</div>
+			<div class="muted small">
+				Pick the cycle you are on now. Anything before it is left out of this
+				block entirely, so you do not have to enter old history.
+			</div>
+		</div>
+		<form method="post" action="/setup/position">
+			<div class="card">
+				<label style="margin-bottom:14px">
+					<input type="radio" name="cycle" value="fresh" checked/>
+					&nbsp;Starting fresh at the beginning
+				</label>
+				for _, c := range vm.Cycles {
+					<div style="height:1px;background:var(--border);margin:10px 0"></div>
+					<label style="margin-bottom:0">
+						<input type="radio" name="cycle" value={ FmtInt(c.Index) }/>
+						&nbsp;{ c.Label }
+						<span class="muted small">&nbsp;{ c.Detail }</span>
+					</label>
+				}
+			</div>
+			<button class="btn btn-primary" type="submit">Continue</button>
+		</form>
+	}
+}
+
+// SetupHistory records which sessions of the chosen cycle are already done.
+templ SetupHistory(vm SetupHistoryVM) {
+	@Bare("What have you done?") {
+		<div class="next" style="margin-bottom:16px">
+			<div class="lift">{ vm.CycleLabel }</div>
+			<div class="muted small">
+				Tick the sessions you have already finished. The first one you leave
+				unticked is where the app will pick up.
+			</div>
+		</div>
+		if vm.Error != "" {
+			<div class="error">{ vm.Error }</div>
+		}
+		<form method="post" action="/setup/history">
+			<input type="hidden" name="cycle" value={ FmtInt(vm.CycleIndex) }/>
+			for _, rd := range vm.Rounds {
+				if len(vm.Rounds) > 1 {
+					<h2>Round { FmtInt(rd.Round) }</h2>
+				}
+				<div class="card">
+					for i, d := range rd.Days {
+						if i > 0 {
+							<div style="height:1px;background:var(--border);margin:10px 0"></div>
+						}
+						<label style="margin-bottom:0">
+							<input type="checkbox" name={ d.Field } value="1"/>
+							&nbsp;{ d.Name }
+							<span class="muted small tnum">
+								&nbsp;top set { FmtWeightUnit(d.TopWeight, vm.Unit) }
+							</span>
+						</label>
+						if vm.AsksReps {
+							<div class="field" style="margin-top:8px;margin-bottom:0">
+								<label for={ d.RepsField }>PR set reps</label>
+								<input
+									id={ d.RepsField }
+									type="number"
+									name={ d.RepsField }
+									inputmode="numeric"
+									min="1"
+									max="100"
+									placeholder={ FmtInt(d.PRTarget) }
+								/>
+							</div>
+						}
+					}
+				</div>
+			}
+			<button class="btn btn-primary" type="submit">Save and start</button>
 		</form>
 	}
 }

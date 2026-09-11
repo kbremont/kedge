@@ -29,7 +29,7 @@ CREATE TABLE lifts (
     name      TEXT    NOT NULL,
     -- Upper-body lifts take the smaller training max increment.
     is_upper  INTEGER NOT NULL,
-    -- Position in the training week, 1 through 4.
+    -- Position within the training round, 1 through 4.
     day_order INTEGER NOT NULL UNIQUE
 );
 
@@ -58,6 +58,10 @@ CREATE TABLE blocks (
     id           INTEGER PRIMARY KEY,
     program_id   INTEGER NOT NULL REFERENCES programs(id),
     number       INTEGER NOT NULL,
+    -- The cycle this block effectively starts at. Non-zero when the user joined
+    -- partway through and chose not to record the earlier cycles; those cycles
+    -- are simply not part of this block's schedule.
+    start_cycle_index INTEGER NOT NULL DEFAULT 0,
     started_at   TEXT    NOT NULL DEFAULT (datetime('now')),
     completed_at TEXT
 );
@@ -72,16 +76,16 @@ CREATE TABLE workouts (
     cycle_index  INTEGER NOT NULL,
     cycle_label  TEXT    NOT NULL, -- snapshot, so renaming a cycle keeps history readable
     phase        TEXT    NOT NULL,
-    week         INTEGER NOT NULL,
+    round_number INTEGER NOT NULL,
     training_max REAL    NOT NULL, -- the value in force when this was generated
     started_at   TEXT    NOT NULL DEFAULT (datetime('now')),
     completed_at TEXT,
     notes        TEXT    NOT NULL DEFAULT '',
 
-    UNIQUE (block_id, cycle_index, week, lift_slug)
+    UNIQUE (block_id, cycle_index, round_number, lift_slug)
 );
 
-CREATE INDEX idx_workouts_block ON workouts (block_id, cycle_index, week);
+CREATE INDEX idx_workouts_block ON workouts (block_id, cycle_index, round_number);
 CREATE INDEX idx_workouts_lift  ON workouts (lift_slug, completed_at DESC);
 
 CREATE TABLE sets (

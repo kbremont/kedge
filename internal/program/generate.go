@@ -13,7 +13,7 @@ type setSpec struct {
 	amrap bool
 }
 
-// Percentage tables, indexed by week within the cycle. These are the numbers
+// Percentage tables, indexed by round within the cycle. These are the numbers
 // from the book and should not be edited casually; the tests pin them.
 var (
 	fivesPro = [][]setSpec{
@@ -28,7 +28,7 @@ var (
 		{{0.75, 5, false}, {0.85, 3, false}, {0.95, 1, true}},
 	}
 
-	deloadWeek = [][]setSpec{
+	deloadRound = [][]setSpec{
 		{{0.40, 5, false}, {0.50, 5, false}, {0.60, 5, false}},
 	}
 
@@ -42,27 +42,27 @@ func mainTable(s MainScheme) ([][]setSpec, error) {
 	case Scheme531PR:
 		return fiveThreeOnePR, nil
 	case SchemeDeload:
-		return deloadWeek, nil
+		return deloadRound, nil
 	default:
 		return nil, fmt.Errorf("program: unknown main scheme %q", s)
 	}
 }
 
 // GenerateWorkout expands a program into the concrete sets for one training
-// day: cycleIdx selects the cycle within the block, week is 1-indexed within
+// day: cycleIdx selects the cycle within the block, round is 1-indexed within
 // that cycle, and tm is the training max for the lift being trained.
 //
 // The caller is responsible for supplying the training max in force at the
 // time the workout is generated. Weights are absolute, so a later change to
 // the training max does not rewrite completed history.
-func GenerateWorkout(cfg Config, cycleIdx, week int, tm float64, s Settings) (Workout, error) {
+func GenerateWorkout(cfg Config, cycleIdx, round int, tm float64, s Settings) (Workout, error) {
 	if cycleIdx < 0 || cycleIdx >= len(cfg.Cycles) {
 		return Workout{}, fmt.Errorf("program: cycle index %d out of range (block has %d cycles)", cycleIdx, len(cfg.Cycles))
 	}
 	cycle := cfg.Cycles[cycleIdx]
 
-	if week < 1 || week > cycle.Weeks {
-		return Workout{}, fmt.Errorf("program: week %d out of range for cycle %q (%d weeks)", week, cycle.Label, cycle.Weeks)
+	if round < 1 || round > cycle.Rounds {
+		return Workout{}, fmt.Errorf("program: round %d out of range for cycle %q (%d rounds)", round, cycle.Label, cycle.Rounds)
 	}
 	if tm <= 0 {
 		return Workout{}, fmt.Errorf("program: training max must be positive, got %v", tm)
@@ -72,18 +72,18 @@ func GenerateWorkout(cfg Config, cycleIdx, week int, tm float64, s Settings) (Wo
 	if err != nil {
 		return Workout{}, err
 	}
-	if week > len(table) {
-		return Workout{}, fmt.Errorf("program: scheme %q has no week %d", cycle.Main, week)
+	if round > len(table) {
+		return Workout{}, fmt.Errorf("program: scheme %q has no round %d", cycle.Main, round)
 	}
-	mainWork := table[week-1]
+	mainWork := table[round-1]
 
 	out := Workout{
 		CycleLabel: cycle.Label,
 		Phase:      cycle.Phase,
-		Week:       week,
+		Round:      round,
 	}
 
-	// The deload week's working sets are already 40/50/60, so a separate
+	// The deload round's working sets are already 40/50/60, so a separate
 	// warmup would just repeat them.
 	if s.Warmups && cycle.Main != SchemeDeload {
 		for _, w := range warmupSets {
@@ -107,7 +107,7 @@ func GenerateWorkout(cfg Config, cycleIdx, week int, tm float64, s Settings) (Wo
 
 // supplementalSpecs expands a supplemental definition into individual sets.
 // First Set Last has no fixed percentage of its own; it reuses the opening
-// main set of whichever week is being run.
+// main set of whichever round is being run.
 func supplementalSpecs(sup Supplemental, mainWork []setSpec) []setSpec {
 	if sup.Kind == SuppNone || sup.Sets <= 0 {
 		return nil

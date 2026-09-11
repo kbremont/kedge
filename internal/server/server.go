@@ -64,6 +64,10 @@ func (s *Server) Handler() http.Handler {
 	app.HandleFunc("GET /{$}", s.handleDashboard)
 	app.HandleFunc("GET /setup", s.handleSetup)
 	app.HandleFunc("POST /setup", s.handleSetupSave)
+	app.HandleFunc("GET /setup/position", s.handleSetupPosition)
+	app.HandleFunc("POST /setup/position", s.handleSetupPositionSave)
+	app.HandleFunc("GET /setup/history", s.handleSetupHistory)
+	app.HandleFunc("POST /setup/history", s.handleSetupHistorySave)
 	app.HandleFunc("POST /logout", s.handleLogout)
 
 	app.HandleFunc("POST /workout/start", s.handleStartWorkout)
