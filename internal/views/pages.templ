@@ -1,0 +1,310 @@
+package views
+
+import "fmt"
+
+templ Dashboard(d DashboardVM) {
+	@Layout("Today", NavHome) {
+		if d.CycleDone {
+			@cycleDoneNotice(d)
+		}
+		if d.Next != nil {
+			@nextUpCard(*d.Next, d.Unit)
+		} else {
+			<div class="card empty">Nothing scheduled. Check your program in settings.</div>
+		}
+		<h2>Training maxes</h2>
+		<div class="card">
+			for i, tm := range d.TMs {
+				if i > 0 {
+					<div style="height:1px;background:var(--border);margin:10px 0"></div>
+				}
+				<a class="row" style="text-decoration:none;color:inherit" href={ templ.URL("/lift/" + tm.Slug) }>
+					<span>{ tm.Name }</span>
+					<span class="tnum muted">{ FmtWeightUnit(tm.Value, d.Unit) } &rsaquo;</span>
+				</a>
+			}
+		</div>
+		if len(d.Recent) > 0 {
+			<h2>Recent</h2>
+			<div class="card">
+				for _, h := range d.Recent {
+					<a class="hist" href={ templ.URL(fmt.Sprintf("/workout/%d", h.WorkoutID)) }>
+						<span>
+							{ h.LiftName }
+							<span class="muted small">&nbsp;{ h.CycleLabel }</span>
+						</span>
+						<span class="muted small tnum">{ h.Summary }</span>
+					</a>
+				}
+			</div>
+		}
+	}
+}
+
+templ nextUpCard(n NextUp, unit string) {
+	<div class="card next" style="margin-top:20px">
+		<div class="eyebrow">
+			if n.InProgress {
+				In progress
+			} else {
+				Next up
+			}
+		</div>
+		<div class="lift">{ n.LiftName }</div>
+		<div class="muted small tnum" style="margin-bottom:16px">
+			{ n.CycleLabel } &middot; TM { FmtWeightUnit(n.TrainingMax, unit) }
+			<br/>
+			Block { FmtInt(n.BlockNumber) } &middot; week { FmtInt(n.WeekOfBlock) } of { FmtInt(n.WeeksInBlock) }
+		</div>
+		if n.InProgress {
+			<a class="btn btn-primary" href={ templ.URL(fmt.Sprintf("/workout/%d", n.WorkoutID)) }>Resume session</a>
+		} else {
+			<form method="post" action="/workout/start">
+				<button class="btn btn-primary" type="submit">Start session</button>
+			</form>
+		}
+	</div>
+}
+
+// cycleDoneNotice offers a training max bump at a cycle boundary. It never
+// applies one; the user decides when their training max moves.
+templ cycleDoneNotice(d DashboardVM) {
+	<div class="notice" style="margin-top:20px">
+		<strong>{ d.CycleDoneLabel } complete.</strong>
+		<div class="small muted" style="margin:4px 0 12px">
+			Training maxes only change when you say so.
+		</div>
+		for _, s := range d.Suggestions {
+			<form method="post" action="/training-max" class="inline-form" style="margin-bottom:8px">
+				<input type="hidden" name="lift" value={ s.Slug }/>
+				<input type="hidden" name="note" value="cycle rollover"/>
+				<div class="field">
+					<label>{ s.Name } &middot; now { FmtWeight(s.Current) }</label>
+					<input type="number" name="value" step="0.5" inputmode="decimal" value={ FmtWeight(s.Next) }/>
+				</div>
+				<button class="btn" type="submit">Set</button>
+			</form>
+		}
+		<form method="post" action="/dismiss-suggestions">
+			<input type="hidden" name="key" value={ d.CycleDoneKey }/>
+			<button class="btn btn-ghost" type="submit">Keep them where they are</button>
+		</form>
+	</div>
+}
+
+templ History(h HistoryVM) {
+	@Layout("History", NavHistory) {
+		<h2>By lift</h2>
+		<div class="card">
+			for i, l := range h.Lifts {
+				if i > 0 {
+					<div style="height:1px;background:var(--border);margin:10px 0"></div>
+				}
+				<a class="row" style="text-decoration:none;color:inherit" href={ templ.URL("/lift/" + l.Slug) }>
+					<span>{ l.Name }</span>
+					<span class="muted">&rsaquo;</span>
+				</a>
+			}
+		</div>
+		<h2>Completed sessions</h2>
+		if len(h.Items) == 0 {
+			<div class="card empty">No sessions yet.</div>
+		} else {
+			<div class="card">
+				for _, it := range h.Items {
+					<a class="hist" href={ templ.URL(fmt.Sprintf("/workout/%d", it.WorkoutID)) }>
+						<span>
+							{ it.LiftName }
+							<span class="muted small">&nbsp;{ it.CycleLabel }</span>
+						</span>
+						<span class="muted small tnum">{ it.Date } &middot; { it.Summary }</span>
+					</a>
+				}
+			</div>
+		}
+	}
+}
+
+templ LiftDetail(l LiftVM) {
+	@Layout(l.Name, NavHistory) {
+		<div style="margin-top:20px">
+			<div class="next">
+				<div class="lift">{ l.Name }</div>
+				<div class="muted small tnum">
+					Training max { FmtWeightUnit(l.CurrentTM, l.Unit) }
+					if l.BestE1RM > 0 {
+						&middot; best estimated max { FmtWeightUnit(l.BestE1RM, l.Unit) }
+					}
+				</div>
+			</div>
+		</div>
+		<h2>Estimated max from PR sets</h2>
+		if len(l.Points) < 2 {
+			<div class="card empty">
+				Not enough data yet. PR sets only happen on anchor weeks, so the
+				first points arrive at the end of a block.
+			</div>
+		} else {
+			<div class="card">
+				@chart(l)
+			</div>
+		}
+		<h2>Training max history</h2>
+		<div class="card">
+			for i, t := range l.TMHistory {
+				if i > 0 {
+					<div style="height:1px;background:var(--border);margin:10px 0"></div>
+				}
+				<div class="row">
+					<span class="tnum">{ FmtWeightUnit(t.Value, l.Unit) }</span>
+					<span class="muted small">
+						{ t.Date }
+						if t.Note != "" {
+							&middot; { t.Note }
+						}
+					</span>
+				</div>
+			}
+		</div>
+	}
+}
+
+templ chart(l LiftVM) {
+	<svg class="chart" viewBox="0 0 320 160" preserveAspectRatio="none" role="img" aria-label="Estimated one rep max over time">
+		<line class="grid" x1="0" y1="130" x2="320" y2="130"></line>
+		<line class="grid" x1="0" y1="70" x2="320" y2="70"></line>
+		<line class="grid" x1="0" y1="10" x2="320" y2="10"></line>
+		<path class="line" d={ l.Path }></path>
+		for _, p := range l.Points {
+			<circle class="dot" cx={ FmtWeight(p.X) } cy={ FmtWeight(p.Y) } r="3.5"></circle>
+		}
+		<text class="lbl" x="2" y="146">{ FmtWeight(l.YMin) }</text>
+		<text class="lbl" x="2" y="8">{ FmtWeight(l.YMax) }</text>
+	</svg>
+}
+
+templ Settings(s SettingsVM) {
+	@Layout("Settings", NavSettings) {
+		if s.Saved {
+			<div class="notice" style="margin-top:20px">Saved.</div>
+		}
+		<h2>Training maxes</h2>
+		<div class="card">
+			<div class="small muted" style="margin-bottom:12px">
+				Changing a training max affects future sessions only. Completed
+				work keeps the weights it was performed at.
+			</div>
+			for _, tm := range s.TMs {
+				<form method="post" action="/training-max" class="inline-form" style="margin-bottom:10px">
+					<input type="hidden" name="lift" value={ tm.Slug }/>
+					<div class="field">
+						<label>{ tm.Name }</label>
+						<input type="number" name="value" step="0.5" inputmode="decimal" value={ FmtWeight(tm.Value) }/>
+					</div>
+					<button class="btn" type="submit">Save</button>
+				</form>
+			}
+		</div>
+		<h2>Loading</h2>
+		<form method="post" action="/settings">
+			<div class="card">
+				<div class="field">
+					<label for="bar">Bar weight ({ s.Unit })</label>
+					<input id="bar" type="number" name="bar_weight" step="0.5" inputmode="decimal" value={ FmtWeight(s.BarWeight) }/>
+				</div>
+				<div class="field">
+					<label for="rounding">Round weights to ({ s.Unit })</label>
+					<input id="rounding" type="number" name="rounding" step="0.5" inputmode="decimal" value={ FmtWeight(s.Rounding) }/>
+				</div>
+				<div class="field">
+					<label for="plates">Plates available, per side</label>
+					<input id="plates" type="text" name="plates" inputmode="decimal" value={ s.Plates }/>
+				</div>
+				<div class="field">
+					<label for="rest">Rest timer (seconds)</label>
+					<input id="rest" type="number" name="rest_seconds" inputmode="numeric" value={ FmtInt(s.RestSeconds) }/>
+				</div>
+				<div class="field">
+					<label>
+						if s.Warmups {
+							<input type="checkbox" name="warmups" value="1" checked/>
+						} else {
+							<input type="checkbox" name="warmups" value="1"/>
+						}
+						&nbsp;Include 40/50/60 warmup sets
+					</label>
+				</div>
+			</div>
+			<button class="btn btn-primary" type="submit">Save settings</button>
+		</form>
+		<h2>Data</h2>
+		<div class="card">
+			<div class="small muted" style="margin-bottom:12px">
+				Downloads a consistent snapshot of the database. Safe to run while
+				the app is in use.
+			</div>
+			<a class="btn" href="/backup">Download backup</a>
+		</div>
+		<h2>Session</h2>
+		<form method="post" action="/logout">
+			<button class="btn btn-ghost" type="submit">Sign out</button>
+		</form>
+	}
+}
+
+templ Login(errMsg string) {
+	@Bare("Sign in") {
+		<div class="next" style="margin-bottom:20px">
+			<div class="lift">5/3/1</div>
+			<div class="muted small">Sign in to continue.</div>
+		</div>
+		if errMsg != "" {
+			<div class="error">{ errMsg }</div>
+		}
+		<form method="post" action="/login">
+			<div class="card">
+				<div class="field">
+					<label for="password">Password</label>
+					<input id="password" type="password" name="password" autocomplete="current-password" autofocus/>
+				</div>
+			</div>
+			<button class="btn btn-primary" type="submit">Sign in</button>
+		</form>
+	}
+}
+
+templ Setup(s SetupVM) {
+	@Bare("Set up") {
+		<div class="next" style="margin-bottom:16px">
+			<div class="lift">Training maxes</div>
+			<div class="muted small">
+				Start at 90% of a recent, honest one rep max. If in doubt, go lower.
+				You can change these at any time.
+			</div>
+		</div>
+		if s.Error != "" {
+			<div class="error">{ s.Error }</div>
+		}
+		<form method="post" action="/setup">
+			<div class="card">
+				for _, l := range s.Lifts {
+					<div class="field">
+						<label for={ "tm-" + l.Slug }>{ l.Name } ({ s.Unit })</label>
+						<input
+							id={ "tm-" + l.Slug }
+							type="number"
+							name={ "tm_" + l.Slug }
+							step="0.5"
+							inputmode="decimal"
+							required
+							if l.Value > 0 {
+								value={ FmtWeight(l.Value) }
+							}
+						/>
+					</div>
+				}
+			</div>
+			<button class="btn btn-primary" type="submit">Start training</button>
+		</form>
+	}
+}

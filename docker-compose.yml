@@ -1,0 +1,28 @@
+services:
+  531:
+    # Build locally, or swap in a published image:
+    #   image: ghcr.io/<you>/531-tracker:latest
+    build:
+      context: .
+      args:
+        VERSION: dev
+    container_name: 531
+    restart: unless-stopped
+    environment:
+      # Required. Change this before exposing the app to anything.
+      AUTH_PASSWORD: ${AUTH_PASSWORD:?set AUTH_PASSWORD in .env}
+      # Dates are shown in this zone; the database stores UTC.
+      TZ: ${TZ:-America/New_York}
+    volumes:
+      - ./data:/data
+    # Bound to localhost because Tailscale Serve is what publishes it.
+    # Use "3000:3000" instead to reach it directly on the LAN.
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      # The scratch image has no shell or curl, so the binary checks itself.
+      test: ["CMD", "/server", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
