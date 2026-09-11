@@ -161,7 +161,7 @@ func (q *Queries) GetCurrentTrainingMax(ctx context.Context, liftSlug string) (T
 }
 
 const getLift = `-- name: GetLift :one
-SELECT slug, name, is_upper, day_order FROM lifts WHERE slug = ?
+SELECT slug, name, is_upper, day_order, bbb_mode, bbb_value FROM lifts WHERE slug = ?
 `
 
 func (q *Queries) GetLift(ctx context.Context, slug string) (Lift, error) {
@@ -172,12 +172,14 @@ func (q *Queries) GetLift(ctx context.Context, slug string) (Lift, error) {
 		&i.Name,
 		&i.IsUpper,
 		&i.DayOrder,
+		&i.BbbMode,
+		&i.BbbValue,
 	)
 	return i, err
 }
 
 const getSettings = `-- name: GetSettings :one
-SELECT id, unit, rounding, bar_weight, plates, warmups, rest_seconds, dismissed_cycle, updated_at FROM settings WHERE id = 1
+SELECT id, unit, rounding, bar_weight, plates, warmups, dismissed_cycle, updated_at, rest_warmup_seconds, rest_main_seconds, rest_supp_seconds FROM settings WHERE id = 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -190,9 +192,11 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.BarWeight,
 		&i.Plates,
 		&i.Warmups,
-		&i.RestSeconds,
 		&i.DismissedCycle,
 		&i.UpdatedAt,
+		&i.RestWarmupSeconds,
+		&i.RestMainSeconds,
+		&i.RestSuppSeconds,
 	)
 	return i, err
 }
@@ -510,7 +514,7 @@ func (q *Queries) ListCurrentTrainingMaxes(ctx context.Context) ([]ListCurrentTr
 }
 
 const listLifts = `-- name: ListLifts :many
-SELECT slug, name, is_upper, day_order FROM lifts ORDER BY day_order
+SELECT slug, name, is_upper, day_order, bbb_mode, bbb_value FROM lifts ORDER BY day_order
 `
 
 func (q *Queries) ListLifts(ctx context.Context) ([]Lift, error) {
@@ -527,6 +531,8 @@ func (q *Queries) ListLifts(ctx context.Context) ([]Lift, error) {
 			&i.Name,
 			&i.IsUpper,
 			&i.DayOrder,
+			&i.BbbMode,
+			&i.BbbValue,
 		); err != nil {
 			return nil, err
 		}
@@ -745,6 +751,21 @@ func (q *Queries) SetBlockStartCycle(ctx context.Context, arg SetBlockStartCycle
 	return err
 }
 
+const setLiftBBB = `-- name: SetLiftBBB :exec
+UPDATE lifts SET bbb_mode = ?, bbb_value = ? WHERE slug = ?
+`
+
+type SetLiftBBBParams struct {
+	BbbMode  string
+	BbbValue float64
+	Slug     string
+}
+
+func (q *Queries) SetLiftBBB(ctx context.Context, arg SetLiftBBBParams) error {
+	_, err := q.db.ExecContext(ctx, setLiftBBB, arg.BbbMode, arg.BbbValue, arg.Slug)
+	return err
+}
+
 const setTrainingMax = `-- name: SetTrainingMax :one
 INSERT INTO training_maxes (lift_slug, value, note)
 VALUES (?, ?, ?)
@@ -786,18 +807,21 @@ func (q *Queries) SetWorkoutNotes(ctx context.Context, arg SetWorkoutNotesParams
 
 const updateSettings = `-- name: UpdateSettings :exec
 UPDATE settings
-SET unit = ?, rounding = ?, bar_weight = ?, plates = ?, warmups = ?, rest_seconds = ?,
+SET unit = ?, rounding = ?, bar_weight = ?, plates = ?, warmups = ?,
+    rest_warmup_seconds = ?, rest_main_seconds = ?, rest_supp_seconds = ?,
     updated_at = datetime('now')
 WHERE id = 1
 `
 
 type UpdateSettingsParams struct {
-	Unit        string
-	Rounding    float64
-	BarWeight   float64
-	Plates      string
-	Warmups     int64
-	RestSeconds int64
+	Unit              string
+	Rounding          float64
+	BarWeight         float64
+	Plates            string
+	Warmups           int64
+	RestWarmupSeconds int64
+	RestMainSeconds   int64
+	RestSuppSeconds   int64
 }
 
 func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) error {
@@ -807,7 +831,9 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		arg.BarWeight,
 		arg.Plates,
 		arg.Warmups,
-		arg.RestSeconds,
+		arg.RestWarmupSeconds,
+		arg.RestMainSeconds,
+		arg.RestSuppSeconds,
 	)
 	return err
 }

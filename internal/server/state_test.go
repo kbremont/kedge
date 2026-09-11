@@ -3,6 +3,7 @@ package server
 import (
 	"testing"
 
+	"github.com/kbremont/531-tracker/internal/db"
 	"github.com/kbremont/531-tracker/internal/program"
 )
 
@@ -98,5 +99,56 @@ func TestFormFieldNames(t *testing.T) {
 	}
 	if got, want := repsField(3, "deadlift"), "reps_r3_deadlift"; got != want {
 		t.Errorf("repsField = %q, want %q", got, want)
+	}
+	if got, want := bbbModeField("press"), "bbb_mode_press"; got != want {
+		t.Errorf("bbbModeField = %q, want %q", got, want)
+	}
+	if got, want := bbbValueField("deadlift"), "bbb_value_deadlift"; got != want {
+		t.Errorf("bbbValueField = %q, want %q", got, want)
+	}
+}
+
+// TestBBBPctFor pins how a lift's BBB preference turns into the fraction of
+// training max the engine should load.
+func TestBBBPctFor(t *testing.T) {
+	cases := []struct {
+		name string
+		lift db.Lift
+		tm   float64
+		want float64
+	}{
+		{"program mode", db.Lift{BbbMode: "program", BbbValue: 0.5}, 300, 0},
+		{"percent mode", db.Lift{BbbMode: "percent", BbbValue: 0.4}, 300, 0.4},
+		{"percent mode zero value", db.Lift{BbbMode: "percent", BbbValue: 0}, 300, 0},
+		{"weight mode", db.Lift{BbbMode: "weight", BbbValue: 150}, 300, 0.5},
+		{"weight mode zero tm", db.Lift{BbbMode: "weight", BbbValue: 150}, 0, 0},
+		{"unknown mode", db.Lift{BbbMode: "bogus", BbbValue: 150}, 300, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := bbbPctFor(tc.lift, tc.tm); got != tc.want {
+				t.Errorf("bbbPctFor(%+v, %v) = %v, want %v", tc.lift, tc.tm, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestRestSecondsFor pins the rest-interval lookup used when a set is logged.
+func TestRestSecondsFor(t *testing.T) {
+	raw := db.Setting{RestWarmupSeconds: 30, RestMainSeconds: 240, RestSuppSeconds: 60}
+
+	cases := []struct {
+		kind program.SetKind
+		want int
+	}{
+		{program.KindWarmup, 30},
+		{program.KindMain, 240},
+		{program.KindSupp, 60},
+		{program.SetKind("unknown"), 240},
+	}
+	for _, tc := range cases {
+		if got := restSecondsFor(raw, tc.kind); got != tc.want {
+			t.Errorf("restSecondsFor(%q) = %d, want %d", tc.kind, got, tc.want)
+		}
 	}
 }

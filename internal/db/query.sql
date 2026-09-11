@@ -3,7 +3,8 @@ SELECT * FROM settings WHERE id = 1;
 
 -- name: UpdateSettings :exec
 UPDATE settings
-SET unit = ?, rounding = ?, bar_weight = ?, plates = ?, warmups = ?, rest_seconds = ?,
+SET unit = ?, rounding = ?, bar_weight = ?, plates = ?, warmups = ?,
+    rest_warmup_seconds = ?, rest_main_seconds = ?, rest_supp_seconds = ?,
     updated_at = datetime('now')
 WHERE id = 1;
 
@@ -12,6 +13,9 @@ SELECT * FROM lifts ORDER BY day_order;
 
 -- name: GetLift :one
 SELECT * FROM lifts WHERE slug = ?;
+
+-- name: SetLiftBBB :exec
+UPDATE lifts SET bbb_mode = ?, bbb_value = ? WHERE slug = ?;
 
 -- name: GetCurrentTrainingMax :one
 SELECT * FROM training_maxes

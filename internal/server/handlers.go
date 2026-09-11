@@ -267,18 +267,39 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, fmt.Errorf("list training maxes: %w", err))
 		return
 	}
+	lifts, err := s.q.ListLifts(ctx)
+	if err != nil {
+		s.fail(w, r, fmt.Errorf("list lifts: %w", err))
+		return
+	}
 
 	vm := views.SettingsVM{
-		Unit:        raw.Unit,
-		Rounding:    raw.Rounding,
-		BarWeight:   raw.BarWeight,
-		Plates:      formatPlates(settings.Plates),
-		Warmups:     settings.Warmups,
-		RestSeconds: int(raw.RestSeconds),
-		Saved:       r.URL.Query().Get("saved") == "1",
+		Unit:              raw.Unit,
+		Rounding:          raw.Rounding,
+		BarWeight:         raw.BarWeight,
+		Plates:            formatPlates(settings.Plates),
+		Warmups:           settings.Warmups,
+		RestWarmupSeconds: int(raw.RestWarmupSeconds),
+		RestMainSeconds:   int(raw.RestMainSeconds),
+		RestSuppSeconds:   int(raw.RestSuppSeconds),
+		Saved:             r.URL.Query().Get("saved") == "1",
 	}
 	for _, tm := range tms {
 		vm.TMs = append(vm.TMs, views.LiftTM{Slug: tm.Slug, Name: tm.Name, Value: tm.Value})
+	}
+	for _, l := range lifts {
+		bbb := views.LiftBBB{
+			Slug:       l.Slug,
+			Name:       l.Name,
+			Mode:       l.BbbMode,
+			Value:      l.BbbValue,
+			ModeField:  bbbModeField(l.Slug),
+			ValueField: bbbValueField(l.Slug),
+		}
+		if bbb.Mode == "percent" {
+			bbb.Value *= 100
+		}
+		vm.BBB = append(vm.BBB, bbb)
 	}
 	s.render(w, r, views.Settings(vm))
 }
@@ -313,15 +334,52 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := db.UpdateSettingsParams{
-		Unit:        raw.Unit, // pounds only for now; the column exists for later
-		Rounding:    positiveOr(r.PostFormValue("rounding"), raw.Rounding),
-		BarWeight:   positiveOr(r.PostFormValue("bar_weight"), raw.BarWeight),
-		Plates:      string(encoded),
-		Warmups:     warmups,
-		RestSeconds: int64(positiveOr(r.PostFormValue("rest_seconds"), float64(raw.RestSeconds))),
+		Unit:              raw.Unit, // pounds only for now; the column exists for later
+		Rounding:          positiveOr(r.PostFormValue("rounding"), raw.Rounding),
+		BarWeight:         positiveOr(r.PostFormValue("bar_weight"), raw.BarWeight),
+		Plates:            string(encoded),
+		Warmups:           warmups,
+		RestWarmupSeconds: int64(positiveOr(r.PostFormValue("rest_warmup_seconds"), float64(raw.RestWarmupSeconds))),
+		RestMainSeconds:   int64(positiveOr(r.PostFormValue("rest_main_seconds"), float64(raw.RestMainSeconds))),
+		RestSuppSeconds:   int64(positiveOr(r.PostFormValue("rest_supp_seconds"), float64(raw.RestSuppSeconds))),
 	}
 	if err := s.q.UpdateSettings(ctx, params); err != nil {
 		s.fail(w, r, fmt.Errorf("update settings: %w", err))
+		return
+	}
+
+	lifts, err := s.q.ListLifts(ctx)
+	if err != nil {
+		s.fail(w, r, fmt.Errorf("list lifts: %w", err))
+		return
+	}
+	err = s.tx(ctx, func(q *db.Queries) error {
+		for _, l := range lifts {
+			mode := r.PostFormValue(bbbModeField(l.Slug))
+			value := positiveOr(r.PostFormValue(bbbValueField(l.Slug)), 0)
+			switch mode {
+			case "percent":
+				value /= 100
+			case "weight":
+				// value is already an absolute weight
+			default:
+				mode = "program"
+			}
+			if value <= 0 {
+				mode = "program"
+			}
+			if err := q.SetLiftBBB(ctx, db.SetLiftBBBParams{
+				BbbMode:  mode,
+				BbbValue: value,
+				Slug:     l.Slug,
+			}); err != nil {
+				return fmt.Errorf("set BBB for %s: %w", l.Slug, err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		s.fail(w, r, err)
 		return
 	}
 	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)

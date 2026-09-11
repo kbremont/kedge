@@ -205,8 +205,8 @@ templ Settings(s SettingsVM) {
 				</form>
 			}
 		</div>
-		<h2>Loading</h2>
 		<form method="post" action="/settings">
+			<h2>Loading</h2>
 			<div class="card">
 				<div class="field">
 					<label for="bar">Bar weight ({ s.Unit })</label>
@@ -221,10 +221,6 @@ templ Settings(s SettingsVM) {
 					<input id="plates" type="text" name="plates" inputmode="decimal" value={ s.Plates }/>
 				</div>
 				<div class="field">
-					<label for="rest">Rest timer (seconds)</label>
-					<input id="rest" type="number" name="rest_seconds" inputmode="numeric" value={ FmtInt(s.RestSeconds) }/>
-				</div>
-				<div class="field">
 					<label>
 						if s.Warmups {
 							<input type="checkbox" name="warmups" value="1" checked/>
@@ -234,6 +230,43 @@ templ Settings(s SettingsVM) {
 						&nbsp;Include 40/50/60 warmup sets
 					</label>
 				</div>
+			</div>
+			<h2>Rest timers</h2>
+			<div class="card">
+				<div class="field">
+					<label for="rest-warmup">Between warmups (seconds)</label>
+					<input id="rest-warmup" type="number" name="rest_warmup_seconds" inputmode="numeric" value={ FmtInt(s.RestWarmupSeconds) }/>
+				</div>
+				<div class="field">
+					<label for="rest-main">Between main sets (seconds)</label>
+					<input id="rest-main" type="number" name="rest_main_seconds" inputmode="numeric" value={ FmtInt(s.RestMainSeconds) }/>
+				</div>
+				<div class="field">
+					<label for="rest-supp">Between supplemental sets (BBB and FSL) (seconds)</label>
+					<input id="rest-supp" type="number" name="rest_supp_seconds" inputmode="numeric" value={ FmtInt(s.RestSuppSeconds) }/>
+				</div>
+			</div>
+			<h2>Supplemental (BBB)</h2>
+			<div class="card">
+				<div class="small muted" style="margin-bottom:12px">
+					The program default is used when the mode is "Program default".
+				</div>
+				for _, b := range s.BBB {
+					<div class="inline-form" style="margin-bottom:10px">
+						<div class="field">
+							<label>{ b.Name }</label>
+							<select name={ b.ModeField }>
+								<option value="program" selected?={ b.Mode == "program" }>Program default</option>
+								<option value="percent" selected?={ b.Mode == "percent" }>Percent of training max</option>
+								<option value="weight" selected?={ b.Mode == "weight" }>Fixed weight</option>
+							</select>
+						</div>
+						<div class="field">
+							<label for={ "bbb-value-" + b.Slug }>Value</label>
+							<input id={ "bbb-value-" + b.Slug } type="number" name={ b.ValueField } step="0.5" inputmode="decimal" value={ FmtWeight(b.Value) }/>
+						</div>
+					</div>
+				}
 			</div>
 			<button class="btn btn-primary" type="submit">Save settings</button>
 		</form>

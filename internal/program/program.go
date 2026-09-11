@@ -162,6 +162,26 @@ func LeaderAnchorBBB() Config {
 	}
 }
 
+// WithBBBPct returns a copy of the config in which every Boring But Big cycle is
+// loaded at pct instead of the percentage the template prescribes. A pct of zero
+// or less returns the config unchanged, which is what "use the program's own
+// value" means at the call site. FSL and deload cycles are untouched.
+func (c Config) WithBBBPct(pct float64) Config {
+	if pct <= 0 {
+		return c
+	}
+	cycles := make([]CycleSpec, len(c.Cycles))
+	copy(cycles, c.Cycles)
+	for i, cy := range cycles {
+		if cy.Supp.Kind == SuppBBB {
+			cy.Supp.Pct = pct
+			cycles[i] = cy
+		}
+	}
+	c.Cycles = cycles
+	return c
+}
+
 // RoundsPerBlock is the total number of training rounds in one pass through the
 // program.
 func (c Config) RoundsPerBlock() int {

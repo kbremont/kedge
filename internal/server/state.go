@@ -211,6 +211,35 @@ func (s *Server) loadState(ctx context.Context) (*blockState, error) {
 	return state, nil
 }
 
+// bbbPctFor turns a lift's BBB preference into the fraction of its training max
+// the engine should load, or 0 to leave the program's own percentage alone.
+// An absolute weight becomes a fraction here, where the training max is known.
+func bbbPctFor(lift db.Lift, tm float64) float64 {
+	switch lift.BbbMode {
+	case "percent":
+		if lift.BbbValue > 0 {
+			return lift.BbbValue
+		}
+	case "weight":
+		if lift.BbbValue > 0 && tm > 0 {
+			return lift.BbbValue / tm
+		}
+	}
+	return 0
+}
+
+// restSecondsFor returns the rest interval for the kind of set just completed.
+func restSecondsFor(raw db.Setting, kind program.SetKind) int {
+	switch kind {
+	case program.KindWarmup:
+		return int(raw.RestWarmupSeconds)
+	case program.KindSupp:
+		return int(raw.RestSuppSeconds)
+	default:
+		return int(raw.RestMainSeconds)
+	}
+}
+
 // roundOfBlock converts a position into its 1-indexed round within the whole
 // block, for the "round 7 of 10" line on the dashboard.
 func roundOfBlock(cfg program.Config, p program.Position) int {
