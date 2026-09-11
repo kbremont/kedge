@@ -157,6 +157,65 @@ func TestBBBIsFixedPercentage(t *testing.T) {
 	}
 }
 
+// TestWithBBBPct checks that the override replaces BBB's load on both leader
+// cycles, leaves FSL and deload alone, and does not mutate the receiver.
+func TestWithBBBPct(t *testing.T) {
+	cfg := LeaderAnchorBBB()
+	overridden := cfg.WithBBBPct(0.45)
+
+	if overridden.Cycles[0].Supp.Pct != 0.45 {
+		t.Errorf("leader 1 BBB pct = %v, want 0.45", overridden.Cycles[0].Supp.Pct)
+	}
+	if overridden.Cycles[1].Supp.Pct != 0.45 {
+		t.Errorf("leader 2 BBB pct = %v, want 0.45", overridden.Cycles[1].Supp.Pct)
+	}
+	if overridden.Cycles[3].Supp.Kind != SuppFSL || overridden.Cycles[3].Supp.Pct != 0 {
+		t.Errorf("anchor FSL cycle changed: %+v", overridden.Cycles[3].Supp)
+	}
+
+	// The receiver's backing array must be untouched.
+	if cfg.Cycles[0].Supp.Pct != 0.50 {
+		t.Errorf("receiver mutated: leader 1 BBB pct = %v, want 0.50", cfg.Cycles[0].Supp.Pct)
+	}
+	if cfg.Cycles[1].Supp.Pct != 0.60 {
+		t.Errorf("receiver mutated: leader 2 BBB pct = %v, want 0.60", cfg.Cycles[1].Supp.Pct)
+	}
+
+	// A non-positive pct means "use the program's own value".
+	unchanged := cfg.WithBBBPct(0)
+	if unchanged.Cycles[0].Supp.Pct != 0.50 {
+		t.Errorf("WithBBBPct(0) changed leader 1 pct to %v, want unchanged 0.50", unchanged.Cycles[0].Supp.Pct)
+	}
+	if cfg.WithBBBPct(-1).Cycles[0].Supp.Pct != 0.50 {
+		t.Errorf("WithBBBPct(-1) should leave the config unchanged")
+	}
+}
+
+// TestGenerateWorkoutWithBBBOverride checks that an overridden config produces
+// BBB sets at the new load, without disturbing main or warmup sets.
+func TestGenerateWorkoutWithBBBOverride(t *testing.T) {
+	cfg := LeaderAnchorBBB().WithBBBPct(0.40)
+	s := testSettings()
+
+	w, err := GenerateWorkout(cfg, 0, 1, 300, s)
+	if err != nil {
+		t.Fatalf("GenerateWorkout: %v", err)
+	}
+	supp := setsOfKind(w, KindSupp)
+	if len(supp) != 5 {
+		t.Fatalf("got %d supplemental sets, want 5", len(supp))
+	}
+	for i, set := range supp {
+		if !nearly(set.Weight, 120) { // 40% of 300
+			t.Errorf("set %d: weight = %v, want 120", i, set.Weight)
+		}
+	}
+	main := setsOfKind(w, KindMain)
+	if !nearly(main[0].Weight, 195) || !nearly(main[1].Weight, 225) || !nearly(main[2].Weight, 255) {
+		t.Errorf("main sets changed by BBB override: %+v", main)
+	}
+}
+
 // TestFSLTracksRoundOpener checks that First Set Last follows the round's
 // opening percentage rather than sitting at a fixed load like BBB.
 func TestFSLTracksRoundOpener(t *testing.T) {

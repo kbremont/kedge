@@ -50,7 +50,8 @@ func (s *Server) handleStartWorkout(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	generated, err := program.GenerateWorkout(state.Config, pos.CycleIndex, pos.Round, tm, state.Settings)
+	cfg := state.Config.WithBBBPct(bbbPctFor(lift, tm))
+	generated, err := program.GenerateWorkout(cfg, pos.CycleIndex, pos.Round, tm, state.Settings)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -137,7 +138,7 @@ func (s *Server) handleWorkout(w http.ResponseWriter, r *http.Request) {
 		Unit:        raw.Unit,
 		TrainingMax: workout.TrainingMax,
 		CurrentIdx:  -1,
-		RestSeconds: int(raw.RestSeconds),
+		RestSeconds: restSecondsFor(raw, program.KindMain),
 		ShowRest:    r.URL.Query().Get("rest") == "1",
 		Completed:   workout.CompletedAt.Valid,
 	}
@@ -158,6 +159,9 @@ func (s *Server) handleWorkout(w http.ResponseWriter, r *http.Request) {
 		})
 		if vm.CurrentIdx < 0 && !set.CompletedAt.Valid {
 			vm.CurrentIdx = int(set.Idx)
+		}
+		if set.CompletedAt.Valid {
+			vm.RestSeconds = restSecondsFor(raw, program.SetKind(set.Kind))
 		}
 	}
 

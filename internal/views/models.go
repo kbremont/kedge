@@ -138,14 +138,26 @@ type TMHistoryItem struct {
 
 // SettingsVM is the settings screen.
 type SettingsVM struct {
-	Unit        string
-	Rounding    float64
-	BarWeight   float64
-	Plates      string
-	Warmups     bool
-	RestSeconds int
-	TMs         []LiftTM
-	Saved       bool
+	Unit              string
+	Rounding          float64
+	BarWeight         float64
+	Plates            string
+	Warmups           bool
+	RestWarmupSeconds int
+	RestMainSeconds   int
+	RestSuppSeconds   int
+	TMs               []LiftTM
+	BBB               []LiftBBB
+	Saved             bool
+}
+
+// LiftBBB is one lift's supplemental override on the settings screen.
+type LiftBBB struct {
+	Slug, Name string
+	Mode       string  // program, percent, weight
+	Value      float64 // whole percent when Mode is percent, otherwise a weight
+	ModeField  string  // form field name for the mode select
+	ValueField string  // form field name for the value input
 }
 
 // SetupVM is the first-run screen where training maxes are entered.

@@ -22,6 +22,8 @@ type Lift struct {
 	Name     string
 	IsUpper  int64
 	DayOrder int64
+	BbbMode  string
+	BbbValue float64
 }
 
 type Program struct {
@@ -45,15 +47,17 @@ type Set struct {
 }
 
 type Setting struct {
-	ID             int64
-	Unit           string
-	Rounding       float64
-	BarWeight      float64
-	Plates         string
-	Warmups        int64
-	RestSeconds    int64
-	DismissedCycle string
-	UpdatedAt      string
+	ID                int64
+	Unit              string
+	Rounding          float64
+	BarWeight         float64
+	Plates            string
+	Warmups           int64
+	DismissedCycle    string
+	UpdatedAt         string
+	RestWarmupSeconds int64
+	RestMainSeconds   int64
+	RestSuppSeconds   int64
 }
 
 type TrainingMax struct {

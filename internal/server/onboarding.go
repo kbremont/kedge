@@ -21,6 +21,9 @@ import (
 func doneField(round int, slug string) string { return fmt.Sprintf("done_r%d_%s", round, slug) }
 func repsField(round int, slug string) string { return fmt.Sprintf("reps_r%d_%s", round, slug) }
 
+func bbbModeField(slug string) string  { return "bbb_mode_" + slug }
+func bbbValueField(slug string) string { return "bbb_value_" + slug }
+
 func (s *Server) handleSetupPosition(w http.ResponseWriter, r *http.Request) {
 	_, cfg, err := s.activeProgram(r.Context())
 	if err != nil {
@@ -185,7 +188,7 @@ func (s *Server) recordPastSession(
 	if err != nil {
 		return err
 	}
-	generated, err := program.GenerateWorkout(cfg, cycleIdx, round, tm, data.Settings)
+	generated, err := program.GenerateWorkout(cfg.WithBBBPct(data.BBBPct[slug]), cycleIdx, round, tm, data.Settings)
 	if err != nil {
 		return err
 	}
@@ -237,6 +240,7 @@ func (s *Server) recordPastSession(
 type setupData struct {
 	Settings program.Settings
 	TMs      map[string]float64
+	BBBPct   map[string]float64
 }
 
 var (
@@ -280,6 +284,10 @@ func (s *Server) buildSetupHistory(ctx context.Context, rawCycle string) (*views
 	for _, row := range tmRows {
 		tms[row.Slug] = row.Value
 	}
+	bbbPct := make(map[string]float64, len(lifts))
+	for _, lift := range lifts {
+		bbbPct[lift.Slug] = bbbPctFor(lift, tms[lift.Slug])
+	}
 
 	vm := &views.SetupHistoryVM{
 		CycleIndex: idx,
@@ -290,7 +298,7 @@ func (s *Server) buildSetupHistory(ctx context.Context, rawCycle string) (*views
 	for round := 1; round <= cycle.Rounds; round++ {
 		rd := views.SetupRoundVM{Round: round}
 		for _, lift := range lifts {
-			generated, err := program.GenerateWorkout(cfg, idx, round, tms[lift.Slug], settings)
+			generated, err := program.GenerateWorkout(cfg.WithBBBPct(bbbPct[lift.Slug]), idx, round, tms[lift.Slug], settings)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -306,7 +314,7 @@ func (s *Server) buildSetupHistory(ctx context.Context, rawCycle string) (*views
 		}
 		vm.Rounds = append(vm.Rounds, rd)
 	}
-	return vm, &setupData{Settings: settings, TMs: tms}, nil
+	return vm, &setupData{Settings: settings, TMs: tms, BBBPct: bbbPct}, nil
 }
 
 // topMainSet returns the heaviest main set of a session, and the rep target of

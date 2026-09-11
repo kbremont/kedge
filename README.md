@@ -21,6 +21,11 @@ The default block is ten rounds and then repeats:
 | 7      | Deload | 40/50/60 × 5 | — |
 | 8–10   | Anchor | 5/3/1 with a PR set | FSL 5×5 |
 
+BBB load can be overridden per lift from Settings, as a percentage of that
+lift's training max or as a fixed weight, replacing the 50%/60% ramp above for
+that lift. Rest is configurable separately for warmups, main sets, and
+supplemental work (BBB and FSL).
+
 Four sessions to a round, one lift each: press, deadlift, bench, squat.
 Supplemental work is on the same lift as the main work.
 
