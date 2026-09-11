@@ -131,6 +131,17 @@ first place to look when something prescribes the wrong number.
 ### Deploying to the Pi
 
 Let CI cross-build for arm64 and pull the image; building on the Pi itself is
-slow. `.github/workflows/build.yml` publishes to GHCR on push to `main`. Point
-`image:` in the compose file at `ghcr.io/<you>/531-tracker:latest` and drop the
-`build:` block.
+slow. `.github/workflows/release.yml` publishes to GHCR on every push to
+`main`. The compose file already points `image:` at
+`ghcr.io/kbremont/531-tracker:latest` and keeps the `build:` block alongside
+it, so the same file works both ways:
+
+| Goal | Command |
+|---|---|
+| Update the Pi | `docker compose pull && docker compose up -d` |
+| Test the real container locally | `docker compose up --build` |
+| Day-to-day development | `make run` (unchanged, no Docker) |
+
+Always `pull` first and check it succeeded — if `pull` fails and no image is
+cached locally, `up` silently falls back to building on the Pi, which is slow
+and the thing this setup exists to avoid.

@@ -1,7 +1,8 @@
 services:
   531:
-    # Build locally, or swap in a published image:
-    #   image: ghcr.io/<you>/531-tracker:latest
+    # `docker compose pull` fetches this; `docker compose up --build` builds
+    # the working tree and tags it under the same name instead.
+    image: ghcr.io/kbremont/531-tracker:latest
     build:
       context: .
       args:
