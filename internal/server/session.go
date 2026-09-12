@@ -227,7 +227,7 @@ func (s *Server) redirectToNextSet(w http.ResponseWriter, r *http.Request, worko
 	}
 	for _, set := range sets {
 		if !set.CompletedAt.Valid {
-			http.Redirect(w, r, fmt.Sprintf("/workout/%d?rest=1#set-%d", workoutID, set.Idx), http.StatusSeeOther)
+			http.Redirect(w, r, fmt.Sprintf("/workout/%d?rest=1#rest", workoutID), http.StatusSeeOther)
 			return
 		}
 	}

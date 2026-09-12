@@ -4,7 +4,6 @@ import "fmt"
 
 templ Workout(w WorkoutVM) {
 	@Layout(w.LiftName, NavHome) {
-		@templ.Raw(restStyle(w.RestSeconds))
 		<div style="margin-top:20px">
 			<div class="next">
 				<div class="eyebrow">{ w.CycleLabel }</div>
@@ -14,11 +13,11 @@ templ Workout(w WorkoutVM) {
 				</div>
 			</div>
 		</div>
-		if w.ShowRest && w.CurrentIdx >= 0 {
-			@restTimer(w.RestSeconds)
-		}
 		<div style="margin-top:16px">
 			for _, s := range w.Sets {
+				if w.ShowRest && s.Idx == w.CurrentIdx {
+					@restTimer(w.RestSeconds)
+				}
 				@setRow(w, s)
 			}
 		</div>
@@ -37,13 +36,30 @@ templ Workout(w WorkoutVM) {
 }
 
 templ restTimer(seconds int) {
-	<div class="rest">
+	@templ.Raw(restStyle(seconds))
+	<div class="rest" id="rest">
 		<div class="row">
 			<span class="small muted">Rest</span>
-			<span class="small muted tnum">{ FmtInt(seconds) }s</span>
+			<span class="small muted tnum rest-count"></span>
 		</div>
 		<div class="rest-track"><div class="rest-fill"></div></div>
 	</div>
+}
+
+// restStyle sets the countdown duration and the integer the counter starts
+// from. Both depend on the rest interval, so they are emitted as a style
+// element rather than an inline attribute and the animation stays entirely
+// in CSS.
+func restStyle(seconds int) string {
+	if seconds < 1 {
+		seconds = 1 // steps(0) would invalidate the animation
+	}
+	return fmt.Sprintf(
+		"<style>.rest-fill,.rest-count{animation-duration:%[1]ds}"+
+			".rest-count{animation-timing-function:steps(%[1]d,end);--rest-left:%[1]d}"+
+			"@keyframes tick{from{--rest-left:%[1]d}to{--rest-left:0}}</style>",
+		seconds,
+	)
 }
 
 templ setRow(w WorkoutVM, s SetVM) {

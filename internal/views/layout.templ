@@ -1,7 +1,5 @@
 package views
 
-import "fmt"
-
 // AssetVersion is appended to static asset URLs so a deploy busts the cache.
 var AssetVersion = "dev"
 
@@ -74,10 +72,4 @@ templ Bare(title string) {
 			</main>
 		</body>
 	</html>
-}
-
-// restStyle sets the countdown duration. It is emitted as a style element
-// rather than an inline attribute so the animation stays entirely in CSS.
-func restStyle(seconds int) string {
-	return fmt.Sprintf("<style>.rest-fill{animation-duration:%ds}</style>", seconds)
 }
