@@ -298,6 +298,7 @@ h2 {
     border-radius: var(--radius);
     padding: 12px 16px;
     margin-bottom: 8px;
+    scroll-margin-top: 84px;
 }
 
 .rest-track {
@@ -320,8 +321,28 @@ h2 {
     to   { width: 0%; }
 }
 
+@property --rest-left {
+    syntax: "<integer>";
+    initial-value: 0;
+    inherits: false;
+}
+
+/* The remaining seconds are animated as an integer and read back out through
+   a counter, which keeps the number in step with the bar without any
+   script. */
+.rest-count {
+    animation-name: tick;
+    animation-fill-mode: forwards;
+    counter-reset: rest var(--rest-left);
+}
+
+.rest-count::after { content: counter(rest) "s"; }
+
+@keyframes tick { /* endpoints are injected per-page, see restStyle */ }
+
 @media (prefers-reduced-motion: reduce) {
     .rest-fill { animation: none; width: 100%; opacity: 0.4; }
+    .rest-count { animation: none; }
 }
 
 /* ---------- forms ---------- */
