@@ -76,6 +76,19 @@ UPDATE blocks SET completed_at = datetime('now') WHERE id = ?;
 -- name: CountBlocks :one
 SELECT COUNT(*) FROM blocks;
 
+-- name: GetBlockByNumber :one
+SELECT * FROM blocks
+WHERE number = ?
+ORDER BY id DESC
+LIMIT 1;
+
+-- name: ListSkippedCycles :many
+SELECT cycle_index FROM skipped_cycles WHERE block_id = ?;
+
+-- name: SkipCycle :exec
+INSERT INTO skipped_cycles (block_id, cycle_index) VALUES (?, ?)
+ON CONFLICT (block_id, cycle_index) DO NOTHING;
+
 -- name: ListWorkoutsInBlock :many
 SELECT * FROM workouts
 WHERE block_id = ?
@@ -92,6 +105,15 @@ WHERE block_id = ? AND cycle_index = ? AND round_number = ? AND lift_slug = ?;
 INSERT INTO workouts (block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
+
+-- name: GetLatestWorkoutInBlock :one
+SELECT * FROM workouts
+WHERE block_id = ?
+ORDER BY id DESC
+LIMIT 1;
+
+-- name: MarkTMTestReviewed :exec
+UPDATE workouts SET tm_reviewed_at = datetime('now') WHERE id = ?;
 
 -- name: CompleteWorkout :exec
 UPDATE workouts SET completed_at = datetime('now') WHERE id = ?;
@@ -111,8 +133,8 @@ ORDER BY w.completed_at DESC, w.id DESC
 LIMIT ?;
 
 -- name: InsertSet :exec
-INSERT INTO sets (workout_id, idx, kind, weight, pct, target_reps, is_amrap)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO sets (workout_id, idx, kind, weight, pct, target_reps, max_reps, is_amrap)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: ListSets :many
 SELECT * FROM sets WHERE workout_id = ? ORDER BY idx;
@@ -153,6 +175,36 @@ UPDATE blocks SET start_cycle_index = ? WHERE id = ?;
 -- it, during first-run onboarding.
 --
 -- name: InsertCompletedSet :exec
-INSERT INTO sets (workout_id, idx, kind, weight, pct, target_reps, is_amrap,
-                  actual_reps, completed_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'));
+INSERT INTO sets (workout_id, idx, kind, weight, pct, target_reps, max_reps,
+                  is_amrap, actual_reps, completed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'));
+
+-- ListTMTestTopSets returns, for each lift, the reps performed on the 100% set
+-- of a block's completed TM test, with the training max that was tested. The
+-- rep-range main set is the one at the training max.
+--
+-- name: ListTMTestTopSets :many
+SELECT w.id, w.lift_slug, w.training_max, w.tm_reviewed_at, s.actual_reps
+FROM sets s
+JOIN workouts w ON w.id = s.workout_id
+WHERE w.block_id = ?
+  AND w.phase = 'tm_test'
+  AND w.completed_at IS NOT NULL
+  AND s.kind = 'main'
+  AND s.max_reps > 0
+  AND s.actual_reps IS NOT NULL
+ORDER BY w.id, s.idx;
+
+-- ListAnchorPRSets returns the PR sets of a block's completed anchor sessions:
+-- the minimum prescribed and the reps performed.
+--
+-- name: ListAnchorPRSets :many
+SELECT w.lift_slug, s.target_reps, s.actual_reps
+FROM sets s
+JOIN workouts w ON w.id = s.workout_id
+WHERE w.block_id = ?
+  AND w.phase = 'anchor'
+  AND w.completed_at IS NOT NULL
+  AND s.is_amrap = 1
+  AND s.actual_reps IS NOT NULL
+ORDER BY w.cycle_index, w.round_number, w.id;

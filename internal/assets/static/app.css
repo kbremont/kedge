@@ -398,6 +398,20 @@ input:focus-visible, .btn:focus-visible, button:focus-visible {
     margin-bottom: 12px;
 }
 
+/* ---------- training max review ---------- */
+
+.review-row {
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+}
+
+.review-row:first-of-type { border-top: none; }
+
+.verdict { font-size: 14px; font-weight: 650; }
+.verdict-down { color: var(--danger); }
+.verdict-hold { color: var(--muted); }
+.verdict-up   { color: var(--success); }
+
 /* ---------- history / chart ---------- */
 
 .hist {

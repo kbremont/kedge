@@ -7,7 +7,7 @@ import (
 	"github.com/kbremont/531-tracker/internal/program"
 )
 
-// TestRoundOfBlock pins the "round 8 of 10" line on the dashboard. The count is
+// TestRoundOfBlock pins the "round 8 of 11" line on the dashboard. The count is
 // absolute within the block, so joining partway through still reports where the
 // session sits in the programme rather than where it sits in the schedule that
 // was generated.
@@ -22,9 +22,10 @@ func TestRoundOfBlock(t *testing.T) {
 		{program.Position{CycleIndex: 0, Round: 3}, 3},
 		{program.Position{CycleIndex: 1, Round: 1}, 4},
 		{program.Position{CycleIndex: 1, Round: 3}, 6},
-		{program.Position{CycleIndex: 2, Round: 1}, 7},  // the one-round deload
+		{program.Position{CycleIndex: 2, Round: 1}, 7},  // the one-round TM test
 		{program.Position{CycleIndex: 3, Round: 1}, 8},  // anchor opens at round 8
-		{program.Position{CycleIndex: 3, Round: 3}, 10}, // and closes the block
+		{program.Position{CycleIndex: 3, Round: 3}, 10}, // and runs to round 10
+		{program.Position{CycleIndex: 4, Round: 1}, 11}, // the deload closes the block
 	}
 	for _, tc := range cases {
 		if got := roundOfBlock(cfg, tc.pos); got != tc.want {
@@ -32,7 +33,7 @@ func TestRoundOfBlock(t *testing.T) {
 		}
 	}
 
-	if got, want := cfg.RoundsPerBlock(), 10; got != want {
+	if got, want := cfg.RoundsPerBlock(), 11; got != want {
 		t.Errorf("RoundsPerBlock() = %d, want %d", got, want)
 	}
 }
@@ -79,8 +80,9 @@ func TestCycleDetail(t *testing.T) {
 	}{
 		{0, "3 rounds, 5's PRO + BBB 5x10 @ 50%"},
 		{1, "3 rounds, 5's PRO + BBB 5x10 @ 60%"},
-		{2, "deload"}, // a single round needs no count
+		{2, "TM test"}, // a single round needs no count
 		{3, "3 rounds, 5/3/1 with a PR set + FSL 5x5"},
+		{4, "deload (optional)"},
 	}
 	for _, tc := range cases {
 		cycle, err := cfg.CycleAt(tc.idx)
@@ -149,6 +151,52 @@ func TestRestSecondsFor(t *testing.T) {
 	for _, tc := range cases {
 		if got := restSecondsFor(raw, tc.kind); got != tc.want {
 			t.Errorf("restSecondsFor(%q) = %d, want %d", tc.kind, got, tc.want)
+		}
+	}
+}
+
+// TestBumpEvidence pins the line that explains a block-end recommendation.
+func TestBumpEvidence(t *testing.T) {
+	prs := []program.PRSet{{Target: 5, Actual: 8}, {Target: 3, Actual: 5}, {Target: 1, Actual: 3}}
+
+	cases := []struct {
+		name     string
+		anchor   []program.PRSet
+		testReps int
+		hasTest  bool
+		want     string
+	}{
+		{"both", prs, 7, true, "PR sets 8, 5, 3 (min 5, 3, 1) \u00b7 TM test 7"},
+		{"anchor only", prs, 0, false, "PR sets 8, 5, 3 (min 5, 3, 1)"},
+		{"test only", nil, 4, true, "No anchor PR sets recorded \u00b7 TM test 4"},
+		{"nothing", nil, 0, false, "No anchor PR sets recorded"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := bumpEvidence(tc.anchor, tc.testReps, tc.hasTest); got != tc.want {
+				t.Errorf("bumpEvidence = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestBumpVerdicts pins the wording and tone of each block-end verdict, which
+// is what the review card colours by.
+func TestBumpVerdicts(t *testing.T) {
+	cases := []struct {
+		reason   program.BumpReason
+		delta    float64
+		wantText string
+		wantTone string
+	}{
+		{program.ReasonMissedPR, -30, "Missed a PR set: reset 10%", "down"},
+		{program.ReasonHitPR, 5, "Hit every PR set: +5 lb", "up"},
+		{program.ReasonHitPRAndTM, 20, "PR sets and TM test: +20 lb", "up"},
+		{program.ReasonNoEvidence, 0, "Hold", "hold"},
+	}
+	for _, tc := range cases {
+		if text, tone := bumpVerdict(tc.reason, tc.delta, "lb"); text != tc.wantText || tone != tc.wantTone {
+			t.Errorf("bumpVerdict(%q) = %q, %q; want %q, %q", tc.reason, text, tone, tc.wantText, tc.wantTone)
 		}
 	}
 }

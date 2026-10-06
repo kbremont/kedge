@@ -18,8 +18,27 @@ const (
 	// taken for as many reps as possible.
 	Scheme531PR MainScheme = "531_pr"
 
-	// SchemeDeload is the light round: 40/50/60 for 5s, no AMRAP.
+	// SchemeDeload is the original book's light round: 40/50/60 for 5s, no
+	// AMRAP. The default program no longer uses it, but a stored config may.
 	SchemeDeload MainScheme = "deload"
+
+	// SchemeTMTest is the 5/3/1 Forever 7th week training max test: work up
+	// to the training max itself and see whether it moves for 3-5 reps.
+	SchemeTMTest MainScheme = "tm_test"
+
+	// SchemeSeventhDeload is the 5/3/1 Forever 7th week deload: a few easy
+	// sets that still touch the training max, so the bar does not feel
+	// foreign when the next cycle starts.
+	SchemeSeventhDeload MainScheme = "7th_deload"
+)
+
+// Phases group cycles by purpose. Workouts snapshot the phase, so history
+// queries match on these values rather than on cycle positions or labels.
+const (
+	PhaseLeader = "leader"
+	PhaseTMTest = "tm_test"
+	PhaseAnchor = "anchor"
+	PhaseDeload = "deload"
 )
 
 // SuppKind selects the supplemental work that follows the main sets.
@@ -61,10 +80,14 @@ type Supplemental struct {
 // scheme and supplemental.
 type CycleSpec struct {
 	Label  string
-	Phase  string // leader, deload, or anchor
+	Phase  string // one of the Phase constants
 	Main   MainScheme
 	Supp   Supplemental
 	Rounds int
+
+	// Optional cycles are offered rather than assumed: the user may skip one
+	// before its first session, and the block carries on without it.
+	Optional bool
 }
 
 // Config is a complete program. The sequence of cycles repeats indefinitely;
@@ -73,8 +96,9 @@ type Config struct {
 	Name   string
 	Cycles []CycleSpec
 
-	// TMIncrementUpper and TMIncrementLower are the amounts suggested (never
-	// applied automatically) when a cycle finishes.
+	// TMIncrementUpper and TMIncrementLower are the step sizes used when
+	// recommending a training max at the end of a block. Nothing is ever
+	// applied automatically.
 	TMIncrementUpper float64
 	TMIncrementLower float64
 }
@@ -95,6 +119,7 @@ type Set struct {
 	Kind       SetKind
 	Weight     float64
 	TargetReps int
+	MaxReps    int // top of a rep range such as 3-5, or 0 for a fixed count
 	IsAMRAP    bool
 	Pct        float64 // of training max, for display
 	Plates     []PlatePair
@@ -122,39 +147,48 @@ func DefaultSettings() Settings {
 }
 
 // LeaderAnchorBBB is the default program: two leader cycles of 5's PRO with
-// Boring But Big, a deload round, then an anchor cycle of 5/3/1 with a PR set
-// and First Set Last. Ten rounds, then it repeats.
+// Boring But Big, a 7th week training max test, an anchor cycle of 5/3/1 with
+// a PR set and First Set Last, then an optional 7th week deload. Eleven rounds,
+// then it repeats.
 func LeaderAnchorBBB() Config {
 	return Config{
 		Name: "5's PRO + BBB / 5-3-1 + FSL",
 		Cycles: []CycleSpec{
 			{
 				Label:  "Leader 1",
-				Phase:  "leader",
+				Phase:  PhaseLeader,
 				Main:   SchemeFivesPro,
 				Supp:   Supplemental{Kind: SuppBBB, Sets: 5, Reps: 10, Pct: 0.50},
 				Rounds: 3,
 			},
 			{
 				Label:  "Leader 2",
-				Phase:  "leader",
+				Phase:  PhaseLeader,
 				Main:   SchemeFivesPro,
 				Supp:   Supplemental{Kind: SuppBBB, Sets: 5, Reps: 10, Pct: 0.60},
 				Rounds: 3,
 			},
 			{
-				Label:  "Deload",
-				Phase:  "deload",
-				Main:   SchemeDeload,
+				Label:  "7th Week TM Test",
+				Phase:  PhaseTMTest,
+				Main:   SchemeTMTest,
 				Supp:   Supplemental{Kind: SuppNone},
 				Rounds: 1,
 			},
 			{
 				Label:  "Anchor",
-				Phase:  "anchor",
+				Phase:  PhaseAnchor,
 				Main:   Scheme531PR,
 				Supp:   Supplemental{Kind: SuppFSL, Sets: 5, Reps: 5},
 				Rounds: 3,
+			},
+			{
+				Label:    "7th Week Deload",
+				Phase:    PhaseDeload,
+				Main:     SchemeSeventhDeload,
+				Supp:     Supplemental{Kind: SuppNone},
+				Rounds:   1,
+				Optional: true,
 			},
 		},
 		TMIncrementUpper: 5,
@@ -165,7 +199,7 @@ func LeaderAnchorBBB() Config {
 // WithBBBPct returns a copy of the config in which every Boring But Big cycle is
 // loaded at pct instead of the percentage the template prescribes. A pct of zero
 // or less returns the config unchanged, which is what "use the program's own
-// value" means at the call site. FSL and deload cycles are untouched.
+// value" means at the call site. FSL, TM test, and deload cycles are untouched.
 func (c Config) WithBBBPct(pct float64) Config {
 	if pct <= 0 {
 		return c

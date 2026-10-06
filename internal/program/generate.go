@@ -6,33 +6,44 @@ import (
 )
 
 // setSpec is one entry in a percentage table: a fraction of the training max,
-// a rep target, and whether the set is taken to a rep max.
+// a rep target, and whether the set is taken to a rep max. maxReps is set only
+// for a rep range, where reps is the bottom of it.
 type setSpec struct {
-	pct   float64
-	reps  int
-	amrap bool
+	pct     float64
+	reps    int
+	amrap   bool
+	maxReps int
 }
 
 // Percentage tables, indexed by round within the cycle. These are the numbers
 // from the book and should not be edited casually; the tests pin them.
 var (
 	fivesPro = [][]setSpec{
-		{{0.65, 5, false}, {0.75, 5, false}, {0.85, 5, false}},
-		{{0.70, 5, false}, {0.80, 5, false}, {0.90, 5, false}},
-		{{0.75, 5, false}, {0.85, 5, false}, {0.95, 5, false}},
+		{{0.65, 5, false, 0}, {0.75, 5, false, 0}, {0.85, 5, false, 0}},
+		{{0.70, 5, false, 0}, {0.80, 5, false, 0}, {0.90, 5, false, 0}},
+		{{0.75, 5, false, 0}, {0.85, 5, false, 0}, {0.95, 5, false, 0}},
 	}
 
 	fiveThreeOnePR = [][]setSpec{
-		{{0.65, 5, false}, {0.75, 5, false}, {0.85, 5, true}},
-		{{0.70, 3, false}, {0.80, 3, false}, {0.90, 3, true}},
-		{{0.75, 5, false}, {0.85, 3, false}, {0.95, 1, true}},
+		{{0.65, 5, false, 0}, {0.75, 5, false, 0}, {0.85, 5, true, 0}},
+		{{0.70, 3, false, 0}, {0.80, 3, false, 0}, {0.90, 3, true, 0}},
+		{{0.75, 5, false, 0}, {0.85, 3, false, 0}, {0.95, 1, true, 0}},
 	}
 
 	deloadRound = [][]setSpec{
-		{{0.40, 5, false}, {0.50, 5, false}, {0.60, 5, false}},
+		{{0.40, 5, false, 0}, {0.50, 5, false, 0}, {0.60, 5, false, 0}},
 	}
 
-	warmupSets = []setSpec{{0.40, 5, false}, {0.50, 5, false}, {0.60, 3, false}}
+	// The 5/3/1 Forever 7th week protocols. The test's last set is logged as
+	// performed, since the reps at 100% are the whole point of it.
+	tmTestRound = [][]setSpec{
+		{{0.70, 5, false, 0}, {0.80, 5, false, 0}, {0.90, 5, false, 0}, {1.00, 3, false, 5}},
+	}
+	seventhDeloadRound = [][]setSpec{
+		{{0.70, 5, false, 0}, {0.80, 3, false, 5}, {0.90, 1, false, 0}, {1.00, 1, false, 0}},
+	}
+
+	warmupSets = []setSpec{{0.40, 5, false, 0}, {0.50, 5, false, 0}, {0.60, 3, false, 0}}
 )
 
 func mainTable(s MainScheme) ([][]setSpec, error) {
@@ -43,6 +54,10 @@ func mainTable(s MainScheme) ([][]setSpec, error) {
 		return fiveThreeOnePR, nil
 	case SchemeDeload:
 		return deloadRound, nil
+	case SchemeTMTest:
+		return tmTestRound, nil
+	case SchemeSeventhDeload:
+		return seventhDeloadRound, nil
 	default:
 		return nil, fmt.Errorf("program: unknown main scheme %q", s)
 	}
@@ -83,8 +98,9 @@ func GenerateWorkout(cfg Config, cycleIdx, round int, tm float64, s Settings) (W
 		Round:      round,
 	}
 
-	// The deload round's working sets are already 40/50/60, so a separate
-	// warmup would just repeat them.
+	// The original deload's working sets are already 40/50/60, so a separate
+	// warmup would just repeat them. The 7th week protocols start at 70% and
+	// warm up as normal.
 	if s.Warmups && cycle.Main != SchemeDeload {
 		for _, w := range warmupSets {
 			out.Sets = append(out.Sets, buildSet(KindWarmup, w, tm, s))
@@ -138,6 +154,7 @@ func buildSet(kind SetKind, spec setSpec, tm float64, s Settings) Set {
 		Kind:       kind,
 		Weight:     weight,
 		TargetReps: spec.reps,
+		MaxReps:    spec.maxReps,
 		IsAMRAP:    spec.amrap,
 		Pct:        spec.pct,
 		Plates:     plates,
@@ -159,8 +176,8 @@ func RoundWeight(w float64, s Settings) float64 {
 	return rounded
 }
 
-// TMIncrementFor returns the increase suggested for a lift at the end of a
-// cycle. Nothing in this package applies it; the user decides.
+// TMIncrementFor returns one step of training max progression for a lift.
+// Nothing in this package applies it; the user decides.
 func TMIncrementFor(cfg Config, isUpper bool) float64 {
 	if isUpper {
 		return cfg.TMIncrementUpper

@@ -121,3 +121,54 @@ func TestRestStyleClampsNonPositive(t *testing.T) {
 		}
 	}
 }
+
+// TestRangedSetAsksForReps covers the 100% x 3-5 set of a TM test: it is
+// written as a range and logged by picking the reps, starting from a single
+// one so a short set can be recorded, with the range itself highlighted.
+func TestRangedSetAsksForReps(t *testing.T) {
+	vm := baseWorkoutVM()
+	vm.Sets = append(vm.Sets, SetVM{Idx: 4, Tag: "Main", Weight: 300, Pct: 1, TargetReps: 3, MaxReps: 5})
+	vm.Sets[2].Done, vm.Sets[3].Done = true, true
+	vm.CurrentIdx = 4
+
+	html := render(t, vm)
+
+	if !strings.Contains(html, "3–5 reps") {
+		t.Error("expected the set to read 3–5 reps")
+	}
+	if strings.Contains(html, `aria-label="Log set"`) {
+		t.Error("a ranged set should ask for reps, not offer a single tick")
+	}
+	for r := 1; r <= 10; r++ {
+		if !strings.Contains(html, `value="`+FmtInt(r)+`">`+FmtInt(r)+`</button>`) {
+			t.Errorf("missing a button for %d reps", r)
+		}
+	}
+	for _, r := range []int{3, 4, 5} {
+		if !strings.Contains(html, `class="target" type="submit" name="reps" value="`+FmtInt(r)+`"`) {
+			t.Errorf("%d reps should be highlighted as in range", r)
+		}
+	}
+	for _, r := range []int{2, 6} {
+		if strings.Contains(html, `class="target" type="submit" name="reps" value="`+FmtInt(r)+`"`) {
+			t.Errorf("%d reps should not be highlighted", r)
+		}
+	}
+}
+
+func TestRepTarget(t *testing.T) {
+	cases := []struct {
+		reps, max int
+		amrap     bool
+		want      string
+	}{
+		{5, 0, false, "5"},
+		{3, 0, true, "3+"},
+		{3, 5, false, "3–5"},
+	}
+	for _, tc := range cases {
+		if got := RepTarget(tc.reps, tc.max, tc.amrap); got != tc.want {
+			t.Errorf("RepTarget(%d, %d, %v) = %q, want %q", tc.reps, tc.max, tc.amrap, got, tc.want)
+		}
+	}
+}

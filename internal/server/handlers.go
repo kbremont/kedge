@@ -76,7 +76,17 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s.addCycleRollover(&vm, state)
+	results, review, held, err := s.trainingHold(ctx, state)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	vm.TestResults = results
+	vm.Review = review
+	if vm.Next != nil && !vm.Next.InProgress {
+		vm.Next.Blocked = held
+		vm.Next.CanSkip = state.canSkipNext()
+	}
 
 	recent, err := s.recentHistory(ctx, recentLimit)
 	if err != nil {
@@ -86,62 +96,6 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	vm.Recent = recent
 
 	s.render(w, r, views.Dashboard(vm))
-}
-
-// addCycleRollover offers a training max bump when a cycle has just closed
-// out. It is only ever an offer; nothing here writes a training max.
-func (s *Server) addCycleRollover(vm *views.DashboardVM, state *blockState) {
-	if state.InProgress != nil || !state.HasNext {
-		return
-	}
-	// A cycle boundary is the first day of the first round of a cycle, with
-	// something behind it. "Behind it" is measured from where this block
-	// actually starts: a block joined at the anchor during setup has no earlier
-	// cycle to have finished, and must not open with a rollover prompt for work
-	// the app never saw.
-	atBoundary := state.Next.Round == 1 && state.Next.Day == 1 &&
-		(state.Next.CycleIndex > int(state.Block.StartCycleIndex) || state.Block.Number > 1)
-	if !atBoundary {
-		return
-	}
-
-	key := fmt.Sprintf("b%d:c%d", state.Block.ID, state.Next.CycleIndex)
-	if state.Raw.DismissedCycle == key {
-		return
-	}
-
-	finishedIdx := state.Next.CycleIndex - 1
-	if finishedIdx < 0 {
-		finishedIdx = len(state.Config.Cycles) - 1
-	}
-	finished, err := state.Config.CycleAt(finishedIdx)
-	if err != nil {
-		return
-	}
-
-	vm.CycleDone = true
-	vm.CycleDoneLabel = finished.Label
-	vm.CycleDoneKey = key
-	for _, tm := range state.TMOrder {
-		vm.Suggestions = append(vm.Suggestions, views.TMSuggestion{
-			Slug:    tm.Slug,
-			Name:    tm.Name,
-			Current: tm.Value,
-			Next:    tm.Value + program.TMIncrementFor(state.Config, tm.IsUpper != 0),
-		})
-	}
-}
-
-func (s *Server) handleDismissSuggestions(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	if err := s.q.DismissCycle(r.Context(), r.PostFormValue("key")); err != nil {
-		s.fail(w, r, fmt.Errorf("dismiss cycle prompt: %w", err))
-		return
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
@@ -247,10 +201,6 @@ func (s *Server) handleSetTrainingMax(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.PostFormValue("note") == "cycle rollover" {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-	}
 	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
 }
 

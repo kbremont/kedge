@@ -4,8 +4,11 @@ import "fmt"
 
 templ Dashboard(d DashboardVM) {
 	@Layout("Today", NavHome) {
-		if d.CycleDone {
-			@cycleDoneNotice(d)
+		for _, t := range d.TestResults {
+			@tmTestResult(t)
+		}
+		if d.Review != nil {
+			@tmReview(*d.Review)
 		}
 		if d.Next != nil {
 			@nextUpCard(*d.Next, d.Unit)
@@ -58,36 +61,83 @@ templ nextUpCard(n NextUp, unit string) {
 		</div>
 		if n.InProgress {
 			<a class="btn btn-primary" href={ templ.URL(fmt.Sprintf("/workout/%d", n.WorkoutID)) }>Resume session</a>
+		} else if n.Blocked {
+			<div class="small muted">Settle your training maxes above to start.</div>
 		} else {
 			<form method="post" action="/workout/start">
 				<button class="btn btn-primary" type="submit">Start session</button>
+			</form>
+			if n.CanSkip {
+				<form method="post" action="/skip-cycle" style="margin-top:8px">
+					<button class="btn btn-ghost" type="submit">Skip it and start the next block</button>
+				</form>
+			}
+		}
+	</div>
+}
+
+// tmTestResult reports one lift's TM test as soon as it is done. A failed test
+// offers to lower the training max; keeping it is a choice too, and either one
+// settles it. Nothing is written until a button is pressed.
+templ tmTestResult(t TMTestResultVM) {
+	<div class="notice" style="margin-top:20px">
+		<div class="row">
+			<strong>{ t.LiftName } TM test</strong>
+			<span class="small muted tnum">{ FmtWeight(t.Tested) } x { FmtInt(t.Reps) } at 100%</span>
+		</div>
+		<div class={ "verdict", "verdict-" + t.Tone } style="margin-top:6px">{ t.Headline }</div>
+		<div class="small muted" style="margin-top:2px">{ t.Detail }</div>
+		if t.NeedsDecision {
+			<form method="post" action={ templ.SafeURL(fmt.Sprintf("/tm-test/%d", t.WorkoutID)) } style="margin-top:12px">
+				<label for={ fmt.Sprintf("tm-%d", t.WorkoutID) }>New training max (now { FmtWeightUnit(t.Current, t.Unit) })</label>
+				<input
+					id={ fmt.Sprintf("tm-%d", t.WorkoutID) }
+					type="number"
+					name="tm"
+					step="0.5"
+					min="1"
+					max={ FmtWeight(t.Current) }
+					inputmode="decimal"
+					required
+					value={ FmtWeight(t.Proposed) }
+				/>
+				<button class="btn btn-primary" type="submit" name="action" value="lower" style="margin-top:12px">Lower training max</button>
+				<button class="btn btn-ghost" type="submit" name="action" value="keep" formnovalidate style="margin-top:8px">Keep { FmtWeightUnit(t.Current, t.Unit) }</button>
 			</form>
 		}
 	</div>
 }
 
-// cycleDoneNotice offers a training max bump at a cycle boundary. It never
-// applies one; the user decides when their training max moves.
-templ cycleDoneNotice(d DashboardVM) {
+// tmReview asks the user to settle every training max at once. The proposed
+// values are only a starting point: nothing is written until Accept, and what
+// is written is whatever the inputs hold at that moment.
+templ tmReview(r TMReviewVM) {
 	<div class="notice" style="margin-top:20px">
-		<strong>{ d.CycleDoneLabel } complete.</strong>
-		<div class="small muted" style="margin:4px 0 12px">
-			Training maxes only change when you say so.
-		</div>
-		for _, s := range d.Suggestions {
-			<form method="post" action="/training-max" class="inline-form" style="margin-bottom:8px">
-				<input type="hidden" name="lift" value={ s.Slug }/>
-				<input type="hidden" name="note" value="cycle rollover"/>
-				<div class="field">
-					<label>{ s.Name } &middot; now { FmtWeight(s.Current) }</label>
-					<input type="number" name="value" step="0.5" inputmode="decimal" value={ FmtWeight(s.Next) }/>
+		<strong>{ r.Title }</strong>
+		<div class="small muted" style="margin:4px 0 4px">{ r.Intro }</div>
+		<form method="post" action="/tm-review">
+			<input type="hidden" name="key" value={ r.Key }/>
+			for _, row := range r.Rows {
+				<div class="review-row">
+					<div class="row">
+						<span>{ row.Name }</span>
+						<span class={ "verdict", "verdict-" + row.Tone }>{ row.Verdict }</span>
+					</div>
+					<div class="small muted tnum" style="margin:2px 0 8px">{ row.Evidence }</div>
+					<label for={ row.Field }>Now { FmtWeightUnit(row.Current, r.Unit) } &middot; new training max</label>
+					<input
+						id={ row.Field }
+						type="number"
+						name={ row.Field }
+						step="0.5"
+						min="1"
+						inputmode="decimal"
+						required
+						value={ FmtWeight(row.Proposed) }
+					/>
 				</div>
-				<button class="btn" type="submit">Set</button>
-			</form>
-		}
-		<form method="post" action="/dismiss-suggestions">
-			<input type="hidden" name="key" value={ d.CycleDoneKey }/>
-			<button class="btn btn-ghost" type="submit">Keep them where they are</button>
+			}
+			<button class="btn btn-primary" type="submit" style="margin-top:14px">Accept training maxes</button>
 		</form>
 	</div>
 }

@@ -223,6 +223,7 @@ func (s *Server) recordPastSession(
 			Weight:     set.Weight,
 			Pct:        set.Pct,
 			TargetReps: int64(set.TargetReps),
+			MaxReps:    int64(set.MaxReps),
 			IsAmrap:    amrap,
 			ActualReps: sql.NullInt64{Int64: int64(reps), Valid: true},
 		}); err != nil {
@@ -343,10 +344,15 @@ func cycleDetail(c program.CycleSpec) string {
 		main = "5's PRO"
 	case program.Scheme531PR:
 		main = "5/3/1 with a PR set"
-	case program.SchemeDeload:
+	case program.SchemeDeload, program.SchemeSeventhDeload:
 		main = "deload"
+	case program.SchemeTMTest:
+		main = "TM test"
 	default:
 		main = string(c.Main)
+	}
+	if c.Optional {
+		main += " (optional)"
 	}
 
 	var supp string

@@ -15,12 +15,8 @@ var migrationFS embed.FS
 // order, each inside its own transaction. Applied names are recorded so that
 // re-running is a no-op.
 func Migrate(conn *sql.DB) error {
-	_, err := conn.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
-		name       TEXT PRIMARY KEY,
-		applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-	)`)
-	if err != nil {
-		return fmt.Errorf("create schema_migrations: %w", err)
+	if err := createMigrationsTable(conn); err != nil {
+		return err
 	}
 
 	applied, err := appliedMigrations(conn)
@@ -44,6 +40,17 @@ func Migrate(conn *sql.DB) error {
 		if err := applyMigration(conn, name, string(body)); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func createMigrationsTable(conn *sql.DB) error {
+	_, err := conn.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
+		name       TEXT PRIMARY KEY,
+		applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+	)`)
+	if err != nil {
+		return fmt.Errorf("create schema_migrations: %w", err)
 	}
 	return nil
 }

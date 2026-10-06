@@ -18,6 +18,7 @@ type SetVM struct {
 	Weight     float64
 	Pct        float64
 	TargetReps int
+	MaxReps    int // top of a rep range such as 3-5, or 0
 	IsAMRAP    bool
 	Plates     string  // "45, 25, 5" per side
 	Unloadable float64 // non-zero when the bar cannot be loaded exactly
@@ -66,6 +67,12 @@ type NextUp struct {
 	BlockNumber   int
 	RoundOfBlock  int
 	RoundsInBlock int
+
+	// Blocked is set while a training max decision is waiting; the next
+	// session cannot start until it is made.
+	Blocked bool
+	// CanSkip offers to pass on an optional cycle before its first session.
+	CanSkip bool
 }
 
 // DashboardVM is the home screen.
@@ -76,21 +83,54 @@ type DashboardVM struct {
 	TMs         []LiftTM
 	Recent      []HistoryItem
 
-	// CycleDone is set when the last session closed out a cycle, prompting
-	// the user to consider a training max bump. Nothing is applied for them.
-	CycleDone      bool
-	CycleDoneLabel string
-	// CycleDoneKey identifies this rollover so dismissing it sticks.
-	CycleDoneKey string
-	Suggestions  []TMSuggestion
+	// TestResults are the current block's TM test outcomes: the session just
+	// finished, and any lift that failed and is still waiting on a decision.
+	TestResults []TMTestResultVM
+
+	// Review is set at the start of each new block, the one place training
+	// maxes go up. Training waits until it is accepted.
+	Review *TMReviewVM
 }
 
-// TMSuggestion is an offer, never an action.
-type TMSuggestion struct {
-	Slug    string
-	Name    string
-	Current float64
-	Next    float64
+// TMTestResultVM reports one lift's TM test. A pass is just news; a failure
+// offers to lower the training max, and the anchor waits until it is settled.
+type TMTestResultVM struct {
+	WorkoutID int64
+	LiftName  string
+	Unit      string
+	Tested    float64 // the training max that was tested
+	Reps      int     // performed at 100%
+	Headline  string
+	Detail    string
+	Tone      string // down, hold, or up
+
+	// NeedsDecision is set for a failed test still waiting on the user.
+	NeedsDecision bool
+	Current       float64
+	Proposed      float64
+}
+
+// TMReviewVM proposes a training max for every lift at the start of a block.
+// It is an offer, never an action: nothing changes until the user accepts it,
+// edited or not.
+type TMReviewVM struct {
+	Title string
+	Intro string
+	Key   string // identifies this review so accepting it sticks
+	Unit  string
+	Rows  []TMReviewRow
+}
+
+// TMReviewRow is one lift's evidence and proposed training max.
+type TMReviewRow struct {
+	Slug     string
+	Name     string
+	Evidence string // what was lifted, for example "PR sets 8, 5, 3 (min 5, 3, 1)"
+	Verdict  string // for example "Hit every PR set: +5 lb"
+	Tone     string // down, hold, or up, for styling the verdict
+	Current  float64
+	Proposed float64
+	Field    string // form field name for the proposed value
 }
 
 // HistoryItem is one completed session.
