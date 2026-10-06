@@ -28,12 +28,13 @@ func testSettings() Settings {
 }
 
 type expectedSet struct {
-	weight float64
-	reps   int
-	amrap  bool
+	weight  float64
+	reps    int
+	amrap   bool
+	maxReps int // top of a rep range, or 0
 }
 
-// TestBlockMainWork walks every training day in the ten-round block with a
+// TestBlockMainWork walks every training day in the eleven-round block with a
 // training max of 300 and pins the prescribed main work. 300 is chosen so
 // that every percentage lands on a clean multiple of five and the expected
 // values can be verified by hand.
@@ -48,19 +49,23 @@ func TestBlockMainWork(t *testing.T) {
 		want     []expectedSet
 	}{
 		// Leader cycles run 5's PRO: book percentages, all fives, no AMRAP.
-		{"leader1 r1", 0, 1, []expectedSet{{195, 5, false}, {225, 5, false}, {255, 5, false}}},
-		{"leader1 r2", 0, 2, []expectedSet{{210, 5, false}, {240, 5, false}, {270, 5, false}}},
-		{"leader1 r3", 0, 3, []expectedSet{{225, 5, false}, {255, 5, false}, {285, 5, false}}},
-		{"leader2 r1", 1, 1, []expectedSet{{195, 5, false}, {225, 5, false}, {255, 5, false}}},
-		{"leader2 r2", 1, 2, []expectedSet{{210, 5, false}, {240, 5, false}, {270, 5, false}}},
-		{"leader2 r3", 1, 3, []expectedSet{{225, 5, false}, {255, 5, false}, {285, 5, false}}},
+		{"leader1 r1", 0, 1, []expectedSet{{195, 5, false, 0}, {225, 5, false, 0}, {255, 5, false, 0}}},
+		{"leader1 r2", 0, 2, []expectedSet{{210, 5, false, 0}, {240, 5, false, 0}, {270, 5, false, 0}}},
+		{"leader1 r3", 0, 3, []expectedSet{{225, 5, false, 0}, {255, 5, false, 0}, {285, 5, false, 0}}},
+		{"leader2 r1", 1, 1, []expectedSet{{195, 5, false, 0}, {225, 5, false, 0}, {255, 5, false, 0}}},
+		{"leader2 r2", 1, 2, []expectedSet{{210, 5, false, 0}, {240, 5, false, 0}, {270, 5, false, 0}}},
+		{"leader2 r3", 1, 3, []expectedSet{{225, 5, false, 0}, {255, 5, false, 0}, {285, 5, false, 0}}},
 
-		{"deload", 2, 1, []expectedSet{{120, 5, false}, {150, 5, false}, {180, 5, false}}},
+		// The 7th week TM test works up to the training max for 3-5.
+		{"tm test", 2, 1, []expectedSet{{210, 5, false, 0}, {240, 5, false, 0}, {270, 5, false, 0}, {300, 3, false, 5}}},
 
 		// The anchor restores the rep targets and the PR set.
-		{"anchor r1", 3, 1, []expectedSet{{195, 5, false}, {225, 5, false}, {255, 5, true}}},
-		{"anchor r2", 3, 2, []expectedSet{{210, 3, false}, {240, 3, false}, {270, 3, true}}},
-		{"anchor r3", 3, 3, []expectedSet{{225, 5, false}, {255, 3, false}, {285, 1, true}}},
+		{"anchor r1", 3, 1, []expectedSet{{195, 5, false, 0}, {225, 5, false, 0}, {255, 5, true, 0}}},
+		{"anchor r2", 3, 2, []expectedSet{{210, 3, false, 0}, {240, 3, false, 0}, {270, 3, true, 0}}},
+		{"anchor r3", 3, 3, []expectedSet{{225, 5, false, 0}, {255, 3, false, 0}, {285, 1, true, 0}}},
+
+		// The 7th week deload touches the training max for a single.
+		{"7th week deload", 4, 1, []expectedSet{{210, 5, false, 0}, {240, 3, false, 5}, {270, 1, false, 0}, {300, 1, false, 0}}},
 	}
 
 	for _, tc := range cases {
@@ -83,6 +88,9 @@ func TestBlockMainWork(t *testing.T) {
 				}
 				if got.IsAMRAP != want.amrap {
 					t.Errorf("set %d: amrap = %v, want %v", i, got.IsAMRAP, want.amrap)
+				}
+				if got.MaxReps != want.maxReps {
+					t.Errorf("set %d: max reps = %d, want %d", i, got.MaxReps, want.maxReps)
 				}
 			}
 		})
@@ -158,7 +166,7 @@ func TestBBBIsFixedPercentage(t *testing.T) {
 }
 
 // TestWithBBBPct checks that the override replaces BBB's load on both leader
-// cycles, leaves FSL and deload alone, and does not mutate the receiver.
+// cycles, leaves FSL and the 7th weeks alone, and does not mutate the receiver.
 func TestWithBBBPct(t *testing.T) {
 	cfg := LeaderAnchorBBB()
 	overridden := cfg.WithBBBPct(0.45)
@@ -248,13 +256,14 @@ func TestFSLTracksRoundOpener(t *testing.T) {
 	}
 }
 
-// TestDeloadHasNoWarmupsOrSupplemental keeps the light round light: its working
-// sets are already 40/50/60, so warmups would duplicate them.
+// TestDeloadHasNoWarmupsOrSupplemental keeps the original book's light round
+// light: its working sets are already 40/50/60, so warmups would duplicate
+// them. The default program no longer uses it, but a stored config still may.
 func TestDeloadHasNoWarmupsOrSupplemental(t *testing.T) {
-	cfg := LeaderAnchorBBB()
+	cfg := Config{Cycles: []CycleSpec{{Label: "Deload", Phase: PhaseDeload, Main: SchemeDeload, Supp: Supplemental{Kind: SuppNone}, Rounds: 1}}}
 	s := DefaultSettings() // warmups deliberately enabled
 
-	w, err := GenerateWorkout(cfg, 2, 1, 300, s)
+	w, err := GenerateWorkout(cfg, 0, 1, 300, s)
 	if err != nil {
 		t.Fatalf("GenerateWorkout: %v", err)
 	}
@@ -269,6 +278,30 @@ func TestDeloadHasNoWarmupsOrSupplemental(t *testing.T) {
 	}
 }
 
+// TestSeventhWeekWarmsUpWithoutSupplemental covers both 7th week protocols:
+// they start at 70%, so they take the usual warmup, and they carry no BBB or
+// FSL work.
+func TestSeventhWeekWarmsUpWithoutSupplemental(t *testing.T) {
+	cfg := LeaderAnchorBBB()
+	s := DefaultSettings() // warmups enabled
+
+	for _, idx := range []int{2, 4} {
+		w, err := GenerateWorkout(cfg, idx, 1, 300, s)
+		if err != nil {
+			t.Fatalf("cycle %d: GenerateWorkout: %v", idx, err)
+		}
+		if n := len(setsOfKind(w, KindWarmup)); n != 3 {
+			t.Errorf("%s: got %d warmup sets, want 3", cfg.Cycles[idx].Label, n)
+		}
+		if n := len(setsOfKind(w, KindMain)); n != 4 {
+			t.Errorf("%s: got %d main sets, want 4", cfg.Cycles[idx].Label, n)
+		}
+		if n := len(setsOfKind(w, KindSupp)); n != 0 {
+			t.Errorf("%s: got %d supplemental sets, want 0", cfg.Cycles[idx].Label, n)
+		}
+	}
+}
+
 // TestWarmupSets pins the 40/50/60 ramp that precedes main work.
 func TestWarmupSets(t *testing.T) {
 	cfg := LeaderAnchorBBB()
@@ -278,7 +311,7 @@ func TestWarmupSets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateWorkout: %v", err)
 	}
-	want := []expectedSet{{120, 5, false}, {150, 5, false}, {180, 3, false}}
+	want := []expectedSet{{120, 5, false, 0}, {150, 5, false, 0}, {180, 3, false, 0}}
 	got := setsOfKind(w, KindWarmup)
 	if len(got) != len(want) {
 		t.Fatalf("got %d warmup sets, want %d", len(got), len(want))
@@ -369,10 +402,11 @@ func TestGenerateWorkoutErrors(t *testing.T) {
 		tm       float64
 	}{
 		{"negative cycle", -1, 1, 300},
-		{"cycle past end of block", 4, 1, 300},
+		{"cycle past end of block", 5, 1, 300},
 		{"round zero", 0, 0, 300},
 		{"round past end of cycle", 0, 4, 300},
-		{"deload has only one round", 2, 2, 300},
+		{"tm test has only one round", 2, 2, 300},
+		{"deload has only one round", 4, 2, 300},
 		{"zero training max", 0, 1, 0},
 		{"negative training max", 0, 1, -100},
 	}
@@ -386,8 +420,8 @@ func TestGenerateWorkoutErrors(t *testing.T) {
 }
 
 func TestRoundsPerBlock(t *testing.T) {
-	if got := LeaderAnchorBBB().RoundsPerBlock(); got != 10 {
-		t.Errorf("RoundsPerBlock() = %d, want 10", got)
+	if got := LeaderAnchorBBB().RoundsPerBlock(); got != 11 {
+		t.Errorf("RoundsPerBlock() = %d, want 11", got)
 	}
 }
 

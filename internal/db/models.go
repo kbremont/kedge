@@ -44,6 +44,7 @@ type Set struct {
 	IsAmrap     int64
 	ActualReps  sql.NullInt64
 	CompletedAt sql.NullString
+	MaxReps     int64
 }
 
 type Setting struct {
@@ -60,6 +61,12 @@ type Setting struct {
 	RestSuppSeconds   int64
 }
 
+type SkippedCycle struct {
+	BlockID    int64
+	CycleIndex int64
+	SkippedAt  string
+}
+
 type TrainingMax struct {
 	ID            int64
 	LiftSlug      string
@@ -69,15 +76,16 @@ type TrainingMax struct {
 }
 
 type Workout struct {
-	ID          int64
-	BlockID     int64
-	LiftSlug    string
-	CycleIndex  int64
-	CycleLabel  string
-	Phase       string
-	Round       int64
-	TrainingMax float64
-	StartedAt   string
-	CompletedAt sql.NullString
-	Notes       string
+	ID           int64
+	BlockID      int64
+	LiftSlug     string
+	CycleIndex   int64
+	CycleLabel   string
+	Phase        string
+	Round        int64
+	TrainingMax  float64
+	StartedAt    string
+	CompletedAt  sql.NullString
+	Notes        string
+	TmReviewedAt sql.NullString
 }

@@ -32,6 +32,14 @@ func (s *Server) handleStartWorkout(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
+	// Training waits on a pending training max decision; the dashboard shows it.
+	if _, _, held, err := s.trainingHold(ctx, state); err != nil {
+		s.fail(w, r, err)
+		return
+	} else if held {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
 
 	pos := state.Next
 	lift, ok := state.LiftByDay[pos.Day]
@@ -85,6 +93,7 @@ func (s *Server) handleStartWorkout(w http.ResponseWriter, r *http.Request) {
 				Weight:     set.Weight,
 				Pct:        set.Pct,
 				TargetReps: int64(set.TargetReps),
+				MaxReps:    int64(set.MaxReps),
 				IsAmrap:    amrap,
 			}); err != nil {
 				return fmt.Errorf("insert set %d: %w", set.Index, err)
@@ -151,6 +160,7 @@ func (s *Server) handleWorkout(w http.ResponseWriter, r *http.Request) {
 			Weight:     set.Weight,
 			Pct:        set.Pct,
 			TargetReps: int(set.TargetReps),
+			MaxReps:    int(set.MaxReps),
 			IsAMRAP:    set.IsAmrap != 0,
 			Plates:     views.FmtPlates(pairs),
 			Unloadable: unloadable,

@@ -12,14 +12,19 @@ phone at the gym.
 
 ## The program
 
-The default block is ten rounds and then repeats:
+The default block is eleven rounds and then repeats:
 
 | Rounds | Cycle | Main work | Supplemental |
 |--------|-------|-----------|--------------|
 | 1–3    | Leader 1 | 5's PRO — 5/5/5, no rep-max sets | BBB 5×10 @ 50% |
 | 4–6    | Leader 2 | 5's PRO | BBB 5×10 @ 60% |
-| 7      | Deload | 40/50/60 × 5 | — |
+| 7      | 7th Week TM Test | 70%×5, 80%×5, 90%×5, 100%×3–5 | — |
 | 8–10   | Anchor | 5/3/1 with a PR set | FSL 5×5 |
+| 11     | 7th Week Deload (optional) | 70%×5, 80%×3–5, 90%×1, 100%×1 | — |
+
+The two 7th weeks are the *5/3/1 Forever* protocols. The TM test always runs.
+The deload is offered when the anchor ends, and can be skipped to go straight
+into the next block.
 
 BBB load can be overridden per lift from Settings, as a percentage of that
 lift's training max or as a fixed weight, replacing the 50%/60% ramp above for
@@ -46,11 +51,22 @@ pick are left out of the block entirely, so there is no old history to key in
 and nothing invented to represent it. The first session you leave unticked is
 where the app picks up.
 
-### Training maxes never move on their own
+### Training maxes only move when you say so
 
-The app will *offer* a bump at the end of a cycle (+5 upper, +10 lower) and
-you can change any training max at any time from Settings. It never applies
-one for you.
+- **After each lift's TM test**, the dashboard reports the result straight
+  away. 3–5 reps at 100% means the TM is right. 6 or more means it can go up,
+  and that happens at the end of the block. Under 3 reps means the TM is too
+  high: the app offers to lower it by 10% (editable) or keep it, and the anchor
+  waits until you choose. The rest of the TM test week carries on regardless.
+  Nothing goes up here, so the anchor never runs on a training max raised
+  partway through the block.
+- **At the start of each new block**, every lift gets a proposal from the
+  anchor's PR sets and the TM test. Missing the minimum on any PR set (5+, 3+,
+  1+) resets the TM by 10%. Making all of them earns a step (+5 upper, +10
+  lower), or two steps if the TM test also went 6+. Every proposal is editable,
+  nothing is written until you accept, and the block waits until you do.
+
+You can still change any training max at any time from Settings.
 
 Training maxes are an append-only log, and sets store absolute weights
 snapshotted when a session starts. Changing a training max today affects

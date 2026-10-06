@@ -90,7 +90,7 @@ templ upcomingSet(w WorkoutVM, s SetVM) {
 			<div class="set-tag">{ s.Tag }</div>
 			<div class="set-weight">{ FmtWeightUnit(s.Weight, w.Unit) }</div>
 			<div class="set-meta">
-				{ RepTarget(s.TargetReps, s.IsAMRAP) } reps &middot; { FmtPct(s.Pct) }
+				{ RepTarget(s.TargetReps, s.MaxReps, s.IsAMRAP) } reps &middot; { FmtPct(s.Pct) }
 			</div>
 		</div>
 	</div>
@@ -102,19 +102,19 @@ templ currentSet(w WorkoutVM, s SetVM) {
 			<div class="set-tag">{ s.Tag }</div>
 			<div class="set-weight">{ FmtWeightUnit(s.Weight, w.Unit) }</div>
 			<div class="set-meta">
-				{ RepTarget(s.TargetReps, s.IsAMRAP) } reps &middot; { FmtPct(s.Pct) }
+				{ RepTarget(s.TargetReps, s.MaxReps, s.IsAMRAP) } reps &middot; { FmtPct(s.Pct) }
 			</div>
 			@plateLine(s, w.Unit)
 		</div>
-		if !s.IsAMRAP {
+		if !asksReps(s) {
 			<form method="post" action={ templ.SafeURL(fmt.Sprintf("/workout/%d/set/%d", w.ID, s.Idx)) }>
 				<input type="hidden" name="reps" value={ FmtInt(s.TargetReps) }/>
 				<button class="check" type="submit" aria-label="Log set">&check;</button>
 			</form>
 		}
 	</div>
-	if s.IsAMRAP {
-		@amrapPicker(w, s)
+	if asksReps(s) {
+		@repPicker(w, s)
 	}
 }
 
@@ -131,20 +131,26 @@ templ plateLine(s SetVM, unit string) {
 	}
 }
 
-// amrapPicker replaces a stepper with one tap per plausible answer, so the PR
-// set can be logged without a keyboard.
-templ amrapPicker(w WorkoutVM, s SetVM) {
+// asksReps reports whether a set needs its reps entered rather than ticked
+// off: a PR set, or a range such as 3-5 where the number done is the point.
+func asksReps(s SetVM) bool {
+	return s.IsAMRAP || s.MaxReps > 0
+}
+
+// repPicker replaces a stepper with one tap per plausible answer, so the reps
+// can be logged without a keyboard. The prescribed target is highlighted.
+templ repPicker(w WorkoutVM, s SetVM) {
 	<div class="card">
 		<div class="amrap-prompt">
 			How many reps?
-			if w.BestE1RM > 0 {
+			if s.IsAMRAP && w.BestE1RM > 0 {
 				<span class="tnum">Best estimated max { FmtWeightUnit(w.BestE1RM, w.Unit) }.</span>
 			}
 		</div>
 		<form method="post" action={ templ.SafeURL(fmt.Sprintf("/workout/%d/set/%d", w.ID, s.Idx)) }>
 			<div class="reps">
-				for _, r := range repChoices(s.TargetReps) {
-					if r == s.TargetReps {
+				for _, r := range repChoices(s) {
+					if isTargetRep(s, r) {
 						<button class="target" type="submit" name="reps" value={ FmtInt(r) }>{ FmtInt(r) }</button>
 					} else {
 						<button type="submit" name="reps" value={ FmtInt(r) }>{ FmtInt(r) }</button>
@@ -155,22 +161,32 @@ templ amrapPicker(w WorkoutVM, s SetVM) {
 		<form method="post" action={ templ.SafeURL(fmt.Sprintf("/workout/%d/set/%d", w.ID, s.Idx)) } class="inline-form" style="margin-top:12px">
 			<div class="field">
 				<label for="more-reps">More</label>
-				<input id="more-reps" type="number" name="reps" inputmode="numeric" min="1" max="100"/>
+				<input id="more-reps" type="number" name="reps" inputmode="numeric" min="0" max="100"/>
 			</div>
 			<button class="btn" type="submit">Log</button>
 		</form>
 	</div>
 }
 
-// repChoices offers ten answers starting at the prescribed target, which
-// covers all but the most exceptional PR set.
-func repChoices(target int) []int {
-	if target < 1 {
-		target = 1
+// repChoices offers ten answers. A PR set starts at its target, which covers
+// all but the most exceptional one. A range starts at a single rep, since
+// falling short of it is exactly what a TM test is there to find out.
+func repChoices(s SetVM) []int {
+	start := 1
+	if s.IsAMRAP && s.TargetReps > 1 {
+		start = s.TargetReps
 	}
 	out := make([]int, 10)
 	for i := range out {
-		out[i] = target + i
+		out[i] = start + i
 	}
 	return out
+}
+
+// isTargetRep marks the answers that meet the prescription.
+func isTargetRep(s SetVM, r int) bool {
+	if s.MaxReps > 0 {
+		return r >= s.TargetReps && r <= s.MaxReps
+	}
+	return r == s.TargetReps
 }

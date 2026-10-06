@@ -119,6 +119,27 @@ func (q *Queries) GetActiveProgram(ctx context.Context) (Program, error) {
 	return i, err
 }
 
+const getBlockByNumber = `-- name: GetBlockByNumber :one
+SELECT id, program_id, number, start_cycle_index, started_at, completed_at FROM blocks
+WHERE number = ?
+ORDER BY id DESC
+LIMIT 1
+`
+
+func (q *Queries) GetBlockByNumber(ctx context.Context, number int64) (Block, error) {
+	row := q.db.QueryRowContext(ctx, getBlockByNumber, number)
+	var i Block
+	err := row.Scan(
+		&i.ID,
+		&i.ProgramID,
+		&i.Number,
+		&i.StartCycleIndex,
+		&i.StartedAt,
+		&i.CompletedAt,
+	)
+	return i, err
+}
+
 const getCurrentBlock = `-- name: GetCurrentBlock :one
 SELECT id, program_id, number, start_cycle_index, started_at, completed_at FROM blocks
 WHERE completed_at IS NULL
@@ -156,6 +177,33 @@ func (q *Queries) GetCurrentTrainingMax(ctx context.Context, liftSlug string) (T
 		&i.Value,
 		&i.EffectiveFrom,
 		&i.Note,
+	)
+	return i, err
+}
+
+const getLatestWorkoutInBlock = `-- name: GetLatestWorkoutInBlock :one
+SELECT id, block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max, started_at, completed_at, notes, tm_reviewed_at FROM workouts
+WHERE block_id = ?
+ORDER BY id DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLatestWorkoutInBlock(ctx context.Context, blockID int64) (Workout, error) {
+	row := q.db.QueryRowContext(ctx, getLatestWorkoutInBlock, blockID)
+	var i Workout
+	err := row.Scan(
+		&i.ID,
+		&i.BlockID,
+		&i.LiftSlug,
+		&i.CycleIndex,
+		&i.CycleLabel,
+		&i.Phase,
+		&i.Round,
+		&i.TrainingMax,
+		&i.StartedAt,
+		&i.CompletedAt,
+		&i.Notes,
+		&i.TmReviewedAt,
 	)
 	return i, err
 }
@@ -202,7 +250,7 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 }
 
 const getWorkout = `-- name: GetWorkout :one
-SELECT id, block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max, started_at, completed_at, notes FROM workouts WHERE id = ?
+SELECT id, block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max, started_at, completed_at, notes, tm_reviewed_at FROM workouts WHERE id = ?
 `
 
 func (q *Queries) GetWorkout(ctx context.Context, id int64) (Workout, error) {
@@ -220,12 +268,13 @@ func (q *Queries) GetWorkout(ctx context.Context, id int64) (Workout, error) {
 		&i.StartedAt,
 		&i.CompletedAt,
 		&i.Notes,
+		&i.TmReviewedAt,
 	)
 	return i, err
 }
 
 const getWorkoutAt = `-- name: GetWorkoutAt :one
-SELECT id, block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max, started_at, completed_at, notes FROM workouts
+SELECT id, block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max, started_at, completed_at, notes, tm_reviewed_at FROM workouts
 WHERE block_id = ? AND cycle_index = ? AND round_number = ? AND lift_slug = ?
 `
 
@@ -256,6 +305,7 @@ func (q *Queries) GetWorkoutAt(ctx context.Context, arg GetWorkoutAtParams) (Wor
 		&i.StartedAt,
 		&i.CompletedAt,
 		&i.Notes,
+		&i.TmReviewedAt,
 	)
 	return i, err
 }
@@ -284,9 +334,9 @@ func (q *Queries) InsertBlock(ctx context.Context, arg InsertBlockParams) (Block
 }
 
 const insertCompletedSet = `-- name: InsertCompletedSet :exec
-INSERT INTO sets (workout_id, idx, kind, weight, pct, target_reps, is_amrap,
-                  actual_reps, completed_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+INSERT INTO sets (workout_id, idx, kind, weight, pct, target_reps, max_reps,
+                  is_amrap, actual_reps, completed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
 `
 
 type InsertCompletedSetParams struct {
@@ -296,6 +346,7 @@ type InsertCompletedSetParams struct {
 	Weight     float64
 	Pct        float64
 	TargetReps int64
+	MaxReps    int64
 	IsAmrap    int64
 	ActualReps sql.NullInt64
 }
@@ -310,6 +361,7 @@ func (q *Queries) InsertCompletedSet(ctx context.Context, arg InsertCompletedSet
 		arg.Weight,
 		arg.Pct,
 		arg.TargetReps,
+		arg.MaxReps,
 		arg.IsAmrap,
 		arg.ActualReps,
 	)
@@ -340,8 +392,8 @@ func (q *Queries) InsertProgram(ctx context.Context, arg InsertProgramParams) (P
 }
 
 const insertSet = `-- name: InsertSet :exec
-INSERT INTO sets (workout_id, idx, kind, weight, pct, target_reps, is_amrap)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO sets (workout_id, idx, kind, weight, pct, target_reps, max_reps, is_amrap)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertSetParams struct {
@@ -351,6 +403,7 @@ type InsertSetParams struct {
 	Weight     float64
 	Pct        float64
 	TargetReps int64
+	MaxReps    int64
 	IsAmrap    int64
 }
 
@@ -362,6 +415,7 @@ func (q *Queries) InsertSet(ctx context.Context, arg InsertSetParams) error {
 		arg.Weight,
 		arg.Pct,
 		arg.TargetReps,
+		arg.MaxReps,
 		arg.IsAmrap,
 	)
 	return err
@@ -370,7 +424,7 @@ func (q *Queries) InsertSet(ctx context.Context, arg InsertSetParams) error {
 const insertWorkout = `-- name: InsertWorkout :one
 INSERT INTO workouts (block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max)
 VALUES (?, ?, ?, ?, ?, ?, ?)
-RETURNING id, block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max, started_at, completed_at, notes
+RETURNING id, block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max, started_at, completed_at, notes, tm_reviewed_at
 `
 
 type InsertWorkoutParams struct {
@@ -406,6 +460,7 @@ func (q *Queries) InsertWorkout(ctx context.Context, arg InsertWorkoutParams) (W
 		&i.StartedAt,
 		&i.CompletedAt,
 		&i.Notes,
+		&i.TmReviewedAt,
 	)
 	return i, err
 }
@@ -445,6 +500,49 @@ func (q *Queries) ListAMRAPSets(ctx context.Context, liftSlug string) ([]ListAMR
 			&i.CompletedAt,
 			&i.TrainingMax,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAnchorPRSets = `-- name: ListAnchorPRSets :many
+SELECT w.lift_slug, s.target_reps, s.actual_reps
+FROM sets s
+JOIN workouts w ON w.id = s.workout_id
+WHERE w.block_id = ?
+  AND w.phase = 'anchor'
+  AND w.completed_at IS NOT NULL
+  AND s.is_amrap = 1
+  AND s.actual_reps IS NOT NULL
+ORDER BY w.cycle_index, w.round_number, w.id
+`
+
+type ListAnchorPRSetsRow struct {
+	LiftSlug   string
+	TargetReps int64
+	ActualReps sql.NullInt64
+}
+
+// ListAnchorPRSets returns the PR sets of a block's completed anchor sessions:
+// the minimum prescribed and the reps performed.
+func (q *Queries) ListAnchorPRSets(ctx context.Context, blockID int64) ([]ListAnchorPRSetsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAnchorPRSets, blockID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAnchorPRSetsRow{}
+	for rows.Next() {
+		var i ListAnchorPRSetsRow
+		if err := rows.Scan(&i.LiftSlug, &i.TargetReps, &i.ActualReps); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -548,7 +646,7 @@ func (q *Queries) ListLifts(ctx context.Context) ([]Lift, error) {
 }
 
 const listRecentWorkouts = `-- name: ListRecentWorkouts :many
-SELECT w.id, w.block_id, w.lift_slug, w.cycle_index, w.cycle_label, w.phase, w.round_number, w.training_max, w.started_at, w.completed_at, w.notes, l.name AS lift_name
+SELECT w.id, w.block_id, w.lift_slug, w.cycle_index, w.cycle_label, w.phase, w.round_number, w.training_max, w.started_at, w.completed_at, w.notes, w.tm_reviewed_at, l.name AS lift_name
 FROM workouts w
 JOIN lifts l ON l.slug = w.lift_slug
 WHERE w.completed_at IS NOT NULL
@@ -557,18 +655,19 @@ LIMIT ?
 `
 
 type ListRecentWorkoutsRow struct {
-	ID          int64
-	BlockID     int64
-	LiftSlug    string
-	CycleIndex  int64
-	CycleLabel  string
-	Phase       string
-	Round       int64
-	TrainingMax float64
-	StartedAt   string
-	CompletedAt sql.NullString
-	Notes       string
-	LiftName    string
+	ID           int64
+	BlockID      int64
+	LiftSlug     string
+	CycleIndex   int64
+	CycleLabel   string
+	Phase        string
+	Round        int64
+	TrainingMax  float64
+	StartedAt    string
+	CompletedAt  sql.NullString
+	Notes        string
+	TmReviewedAt sql.NullString
+	LiftName     string
 }
 
 func (q *Queries) ListRecentWorkouts(ctx context.Context, limit int64) ([]ListRecentWorkoutsRow, error) {
@@ -592,6 +691,7 @@ func (q *Queries) ListRecentWorkouts(ctx context.Context, limit int64) ([]ListRe
 			&i.StartedAt,
 			&i.CompletedAt,
 			&i.Notes,
+			&i.TmReviewedAt,
 			&i.LiftName,
 		); err != nil {
 			return nil, err
@@ -608,7 +708,7 @@ func (q *Queries) ListRecentWorkouts(ctx context.Context, limit int64) ([]ListRe
 }
 
 const listSets = `-- name: ListSets :many
-SELECT workout_id, idx, kind, weight, pct, target_reps, is_amrap, actual_reps, completed_at FROM sets WHERE workout_id = ? ORDER BY idx
+SELECT workout_id, idx, kind, weight, pct, target_reps, is_amrap, actual_reps, completed_at, max_reps FROM sets WHERE workout_id = ? ORDER BY idx
 `
 
 func (q *Queries) ListSets(ctx context.Context, workoutID int64) ([]Set, error) {
@@ -630,6 +730,87 @@ func (q *Queries) ListSets(ctx context.Context, workoutID int64) ([]Set, error) 
 			&i.IsAmrap,
 			&i.ActualReps,
 			&i.CompletedAt,
+			&i.MaxReps,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSkippedCycles = `-- name: ListSkippedCycles :many
+SELECT cycle_index FROM skipped_cycles WHERE block_id = ?
+`
+
+func (q *Queries) ListSkippedCycles(ctx context.Context, blockID int64) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listSkippedCycles, blockID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var cycle_index int64
+		if err := rows.Scan(&cycle_index); err != nil {
+			return nil, err
+		}
+		items = append(items, cycle_index)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTMTestTopSets = `-- name: ListTMTestTopSets :many
+SELECT w.id, w.lift_slug, w.training_max, w.tm_reviewed_at, s.actual_reps
+FROM sets s
+JOIN workouts w ON w.id = s.workout_id
+WHERE w.block_id = ?
+  AND w.phase = 'tm_test'
+  AND w.completed_at IS NOT NULL
+  AND s.kind = 'main'
+  AND s.max_reps > 0
+  AND s.actual_reps IS NOT NULL
+ORDER BY w.id, s.idx
+`
+
+type ListTMTestTopSetsRow struct {
+	ID           int64
+	LiftSlug     string
+	TrainingMax  float64
+	TmReviewedAt sql.NullString
+	ActualReps   sql.NullInt64
+}
+
+// ListTMTestTopSets returns, for each lift, the reps performed on the 100% set
+// of a block's completed TM test, with the training max that was tested. The
+// rep-range main set is the one at the training max.
+func (q *Queries) ListTMTestTopSets(ctx context.Context, blockID int64) ([]ListTMTestTopSetsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTMTestTopSets, blockID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTMTestTopSetsRow{}
+	for rows.Next() {
+		var i ListTMTestTopSetsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.LiftSlug,
+			&i.TrainingMax,
+			&i.TmReviewedAt,
+			&i.ActualReps,
 		); err != nil {
 			return nil, err
 		}
@@ -680,7 +861,7 @@ func (q *Queries) ListTrainingMaxHistory(ctx context.Context, liftSlug string) (
 }
 
 const listWorkoutsInBlock = `-- name: ListWorkoutsInBlock :many
-SELECT id, block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max, started_at, completed_at, notes FROM workouts
+SELECT id, block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max, started_at, completed_at, notes, tm_reviewed_at FROM workouts
 WHERE block_id = ?
 ORDER BY cycle_index, round_number, id
 `
@@ -706,6 +887,7 @@ func (q *Queries) ListWorkoutsInBlock(ctx context.Context, blockID int64) ([]Wor
 			&i.StartedAt,
 			&i.CompletedAt,
 			&i.Notes,
+			&i.TmReviewedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -734,6 +916,15 @@ type LogSetParams struct {
 
 func (q *Queries) LogSet(ctx context.Context, arg LogSetParams) error {
 	_, err := q.db.ExecContext(ctx, logSet, arg.ActualReps, arg.WorkoutID, arg.Idx)
+	return err
+}
+
+const markTMTestReviewed = `-- name: MarkTMTestReviewed :exec
+UPDATE workouts SET tm_reviewed_at = datetime('now') WHERE id = ?
+`
+
+func (q *Queries) MarkTMTestReviewed(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, markTMTestReviewed, id)
 	return err
 }
 
@@ -802,6 +993,21 @@ type SetWorkoutNotesParams struct {
 
 func (q *Queries) SetWorkoutNotes(ctx context.Context, arg SetWorkoutNotesParams) error {
 	_, err := q.db.ExecContext(ctx, setWorkoutNotes, arg.Notes, arg.ID)
+	return err
+}
+
+const skipCycle = `-- name: SkipCycle :exec
+INSERT INTO skipped_cycles (block_id, cycle_index) VALUES (?, ?)
+ON CONFLICT (block_id, cycle_index) DO NOTHING
+`
+
+type SkipCycleParams struct {
+	BlockID    int64
+	CycleIndex int64
+}
+
+func (q *Queries) SkipCycle(ctx context.Context, arg SkipCycleParams) error {
+	_, err := q.db.ExecContext(ctx, skipCycle, arg.BlockID, arg.CycleIndex)
 	return err
 }
 

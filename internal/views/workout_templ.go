@@ -394,9 +394,9 @@ func upcomingSet(w WorkoutVM, s SetVM) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var19 string
-		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(RepTarget(s.TargetReps, s.IsAMRAP))
+		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(RepTarget(s.TargetReps, s.MaxReps, s.IsAMRAP))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 93, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 93, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -409,7 +409,7 @@ func upcomingSet(w WorkoutVM, s SetVM) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(FmtPct(s.Pct))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 93, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 93, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
@@ -488,9 +488,9 @@ func currentSet(w WorkoutVM, s SetVM) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var25 string
-		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(RepTarget(s.TargetReps, s.IsAMRAP))
+		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(RepTarget(s.TargetReps, s.MaxReps, s.IsAMRAP))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 105, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 105, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -503,7 +503,7 @@ func currentSet(w WorkoutVM, s SetVM) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(FmtPct(s.Pct))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 105, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 105, Col: 83}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -521,7 +521,7 @@ func currentSet(w WorkoutVM, s SetVM) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if !s.IsAMRAP {
+		if !asksReps(s) {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<form method=\"post\" action=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -557,8 +557,8 @@ func currentSet(w WorkoutVM, s SetVM) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if s.IsAMRAP {
-			templ_7745c5c3_Err = amrapPicker(w, s).Render(ctx, templ_7745c5c3_Buffer)
+		if asksReps(s) {
+			templ_7745c5c3_Err = repPicker(w, s).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -639,9 +639,15 @@ func plateLine(s SetVM, unit string) templ.Component {
 	})
 }
 
-// amrapPicker replaces a stepper with one tap per plausible answer, so the PR
-// set can be logged without a keyboard.
-func amrapPicker(w WorkoutVM, s SetVM) templ.Component {
+// asksReps reports whether a set needs its reps entered rather than ticked
+// off: a PR set, or a range such as 3-5 where the number done is the point.
+func asksReps(s SetVM) bool {
+	return s.IsAMRAP || s.MaxReps > 0
+}
+
+// repPicker replaces a stepper with one tap per plausible answer, so the reps
+// can be logged without a keyboard. The prescribed target is highlighted.
+func repPicker(w WorkoutVM, s SetVM) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -666,7 +672,7 @@ func amrapPicker(w WorkoutVM, s SetVM) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if w.BestE1RM > 0 {
+		if s.IsAMRAP && w.BestE1RM > 0 {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<span class=\"tnum\">Best estimated max ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -674,7 +680,7 @@ func amrapPicker(w WorkoutVM, s SetVM) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(FmtWeightUnit(w.BestE1RM, w.Unit))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 141, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 147, Col: 77}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -692,7 +698,7 @@ func amrapPicker(w WorkoutVM, s SetVM) templ.Component {
 		var templ_7745c5c3_Var34 templ.SafeURL
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/workout/%d/set/%d", w.ID, s.Idx)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 144, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 150, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {
@@ -702,8 +708,8 @@ func amrapPicker(w WorkoutVM, s SetVM) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, r := range repChoices(s.TargetReps) {
-			if r == s.TargetReps {
+		for _, r := range repChoices(s) {
+			if isTargetRep(s, r) {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<button class=\"target\" type=\"submit\" name=\"reps\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -711,7 +717,7 @@ func amrapPicker(w WorkoutVM, s SetVM) templ.Component {
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(FmtInt(r))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 148, Col: 72}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 154, Col: 72}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 				if templ_7745c5c3_Err != nil {
@@ -724,7 +730,7 @@ func amrapPicker(w WorkoutVM, s SetVM) templ.Component {
 				var templ_7745c5c3_Var36 string
 				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(FmtInt(r))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 148, Col: 86}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 154, Col: 86}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 				if templ_7745c5c3_Err != nil {
@@ -742,7 +748,7 @@ func amrapPicker(w WorkoutVM, s SetVM) templ.Component {
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(FmtInt(r))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 150, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 156, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 				if templ_7745c5c3_Err != nil {
@@ -755,7 +761,7 @@ func amrapPicker(w WorkoutVM, s SetVM) templ.Component {
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(FmtInt(r))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 150, Col: 71}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 156, Col: 71}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {
@@ -774,13 +780,13 @@ func amrapPicker(w WorkoutVM, s SetVM) templ.Component {
 		var templ_7745c5c3_Var39 templ.SafeURL
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(fmt.Sprintf("/workout/%d/set/%d", w.ID, s.Idx)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 155, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/workout.templ`, Line: 161, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\" class=\"inline-form\" style=\"margin-top:12px\"><div class=\"field\"><label for=\"more-reps\">More</label> <input id=\"more-reps\" type=\"number\" name=\"reps\" inputmode=\"numeric\" min=\"1\" max=\"100\"></div><button class=\"btn\" type=\"submit\">Log</button></form></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\" class=\"inline-form\" style=\"margin-top:12px\"><div class=\"field\"><label for=\"more-reps\">More</label> <input id=\"more-reps\" type=\"number\" name=\"reps\" inputmode=\"numeric\" min=\"0\" max=\"100\"></div><button class=\"btn\" type=\"submit\">Log</button></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -788,17 +794,27 @@ func amrapPicker(w WorkoutVM, s SetVM) templ.Component {
 	})
 }
 
-// repChoices offers ten answers starting at the prescribed target, which
-// covers all but the most exceptional PR set.
-func repChoices(target int) []int {
-	if target < 1 {
-		target = 1
+// repChoices offers ten answers. A PR set starts at its target, which covers
+// all but the most exceptional one. A range starts at a single rep, since
+// falling short of it is exactly what a TM test is there to find out.
+func repChoices(s SetVM) []int {
+	start := 1
+	if s.IsAMRAP && s.TargetReps > 1 {
+		start = s.TargetReps
 	}
 	out := make([]int, 10)
 	for i := range out {
-		out[i] = target + i
+		out[i] = start + i
 	}
 	return out
+}
+
+// isTargetRep marks the answers that meet the prescription.
+func isTargetRep(s SetVM, r int) bool {
+	if s.MaxReps > 0 {
+		return r >= s.TargetReps && r <= s.MaxReps
+	}
+	return r == s.TargetReps
 }
 
 var _ = templruntime.GeneratedTemplate

@@ -44,11 +44,15 @@ func FmtPlates(pairs []program.PlatePair) string {
 }
 
 // RepTarget renders the rep target as it appears in the book: a trailing plus
-// marks a set taken for as many reps as possible.
-func RepTarget(reps int, amrap bool) string {
+// marks a set taken for as many reps as possible, and a range such as 3-5 is
+// written with an en dash.
+func RepTarget(reps, maxReps int, amrap bool) string {
 	s := strconv.Itoa(reps)
-	if amrap {
+	switch {
+	case amrap:
 		return s + "+"
+	case maxReps > reps:
+		return s + "–" + strconv.Itoa(maxReps)
 	}
 	return s
 }

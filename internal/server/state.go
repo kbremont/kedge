@@ -27,6 +27,9 @@ type blockState struct {
 	Next     program.Position
 	HasNext  bool
 
+	// Skipped holds the optional cycles the user passed on in this block.
+	Skipped map[int]bool
+
 	// InProgress is a session that was started but never finished.
 	InProgress *db.Workout
 
@@ -160,9 +163,19 @@ func (s *Server) loadState(ctx context.Context) (*blockState, error) {
 			return nil, err
 		}
 
+		skippedRows, err := s.q.ListSkippedCycles(ctx, block.ID)
+		if err != nil {
+			return nil, fmt.Errorf("list skipped cycles in block %d: %w", block.ID, err)
+		}
+		skipped := make(map[int]bool, len(skippedRows))
+		for _, idx := range skippedRows {
+			skipped[int(idx)] = true
+		}
+
 		// The schedule depends on the block, not just the program: a block
-		// joined partway through during setup starts at its own cycle.
-		schedule := cfg.ScheduleFrom(len(lifts), int(block.StartCycleIndex))
+		// joined partway through during setup starts at its own cycle, and an
+		// optional cycle the user skipped is left out.
+		schedule := cfg.BlockSchedule(len(lifts), int(block.StartCycleIndex), skipped)
 
 		workouts, err := s.q.ListWorkoutsInBlock(ctx, block.ID)
 		if err != nil {
@@ -194,6 +207,7 @@ func (s *Server) loadState(ctx context.Context) (*blockState, error) {
 			Done:       done,
 			Next:       next,
 			HasNext:    hasNext,
+			Skipped:    skipped,
 			InProgress: inProgress,
 			Lifts:      lifts,
 			LiftByDay:  liftByDay,
@@ -209,6 +223,33 @@ func (s *Server) loadState(ctx context.Context) (*blockState, error) {
 		}
 	}
 	return state, nil
+}
+
+// cycleStarted reports whether any session of a cycle has been started in the
+// current block, finished or not.
+func (st *blockState) cycleStarted(cycleIdx int) bool {
+	if st.InProgress != nil && int(st.InProgress.CycleIndex) == cycleIdx {
+		return true
+	}
+	for p := range st.Done {
+		if p.CycleIndex == cycleIdx {
+			return true
+		}
+	}
+	return false
+}
+
+// canSkipNext reports whether the next scheduled cycle is optional and still
+// untouched, which is the only time skipping it is offered.
+func (st *blockState) canSkipNext() bool {
+	if st.InProgress != nil || !st.HasNext {
+		return false
+	}
+	cycle, err := st.Config.CycleAt(st.Next.CycleIndex)
+	if err != nil {
+		return false
+	}
+	return cycle.Optional && !st.cycleStarted(st.Next.CycleIndex)
 }
 
 // bbbPctFor turns a lift's BBB preference into the fraction of its training max

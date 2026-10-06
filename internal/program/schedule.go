@@ -34,6 +34,14 @@ func (c Config) Schedule(daysPerRound int) []Position {
 // is what lets someone begin mid-programme without the app inventing completed
 // sessions to represent the work it was never told about.
 func (c Config) ScheduleFrom(daysPerRound, startCycleIndex int) []Position {
+	return c.BlockSchedule(daysPerRound, startCycleIndex, nil)
+}
+
+// BlockSchedule lays out a block that starts at startCycleIndex and leaves out
+// the cycles in skipped, which is how an optional cycle the user passed on
+// drops out of the block. Skipping the last remaining cycle leaves nothing
+// scheduled, so the block is over and the next one begins.
+func (c Config) BlockSchedule(daysPerRound, startCycleIndex int, skipped map[int]bool) []Position {
 	if daysPerRound < 1 {
 		return nil
 	}
@@ -42,7 +50,7 @@ func (c Config) ScheduleFrom(daysPerRound, startCycleIndex int) []Position {
 	}
 	var out []Position
 	for ci, cycle := range c.Cycles {
-		if ci < startCycleIndex {
+		if ci < startCycleIndex || skipped[ci] {
 			continue
 		}
 		for round := 1; round <= cycle.Rounds; round++ {

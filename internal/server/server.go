@@ -82,7 +82,9 @@ func (s *Server) Handler() http.Handler {
 	app.HandleFunc("GET /settings", s.handleSettings)
 	app.HandleFunc("POST /settings", s.handleSaveSettings)
 	app.HandleFunc("POST /training-max", s.handleSetTrainingMax)
-	app.HandleFunc("POST /dismiss-suggestions", s.handleDismissSuggestions)
+	app.HandleFunc("POST /tm-review", s.handleAcceptReview)
+	app.HandleFunc("POST /tm-test/{id}", s.handleTMTestDecision)
+	app.HandleFunc("POST /skip-cycle", s.handleSkipCycle)
 	app.HandleFunc("GET /backup", s.handleBackup)
 
 	mux.Handle("/", s.requireAuth(app))
