@@ -370,6 +370,23 @@ input[type="password"] {
     font-variant-numeric: tabular-nums;
 }
 
+/* iOS Safari gives a date input its own appearance and a minimum width from
+   its contents, which push it past width: 100% and shrink its height. Opting
+   out lets it size like the other inputs. The value then needs placing by
+   hand: a line as tall as the box inside its border centres it vertically,
+   and it sits left-aligned like the others rather than centred. */
+input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    min-width: 0;
+    line-height: 50px;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+}
+
 input:focus-visible, .btn:focus-visible, button:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
