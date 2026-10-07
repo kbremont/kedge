@@ -484,7 +484,7 @@ type ListAMRAPSetsRow struct {
 }
 
 // ListAMRAPSets feeds the progress chart and PR list. Leader cycles run 5's
-// PRO, so this only yields data from anchor rounds.
+// PRO, so this only yields data from anchor rounds and the TM test's 100% set.
 func (q *Queries) ListAMRAPSets(ctx context.Context, liftSlug string) ([]ListAMRAPSetsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAMRAPSets, liftSlug)
 	if err != nil {
@@ -780,7 +780,7 @@ WHERE w.block_id = ?
   AND w.phase = 'tm_test'
   AND w.completed_at IS NOT NULL
   AND s.kind = 'main'
-  AND s.max_reps > 0
+  AND s.is_amrap = 1
   AND s.actual_reps IS NOT NULL
 ORDER BY w.id, s.idx
 `
@@ -795,7 +795,7 @@ type ListTMTestTopSetsRow struct {
 
 // ListTMTestTopSets returns, for each lift, the reps performed on the 100% set
 // of a block's completed TM test, with the training max that was tested. The
-// rep-range main set is the one at the training max.
+// AMRAP main set is the one at the training max.
 func (q *Queries) ListTMTestTopSets(ctx context.Context, blockID int64) ([]ListTMTestTopSetsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listTMTestTopSets, blockID)
 	if err != nil {

@@ -7,7 +7,8 @@ import (
 
 // setSpec is one entry in a percentage table: a fraction of the training max,
 // a rep target, and whether the set is taken to a rep max. maxReps is set only
-// for a rep range, where reps is the bottom of it.
+// for a rep range, where reps is the bottom of it. On an AMRAP set it is the
+// target window rather than a cap.
 type setSpec struct {
 	pct     float64
 	reps    int
@@ -34,16 +35,18 @@ var (
 		{{0.40, 5, false, 0}, {0.50, 5, false, 0}, {0.60, 5, false, 0}},
 	}
 
-	// The 5/3/1 Forever 7th week protocols. The test's last set is logged as
-	// performed, since the reps at 100% are the whole point of it.
+	// The 5/3/1 Forever 7th week protocols. The TM test is this app's variant:
+	// Forever's 7th-week ramp with an AMRAP at the training max, since the reps
+	// at 100% are the whole point of it. Its top set reads "3+", the minimum
+	// that passes; maxReps marks the 3-5 window that says the TM is right.
 	tmTestRound = [][]setSpec{
-		{{0.70, 5, false, 0}, {0.80, 5, false, 0}, {0.90, 5, false, 0}, {1.00, 3, false, 5}},
+		{{0.70, 5, false, 0}, {0.80, 3, false, 0}, {0.90, 1, false, 0}, {1.00, 3, true, 5}},
 	}
 	seventhDeloadRound = [][]setSpec{
 		{{0.70, 5, false, 0}, {0.80, 3, false, 5}, {0.90, 1, false, 0}, {1.00, 1, false, 0}},
 	}
 
-	warmupSets = []setSpec{{0.40, 5, false, 0}, {0.50, 5, false, 0}, {0.60, 3, false, 0}}
+	warmupSets = []setSpec{{0.40, 5, false, 0}, {0.50, 5, false, 0}, {0.60, 5, false, 0}}
 )
 
 func mainTable(s MainScheme) ([][]setSpec, error) {

@@ -18,13 +18,16 @@ The default block is eleven rounds and then repeats:
 |--------|-------|-----------|--------------|
 | 1–3    | Leader 1 | 5's PRO — 5/5/5, no rep-max sets | BBB 5×10 @ 50% |
 | 4–6    | Leader 2 | 5's PRO | BBB 5×10 @ 60% |
-| 7      | 7th Week TM Test | 70%×5, 80%×5, 90%×5, 100%×3–5 | — |
+| 7      | 7th Week TM Test | 70%×5, 80%×3, 90%×1, 100%×3+ (AMRAP) | — |
 | 8–10   | Anchor | 5/3/1 with a PR set | FSL 5×5 |
 | 11     | 7th Week Deload (optional) | 70%×5, 80%×3–5, 90%×1, 100%×1 | — |
 
-The two 7th weeks are the *5/3/1 Forever* protocols. The TM test always runs.
-The deload is offered when the anchor ends, and can be skipped to go straight
-into the next block.
+The two 7th weeks are the *5/3/1 Forever* protocols. The TM test always runs,
+and its 100% AMRAP counts toward each lift's best estimated max and progress
+chart, like an anchor PR set. The deload is offered when the anchor ends, and
+can be skipped to go straight into the next block.
+
+Warmups, when enabled in Settings, are 40/50/60% × 5.
 
 BBB load can be overridden per lift from Settings, as a percentage of that
 lift's training max or as a fixed weight, replacing the 50%/60% ramp above for

@@ -189,10 +189,10 @@ templ LiftDetail(l LiftVM) {
 			</div>
 		</div>
 		<h2>Estimated max from PR sets</h2>
-		if len(l.Points) < 2 {
+		if len(l.Points) == 0 {
 			<div class="card empty">
-				Not enough data yet. PR sets only happen on anchor rounds, so the
-				first points arrive at the end of a block.
+				Not enough data yet. Only the TM test and the anchor's PR sets
+				count, so the first points arrive partway through a block.
 			</div>
 		} else {
 			<div class="card">
@@ -227,6 +227,10 @@ templ chart(l LiftVM) {
 		<path class="line" d={ l.Path }></path>
 		for _, p := range l.Points {
 			<circle class="dot" cx={ FmtWeight(p.X) } cy={ FmtWeight(p.Y) } r="3.5"></circle>
+		}
+		// With nothing to compare against yet, say what the one point is.
+		if len(l.Points) == 1 {
+			<text class="lbl" x={ FmtWeight(l.Points[0].X) } y={ FmtWeight(l.Points[0].Y - 10) } text-anchor="middle">{ l.Points[0].Label }</text>
 		}
 		<text class="lbl" x="2" y="146">{ FmtWeight(l.YMin) }</text>
 		<text class="lbl" x="2" y="8">{ FmtWeight(l.YMax) }</text>
@@ -457,7 +461,7 @@ templ SetupHistory(vm SetupHistoryVM) {
 						</label>
 						if vm.AsksReps {
 							<div class="field" style="margin-top:8px;margin-bottom:0">
-								<label for={ d.RepsField }>PR set reps</label>
+								<label for={ d.RepsField }>{ vm.RepsLabel }</label>
 								<input
 									id={ d.RepsField }
 									type="number"

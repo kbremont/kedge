@@ -79,7 +79,7 @@ func buildChart(rows []db.ListAMRAPSetsRow) (points []views.ChartPoint, path str
 			best = e
 		}
 	}
-	if len(values) < 2 {
+	if len(values) == 0 {
 		return nil, "", 0, 0, best
 	}
 
@@ -100,7 +100,8 @@ func buildChart(rows []db.ListAMRAPSetsRow) (points []views.ChartPoint, path str
 	var b strings.Builder
 	points = make([]views.ChartPoint, 0, len(values))
 	for i, v := range values {
-		x := plotLeft
+		// A lone point sits in the middle; a line spans the full width.
+		x := (plotLeft + plotRight) / 2
 		if len(values) > 1 {
 			x = plotLeft + (plotRight-plotLeft)*float64(i)/float64(len(values)-1)
 		}

@@ -90,3 +90,39 @@ func TestSkipOffered(t *testing.T) {
 		t.Error("skip offered for a cycle that cannot be skipped")
 	}
 }
+
+func renderLift(t *testing.T, l LiftVM) string {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := LiftDetail(l).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	return buf.String()
+}
+
+// TestLiftChartFromFirstPoint shows the chart as soon as there is one
+// estimate, labelled with its value, and keeps the empty state for none.
+func TestLiftChartFromFirstPoint(t *testing.T) {
+	one := LiftVM{Name: "Overhead Press", Unit: "lb", CurrentTM: 100, BestE1RM: 130,
+		Points: []ChartPoint{{X: 160, Y: 70, Label: "130"}}, Path: "M 160.0 70.0", YMin: 120, YMax: 140}
+	html := renderLift(t, one)
+	for _, want := range []string{`<svg class="chart"`, `<circle class="dot" cx="160" cy="70"`, `text-anchor="middle">130</text>`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("one-point chart missing %q", want)
+		}
+	}
+	if strings.Contains(html, "Not enough data yet") {
+		t.Error("empty state shown alongside a point")
+	}
+
+	two := one
+	two.Points = []ChartPoint{{X: 10, Y: 90, Label: "120"}, {X: 310, Y: 40, Label: "130"}}
+	if html := renderLift(t, two); strings.Contains(html, `text-anchor="middle"`) {
+		t.Error("a line should not carry the lone-point label")
+	}
+
+	none := LiftVM{Name: "Overhead Press", Unit: "lb", CurrentTM: 100}
+	if html := renderLift(t, none); !strings.Contains(html, "Not enough data yet") || strings.Contains(html, "<svg") {
+		t.Error("expected the empty state and no chart with no points")
+	}
+}

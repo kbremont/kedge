@@ -244,9 +244,13 @@ type SetupHistoryVM struct {
 	CycleIndex int
 	CycleLabel string
 	Unit       string
-	// AsksReps is set for anchor cycles, where the PR set is the only number
-	// worth recording; leader rounds are 5's PRO and fully determined.
+	// AsksReps is set for anchor and TM test cycles, where the AMRAP set is the
+	// only number worth recording; leader rounds are 5's PRO and fully
+	// determined.
 	AsksReps bool
-	Rounds   []SetupRoundVM
-	Error    string
+	// RepsLabel names that set: the PR set on the anchor, the 100% set on the
+	// TM test.
+	RepsLabel string
+	Rounds    []SetupRoundVM
+	Error     string
 }

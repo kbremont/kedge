@@ -153,7 +153,7 @@ WHERE workout_id = ? AND idx = ?;
 SELECT COUNT(*) FROM sets WHERE workout_id = ? AND completed_at IS NULL;
 
 -- ListAMRAPSets feeds the progress chart and PR list. Leader cycles run 5's
--- PRO, so this only yields data from anchor rounds.
+-- PRO, so this only yields data from anchor rounds and the TM test's 100% set.
 --
 -- name: ListAMRAPSets :many
 SELECT s.weight, s.actual_reps, w.completed_at, w.training_max
@@ -181,7 +181,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'));
 
 -- ListTMTestTopSets returns, for each lift, the reps performed on the 100% set
 -- of a block's completed TM test, with the training max that was tested. The
--- rep-range main set is the one at the training max.
+-- AMRAP main set is the one at the training max.
 --
 -- name: ListTMTestTopSets :many
 SELECT w.id, w.lift_slug, w.training_max, w.tm_reviewed_at, s.actual_reps
@@ -191,7 +191,7 @@ WHERE w.block_id = ?
   AND w.phase = 'tm_test'
   AND w.completed_at IS NOT NULL
   AND s.kind = 'main'
-  AND s.max_reps > 0
+  AND s.is_amrap = 1
   AND s.actual_reps IS NOT NULL
 ORDER BY w.id, s.idx;
 
