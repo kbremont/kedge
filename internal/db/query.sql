@@ -165,6 +165,26 @@ WHERE w.lift_slug = ?
   AND w.completed_at IS NOT NULL
 ORDER BY w.completed_at, w.id;
 
+-- ListPastEstimates returns the estimates entered from before the app, in the
+-- order they were dated. They are read for the chart and the best estimated
+-- max only.
+--
+-- name: ListPastEstimates :many
+SELECT id, lift_slug, recorded_on, weight, reps, created_at
+FROM past_estimates
+WHERE lift_slug = ?
+ORDER BY recorded_on, id;
+
+-- name: InsertPastEstimate :exec
+INSERT INTO past_estimates (lift_slug, recorded_on, weight, reps)
+VALUES (?, ?, ?, ?);
+
+-- DeletePastEstimate is scoped to the lift so a stale page cannot remove
+-- another lift's entry.
+--
+-- name: DeletePastEstimate :exec
+DELETE FROM past_estimates WHERE id = ? AND lift_slug = ?;
+
 -- name: DismissCycle :exec
 UPDATE settings SET dismissed_cycle = ? WHERE id = 1;
 

@@ -191,12 +191,65 @@ templ LiftDetail(l LiftVM) {
 		<h2>Estimated max from PR sets</h2>
 		if len(l.Points) == 0 {
 			<div class="card empty">
-				Not enough data yet. Only the TM test and the anchor's PR sets
-				count, so the first points arrive partway through a block.
+				Not enough data yet. The TM test and the anchor's PR sets add
+				points as you train, and you can add estimates from before the
+				app below.
 			</div>
 		} else {
 			<div class="card">
 				@chart(l)
+			</div>
+		}
+		// The add form waits behind a plus in the heading. <details> opens and
+		// closes it without a script, and a rejected entry reopens it so the
+		// error is in view.
+		<details class="past-estimates" open?={ l.Error }>
+			<summary>
+				<h2>Past estimates</h2>
+				<span class="plus" aria-hidden="true"><span>+</span></span>
+			</summary>
+			<div class="card" style="margin-bottom:12px">
+				if l.Error {
+					<div class="error">That estimate was not saved. Check the date, weight and reps.</div>
+				}
+				<form method="post" action={ templ.SafeURL(fmt.Sprintf("/lift/%s/estimates", l.Slug)) }>
+					<div class="field">
+						<label for="recorded_on">Date</label>
+						<input id="recorded_on" type="date" name="recorded_on" max={ l.Today } required/>
+					</div>
+					<div class="field">
+						<label for="weight">Weight ({ l.Unit })</label>
+						<input id="weight" type="number" name="weight" step="0.5" min="1" inputmode="decimal" required/>
+					</div>
+					<div class="field">
+						<label for="reps">Reps</label>
+						<input id="reps" type="number" name="reps" value="1" min="1" max="30" inputmode="numeric" required/>
+					</div>
+					<div class="small muted" style="margin-bottom:12px">
+						Enter an estimated max as weight &times; 1, or a PR set like 135 &times; 8.
+						These count toward your best estimated max but never change a
+						training max or a TM test.
+					</div>
+					<button class="btn" type="submit">Add estimate</button>
+				</form>
+			</div>
+		</details>
+		if len(l.PastEstimates) > 0 {
+			<div class="card">
+				for i, e := range l.PastEstimates {
+					if i > 0 {
+						<div style="height:1px;background:var(--border);margin:10px 0"></div>
+					}
+					<div class="row">
+						<span class="tnum">
+							{ e.Date } &middot; { FmtWeight(e.Weight) } x { FmtInt(e.Reps) }
+							<span class="muted small">&middot; est. { FmtWeightUnit(e.Estimate, l.Unit) }</span>
+						</span>
+						<form method="post" action={ templ.SafeURL(fmt.Sprintf("/lift/%s/estimates/%d/delete", l.Slug, e.ID)) }>
+							<button class="btn btn-ghost" type="submit" style="width:auto;padding:0 10px">Delete</button>
+						</form>
+					</div>
+				}
 			</div>
 		}
 		<h2>Training max history</h2>
@@ -226,7 +279,11 @@ templ chart(l LiftVM) {
 		<line class="grid" x1="0" y1="10" x2="320" y2="10"></line>
 		<path class="line" d={ l.Path }></path>
 		for _, p := range l.Points {
-			<circle class="dot" cx={ FmtWeight(p.X) } cy={ FmtWeight(p.Y) } r="3.5"></circle>
+			if p.Past {
+				<circle class="dot past" cx={ FmtWeight(p.X) } cy={ FmtWeight(p.Y) } r="3.5"></circle>
+			} else {
+				<circle class="dot" cx={ FmtWeight(p.X) } cy={ FmtWeight(p.Y) } r="3.5"></circle>
+			}
 		}
 		// With nothing to compare against yet, say what the one point is.
 		if len(l.Points) == 1 {

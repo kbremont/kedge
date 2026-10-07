@@ -1,10 +1,12 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/kbremont/531-tracker/internal/db"
 	"github.com/kbremont/531-tracker/internal/program"
@@ -54,27 +56,96 @@ func (s *Server) handleLift(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	amraps, err := s.q.ListAMRAPSets(ctx, slug)
+	ests, err := s.estimates(ctx, slug)
 	if err != nil {
-		s.fail(w, r, fmt.Errorf("list AMRAP sets for %s: %w", slug, err))
+		s.fail(w, r, fmt.Errorf("list estimates for %s: %w", slug, err))
 		return
 	}
-	vm.Points, vm.Path, vm.YMin, vm.YMax, vm.BestE1RM = buildChart(amraps)
+	vm.Points, vm.Path, vm.YMin, vm.YMax, vm.BestE1RM = buildChart(ests)
+
+	for _, e := range ests {
+		if !e.Past {
+			continue
+		}
+		vm.PastEstimates = append(vm.PastEstimates, views.PastEstimateVM{
+			ID:       e.ID,
+			Date:     formatDay(e.When),
+			Weight:   e.Weight,
+			Reps:     e.Reps,
+			Estimate: program.Epley1RM(e.Weight, e.Reps),
+		})
+	}
+	vm.Today = time.Now().Format(dayLayout)
+	vm.Error = r.URL.Query().Get("error") != ""
 
 	s.render(w, r, views.LiftDetail(vm))
 }
 
-// buildChart turns AMRAP sets into a trend of estimated one rep maxes. The
+// estimate is one set, performed or remembered, that says what a lift can do.
+type estimate struct {
+	When   string // a date, "2006-01-02", optionally followed by a time
+	Weight float64
+	Reps   int
+	Past   bool  // entered from before the app rather than logged in it
+	ID     int64 // the past_estimates row, for a past estimate
+}
+
+// mergeEstimates puts AMRAP sets logged in the app and estimates entered from
+// before it into date order. Each input is already in order. On the same day a
+// past estimate sorts first, since what was done before the app is older than
+// anything done in it.
+func mergeEstimates(logged []db.ListAMRAPSetsRow, past []db.PastEstimate) []estimate {
+	out := make([]estimate, 0, len(logged)+len(past))
+	i, j := 0, 0
+	for i < len(logged) || j < len(past) {
+		if j < len(past) && (i == len(logged) || past[j].RecordedOn <= day(logged[i].CompletedAt.String)) {
+			p := past[j]
+			out = append(out, estimate{When: p.RecordedOn, Weight: p.Weight, Reps: int(p.Reps), Past: true, ID: p.ID})
+			j++
+			continue
+		}
+		l := logged[i]
+		out = append(out, estimate{When: l.CompletedAt.String, Weight: l.Weight, Reps: int(l.ActualReps.Int64)})
+		i++
+	}
+	return out
+}
+
+// day is the date part of a timestamp or a date.
+func day(when string) string {
+	if len(when) > len(dayLayout) {
+		return when[:len(dayLayout)]
+	}
+	return when
+}
+
+// estimates returns everything known about what a lift can do, oldest first:
+// the AMRAP sets logged in the app and the estimates entered from before it.
+func (s *Server) estimates(ctx context.Context, slug string) ([]estimate, error) {
+	logged, err := s.q.ListAMRAPSets(ctx, slug)
+	if err != nil {
+		return nil, fmt.Errorf("list AMRAP sets: %w", err)
+	}
+	past, err := s.q.ListPastEstimates(ctx, slug)
+	if err != nil {
+		return nil, fmt.Errorf("list past estimates: %w", err)
+	}
+	return mergeEstimates(logged, past), nil
+}
+
+// buildChart turns estimates into a trend of estimated one rep maxes. The
 // coordinates are computed here rather than in the template so the arithmetic
 // can be read in one place.
-func buildChart(rows []db.ListAMRAPSetsRow) (points []views.ChartPoint, path string, yMin, yMax, best float64) {
-	values := make([]float64, 0, len(rows))
-	for _, row := range rows {
-		e := program.Epley1RM(row.Weight, int(row.ActualReps.Int64))
+func buildChart(ests []estimate) (points []views.ChartPoint, path string, yMin, yMax, best float64) {
+	values := make([]float64, 0, len(ests))
+	past := make([]bool, 0, len(ests))
+	for _, est := range ests {
+		e := program.Epley1RM(est.Weight, est.Reps)
 		if e <= 0 {
 			continue
 		}
 		values = append(values, e)
+		past = append(past, est.Past)
 		if e > best {
 			best = e
 		}
@@ -112,7 +183,7 @@ func buildChart(rows []db.ListAMRAPSetsRow) (points []views.ChartPoint, path str
 		} else {
 			fmt.Fprintf(&b, " L %.1f %.1f", x, y)
 		}
-		points = append(points, views.ChartPoint{X: x, Y: y, Label: views.FmtWeight(v)})
+		points = append(points, views.ChartPoint{X: x, Y: y, Label: views.FmtWeight(v), Past: past[i]})
 	}
 	return points, b.String(), yMin, yMax, best
 }

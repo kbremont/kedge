@@ -356,6 +356,7 @@ label {
 
 input[type="text"],
 input[type="number"],
+input[type="date"],
 input[type="password"] {
     width: 100%;
     min-height: 52px;
@@ -412,6 +413,40 @@ input:focus-visible, .btn:focus-visible, button:focus-visible {
 .verdict-hold { color: var(--muted); }
 .verdict-up   { color: var(--success); }
 
+/* ---------- past estimates ----------
+   The add form sits behind a plus in the section heading. <details> does the
+   opening and closing, and the plus turns into a cross while it is open. */
+
+.past-estimates summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 28px 0 10px;
+    list-style: none;
+    cursor: pointer;
+}
+
+.past-estimates summary::-webkit-details-marker { display: none; }
+.past-estimates summary h2 { margin: 0; }
+
+.plus {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--accent);
+    font-size: 24px;
+    line-height: 1;
+}
+
+/* Only the glyph turns, so the button keeps its shape. */
+.plus span { display: inline-block; transition: transform 0.15s; }
+.past-estimates[open] .plus span { transform: rotate(45deg); }
+
 /* ---------- history / chart ---------- */
 
 .hist {
@@ -430,6 +465,7 @@ input:focus-visible, .btn:focus-visible, button:focus-visible {
 .chart .grid { stroke: var(--border); stroke-width: 1; }
 .chart .line { fill: none; stroke: var(--accent); stroke-width: 2.5; }
 .chart .dot  { fill: var(--accent); }
+.chart .dot.past { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .chart .lbl  { fill: var(--muted); font-size: 11px; font-family: inherit; }
 
 .empty {

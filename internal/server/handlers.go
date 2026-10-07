@@ -428,6 +428,20 @@ func formatDate(ts sql.NullString) string {
 	return t.UTC().In(time.Local).Format("Jan 2")
 }
 
+// dayLayout is how a calendar date with no time is written in the database and
+// in a date input.
+const dayLayout = "2006-01-02"
+
+// formatDay renders a calendar date such as "2026-03-03" as "Mar 3, 2026". The
+// year is kept because a date from a notebook can be from any year.
+func formatDay(d string) string {
+	t, err := time.Parse(dayLayout, d)
+	if err != nil {
+		return d
+	}
+	return t.Format("Jan 2, 2006")
+}
+
 // formatTimestamp renders a non-null SQLite UTC timestamp in local time.
 func formatTimestamp(ts string) string {
 	return formatDate(sql.NullString{String: ts, Valid: true})

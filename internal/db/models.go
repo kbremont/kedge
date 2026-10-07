@@ -26,6 +26,15 @@ type Lift struct {
 	BbbValue float64
 }
 
+type PastEstimate struct {
+	ID         int64
+	LiftSlug   string
+	RecordedOn string
+	Weight     float64
+	Reps       int64
+	CreatedAt  string
+}
+
 type Program struct {
 	ID        int64
 	Name      string

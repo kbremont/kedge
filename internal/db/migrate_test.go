@@ -195,3 +195,49 @@ func TestSeventhWeekOnFreshInstall(t *testing.T) {
 		t.Errorf("max_reps default = %d, want 0", n)
 	}
 }
+
+const pastEstimates = "0004_past_estimates.sql"
+
+// TestPastEstimatesApplyToAnExistingDatabase adds the table on top of an
+// install that already has workouts, and leaves them as they were.
+func TestPastEstimatesApplyToAnExistingDatabase(t *testing.T) {
+	conn := openBefore(t, pastEstimates)
+	mustExec(t, conn, `INSERT INTO programs (name, config, is_active) VALUES ('p', '{}', 1)`)
+	mustExec(t, conn, `INSERT INTO blocks (program_id, number) VALUES (1, 1)`)
+	mustExec(t, conn, `INSERT INTO workouts (block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max)
+		VALUES (1, 'press', 0, 'Leader 1', 'leader', 1, 100)`)
+
+	if err := Migrate(conn); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	if n := count(t, conn, `SELECT COUNT(*) FROM workouts`); n != 1 {
+		t.Errorf("%d workouts after migrating, want the 1 that was there", n)
+	}
+	mustExec(t, conn, `INSERT INTO past_estimates (lift_slug, recorded_on, weight, reps) VALUES ('press', '2025-01-15', 120, 1)`)
+	if n := count(t, conn, `SELECT COUNT(*) FROM past_estimates`); n != 1 {
+		t.Errorf("%d past estimates, want 1", n)
+	}
+}
+
+func TestPastEstimateConstraints(t *testing.T) {
+	conn := openBefore(t, pastEstimates)
+	if err := Migrate(conn); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+
+	for name, args := range map[string][]any{
+		"zero weight":     {"press", "2025-01-15", 0, 1},
+		"negative weight": {"press", "2025-01-15", -5, 1},
+		"zero reps":       {"press", "2025-01-15", 120, 0},
+		"negative reps":   {"press", "2025-01-15", 120, -1},
+		"unknown lift":    {"curl", "2025-01-15", 120, 1},
+	} {
+		_, err := conn.Exec(`INSERT INTO past_estimates (lift_slug, recorded_on, weight, reps) VALUES (?, ?, ?, ?)`, args...)
+		if err == nil {
+			t.Errorf("%s was accepted, want it rejected", name)
+		}
+	}
+	if n := count(t, conn, `SELECT COUNT(*) FROM past_estimates`); n != 0 {
+		t.Errorf("%d rows after rejected inserts, want 0", n)
+	}
+}

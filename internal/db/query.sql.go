@@ -84,6 +84,22 @@ func (q *Queries) DeactivateAllPrograms(ctx context.Context) error {
 	return err
 }
 
+const deletePastEstimate = `-- name: DeletePastEstimate :exec
+DELETE FROM past_estimates WHERE id = ? AND lift_slug = ?
+`
+
+type DeletePastEstimateParams struct {
+	ID       int64
+	LiftSlug string
+}
+
+// DeletePastEstimate is scoped to the lift so a stale page cannot remove
+// another lift's entry.
+func (q *Queries) DeletePastEstimate(ctx context.Context, arg DeletePastEstimateParams) error {
+	_, err := q.db.ExecContext(ctx, deletePastEstimate, arg.ID, arg.LiftSlug)
+	return err
+}
+
 const deleteWorkout = `-- name: DeleteWorkout :exec
 DELETE FROM workouts WHERE id = ?
 `
@@ -368,6 +384,28 @@ func (q *Queries) InsertCompletedSet(ctx context.Context, arg InsertCompletedSet
 	return err
 }
 
+const insertPastEstimate = `-- name: InsertPastEstimate :exec
+INSERT INTO past_estimates (lift_slug, recorded_on, weight, reps)
+VALUES (?, ?, ?, ?)
+`
+
+type InsertPastEstimateParams struct {
+	LiftSlug   string
+	RecordedOn string
+	Weight     float64
+	Reps       int64
+}
+
+func (q *Queries) InsertPastEstimate(ctx context.Context, arg InsertPastEstimateParams) error {
+	_, err := q.db.ExecContext(ctx, insertPastEstimate,
+		arg.LiftSlug,
+		arg.RecordedOn,
+		arg.Weight,
+		arg.Reps,
+	)
+	return err
+}
+
 const insertProgram = `-- name: InsertProgram :one
 INSERT INTO programs (name, config, is_active) VALUES (?, ?, ?) RETURNING id, name, config, is_active, created_at
 `
@@ -631,6 +669,46 @@ func (q *Queries) ListLifts(ctx context.Context) ([]Lift, error) {
 			&i.DayOrder,
 			&i.BbbMode,
 			&i.BbbValue,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPastEstimates = `-- name: ListPastEstimates :many
+SELECT id, lift_slug, recorded_on, weight, reps, created_at
+FROM past_estimates
+WHERE lift_slug = ?
+ORDER BY recorded_on, id
+`
+
+// ListPastEstimates returns the estimates entered from before the app, in the
+// order they were dated. They are read for the chart and the best estimated
+// max only.
+func (q *Queries) ListPastEstimates(ctx context.Context, liftSlug string) ([]PastEstimate, error) {
+	rows, err := q.db.QueryContext(ctx, listPastEstimates, liftSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PastEstimate{}
+	for rows.Next() {
+		var i PastEstimate
+		if err := rows.Scan(
+			&i.ID,
+			&i.LiftSlug,
+			&i.RecordedOn,
+			&i.Weight,
+			&i.Reps,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
