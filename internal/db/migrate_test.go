@@ -241,3 +241,55 @@ func TestPastEstimateConstraints(t *testing.T) {
 		t.Errorf("%d rows after rejected inserts, want 0", n)
 	}
 }
+
+const tmTestAMRAP = "0005_tm_test_amrap.sql"
+
+// TestTMTestAMRAPUpgradesEarlierTests marks the 100% set of a TM test logged
+// before it became an AMRAP as one, and touches nothing else: not the test's
+// other sets, not the deload's 3-5 range, and not the reps that were logged.
+func TestTMTestAMRAPUpgradesEarlierTests(t *testing.T) {
+	conn := openBefore(t, tmTestAMRAP)
+	mustExec(t, conn, `INSERT INTO programs (id, name, config, is_active) VALUES (1, 'p', '{}', 1)`)
+	mustExec(t, conn, `INSERT INTO blocks (id, program_id, number) VALUES (1, 1, 1)`)
+	mustExec(t, conn, `INSERT INTO workouts (id, block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max, completed_at) VALUES
+		(1, 1, 'press',    2, '7th Week TM Test', 'tm_test', 1, 100, datetime('now')),
+		(2, 1, 'deadlift', 2, '7th Week TM Test', 'tm_test', 1, 200, NULL),
+		(3, 1, 'press',    3, 'Anchor - Round 1', 'anchor',  1, 100, datetime('now')),
+		(4, 1, 'press',    4, '7th Week Deload',  'deload',  1, 100, datetime('now'))`)
+	mustExec(t, conn, `INSERT INTO sets (workout_id, idx, kind, weight, pct, target_reps, max_reps, is_amrap, actual_reps) VALUES
+		(1, 0, 'warmup', 45,  0.4,  5, 0, 0, 5),
+		(1, 3, 'main',   90,  0.9,  5, 0, 0, 5),
+		(1, 4, 'main',   100, 1.0,  3, 5, 0, 9),
+		(2, 4, 'main',   200, 1.0,  3, 5, 0, NULL),
+		(3, 2, 'main',   85,  0.85, 5, 0, 1, 8),
+		(4, 1, 'main',   80,  0.8,  3, 5, 0, 4)`)
+
+	if err := Migrate(conn); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+
+	amrap := func(workout, idx int) int {
+		return count(t, conn, `SELECT is_amrap FROM sets WHERE workout_id = ? AND idx = ?`, workout, idx)
+	}
+	cases := []struct {
+		name         string
+		workout, idx int
+		want         int
+	}{
+		{"logged TM test 100% set", 1, 4, 1},
+		{"in-progress TM test 100% set", 2, 4, 1},
+		{"TM test 90% set", 1, 3, 0},
+		{"TM test warmup", 1, 0, 0},
+		{"anchor PR set", 3, 2, 1},
+		{"deload 80% range", 4, 1, 0},
+	}
+	for _, tc := range cases {
+		if got := amrap(tc.workout, tc.idx); got != tc.want {
+			t.Errorf("%s: is_amrap = %d, want %d", tc.name, got, tc.want)
+		}
+	}
+	if n := count(t, conn, `SELECT COUNT(*) FROM sets WHERE workout_id = 1 AND idx = 4
+		AND weight = 100 AND target_reps = 3 AND max_reps = 5 AND actual_reps = 9`); n != 1 {
+		t.Error("the upgraded set's weight or reps changed")
+	}
+}
