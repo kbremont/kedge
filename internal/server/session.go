@@ -291,16 +291,18 @@ func (s *Server) workoutWithSets(ctx context.Context, rawID string) (db.Workout,
 	return workout, sets, nil
 }
 
-// bestE1RM returns the best estimated one rep max recorded for a lift. Only
-// anchor rounds produce AMRAP sets, so this stays empty through the leaders.
+// bestE1RM returns the best estimated one rep max known for a lift, from the
+// estimates entered from before the app as well as the sets logged in it. Only
+// anchor rounds and the TM test produce AMRAP sets, so without past estimates
+// this stays empty through the leaders.
 func (s *Server) bestE1RM(ctx context.Context, slug string) (float64, error) {
-	rows, err := s.q.ListAMRAPSets(ctx, slug)
+	ests, err := s.estimates(ctx, slug)
 	if err != nil {
 		return 0, err
 	}
 	var best float64
-	for _, row := range rows {
-		if e := program.Epley1RM(row.Weight, int(row.ActualReps.Int64)); e > best {
+	for _, est := range ests {
+		if e := program.Epley1RM(est.Weight, est.Reps); e > best {
 			best = e
 		}
 	}

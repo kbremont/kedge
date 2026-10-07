@@ -122,7 +122,7 @@ func TestRestStyleClampsNonPositive(t *testing.T) {
 	}
 }
 
-// TestRangedSetAsksForReps covers the 100% x 3-5 set of a TM test: it is
+// TestRangedSetAsksForReps covers the 80% x 3-5 set of the deload: it is
 // written as a range and logged by picking the reps, starting from a single
 // one so a short set can be recorded, with the range itself highlighted.
 func TestRangedSetAsksForReps(t *testing.T) {
@@ -153,6 +153,58 @@ func TestRangedSetAsksForReps(t *testing.T) {
 		if strings.Contains(html, `class="target" type="submit" name="reps" value="`+FmtInt(r)+`"`) {
 			t.Errorf("%d reps should not be highlighted", r)
 		}
+	}
+}
+
+// TestTMTestTopSet covers the 100% AMRAP of a TM test: it reads 3+, offers
+// every answer from a single rep so a failed test is one tap, highlights the
+// 3-5 window that says the training max is right, and shows the number to beat.
+func TestTMTestTopSet(t *testing.T) {
+	vm := baseWorkoutVM()
+	vm.BestE1RM = 330
+	vm.Sets = append(vm.Sets, SetVM{Idx: 4, Tag: "Main", Weight: 300, Pct: 1, TargetReps: 3, MaxReps: 5, IsAMRAP: true})
+	vm.Sets[2].Done, vm.Sets[3].Done = true, true
+	vm.CurrentIdx = 4
+
+	html := render(t, vm)
+
+	if !strings.Contains(html, "3+ reps") {
+		t.Error("expected the set to read 3+ reps")
+	}
+	if strings.Contains(html, `aria-label="Log set"`) {
+		t.Error("an AMRAP set should ask for reps, not offer a single tick")
+	}
+	if !strings.Contains(html, "Best estimated max 330 lb") {
+		t.Error("expected the best estimated max to be shown")
+	}
+	for r := 1; r <= 10; r++ {
+		if !strings.Contains(html, `value="`+FmtInt(r)+`">`+FmtInt(r)+`</button>`) &&
+			!strings.Contains(html, `class="target" type="submit" name="reps" value="`+FmtInt(r)+`">`) {
+			t.Errorf("missing a button for %d reps", r)
+		}
+	}
+	for _, r := range []int{3, 4, 5} {
+		if !strings.Contains(html, `class="target" type="submit" name="reps" value="`+FmtInt(r)+`"`) {
+			t.Errorf("%d reps should be highlighted as in range", r)
+		}
+	}
+	for _, r := range []int{1, 2, 6} {
+		if strings.Contains(html, `class="target" type="submit" name="reps" value="`+FmtInt(r)+`"`) {
+			t.Errorf("%d reps should not be highlighted", r)
+		}
+	}
+}
+
+// TestAnchorPRSetStartsAtTarget keeps the picker for a PR set without a window
+// starting at its minimum, which covers all but the most exceptional result.
+func TestAnchorPRSetStartsAtTarget(t *testing.T) {
+	got := repChoices(SetVM{TargetReps: 5, IsAMRAP: true})
+	if got[0] != 5 || got[9] != 14 {
+		t.Errorf("repChoices = %v, want 5 through 14", got)
+	}
+	got = repChoices(SetVM{TargetReps: 3, MaxReps: 5, IsAMRAP: true})
+	if got[0] != 1 || got[9] != 10 {
+		t.Errorf("repChoices with a window = %v, want 1 through 10", got)
 	}
 }
 

@@ -84,6 +84,22 @@ func (q *Queries) DeactivateAllPrograms(ctx context.Context) error {
 	return err
 }
 
+const deletePastEstimate = `-- name: DeletePastEstimate :exec
+DELETE FROM past_estimates WHERE id = ? AND lift_slug = ?
+`
+
+type DeletePastEstimateParams struct {
+	ID       int64
+	LiftSlug string
+}
+
+// DeletePastEstimate is scoped to the lift so a stale page cannot remove
+// another lift's entry.
+func (q *Queries) DeletePastEstimate(ctx context.Context, arg DeletePastEstimateParams) error {
+	_, err := q.db.ExecContext(ctx, deletePastEstimate, arg.ID, arg.LiftSlug)
+	return err
+}
+
 const deleteWorkout = `-- name: DeleteWorkout :exec
 DELETE FROM workouts WHERE id = ?
 `
@@ -368,6 +384,28 @@ func (q *Queries) InsertCompletedSet(ctx context.Context, arg InsertCompletedSet
 	return err
 }
 
+const insertPastEstimate = `-- name: InsertPastEstimate :exec
+INSERT INTO past_estimates (lift_slug, recorded_on, weight, reps)
+VALUES (?, ?, ?, ?)
+`
+
+type InsertPastEstimateParams struct {
+	LiftSlug   string
+	RecordedOn string
+	Weight     float64
+	Reps       int64
+}
+
+func (q *Queries) InsertPastEstimate(ctx context.Context, arg InsertPastEstimateParams) error {
+	_, err := q.db.ExecContext(ctx, insertPastEstimate,
+		arg.LiftSlug,
+		arg.RecordedOn,
+		arg.Weight,
+		arg.Reps,
+	)
+	return err
+}
+
 const insertProgram = `-- name: InsertProgram :one
 INSERT INTO programs (name, config, is_active) VALUES (?, ?, ?) RETURNING id, name, config, is_active, created_at
 `
@@ -484,7 +522,7 @@ type ListAMRAPSetsRow struct {
 }
 
 // ListAMRAPSets feeds the progress chart and PR list. Leader cycles run 5's
-// PRO, so this only yields data from anchor rounds.
+// PRO, so this only yields data from anchor rounds and the TM test's 100% set.
 func (q *Queries) ListAMRAPSets(ctx context.Context, liftSlug string) ([]ListAMRAPSetsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAMRAPSets, liftSlug)
 	if err != nil {
@@ -645,6 +683,46 @@ func (q *Queries) ListLifts(ctx context.Context) ([]Lift, error) {
 	return items, nil
 }
 
+const listPastEstimates = `-- name: ListPastEstimates :many
+SELECT id, lift_slug, recorded_on, weight, reps, created_at
+FROM past_estimates
+WHERE lift_slug = ?
+ORDER BY recorded_on, id
+`
+
+// ListPastEstimates returns the estimates entered from before the app, in the
+// order they were dated. They are read for the chart and the best estimated
+// max only.
+func (q *Queries) ListPastEstimates(ctx context.Context, liftSlug string) ([]PastEstimate, error) {
+	rows, err := q.db.QueryContext(ctx, listPastEstimates, liftSlug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PastEstimate{}
+	for rows.Next() {
+		var i PastEstimate
+		if err := rows.Scan(
+			&i.ID,
+			&i.LiftSlug,
+			&i.RecordedOn,
+			&i.Weight,
+			&i.Reps,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRecentWorkouts = `-- name: ListRecentWorkouts :many
 SELECT w.id, w.block_id, w.lift_slug, w.cycle_index, w.cycle_label, w.phase, w.round_number, w.training_max, w.started_at, w.completed_at, w.notes, w.tm_reviewed_at, l.name AS lift_name
 FROM workouts w
@@ -780,7 +858,7 @@ WHERE w.block_id = ?
   AND w.phase = 'tm_test'
   AND w.completed_at IS NOT NULL
   AND s.kind = 'main'
-  AND s.max_reps > 0
+  AND s.is_amrap = 1
   AND s.actual_reps IS NOT NULL
 ORDER BY w.id, s.idx
 `
@@ -795,7 +873,7 @@ type ListTMTestTopSetsRow struct {
 
 // ListTMTestTopSets returns, for each lift, the reps performed on the 100% set
 // of a block's completed TM test, with the training max that was tested. The
-// rep-range main set is the one at the training max.
+// AMRAP main set is the one at the training max.
 func (q *Queries) ListTMTestTopSets(ctx context.Context, blockID int64) ([]ListTMTestTopSetsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listTMTestTopSets, blockID)
 	if err != nil {

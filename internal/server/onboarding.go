@@ -294,7 +294,12 @@ func (s *Server) buildSetupHistory(ctx context.Context, rawCycle string) (*views
 		CycleIndex: idx,
 		CycleLabel: cycle.Label,
 		Unit:       raw.Unit,
-		AsksReps:   cycle.Main == program.Scheme531PR,
+	}
+	switch cycle.Main {
+	case program.Scheme531PR:
+		vm.AsksReps, vm.RepsLabel = true, "PR set reps"
+	case program.SchemeTMTest:
+		vm.AsksReps, vm.RepsLabel = true, "100% set reps"
 	}
 	for round := 1; round <= cycle.Rounds; round++ {
 		rd := views.SetupRoundVM{Round: round}

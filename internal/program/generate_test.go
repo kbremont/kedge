@@ -56,8 +56,9 @@ func TestBlockMainWork(t *testing.T) {
 		{"leader2 r2", 1, 2, []expectedSet{{210, 5, false, 0}, {240, 5, false, 0}, {270, 5, false, 0}}},
 		{"leader2 r3", 1, 3, []expectedSet{{225, 5, false, 0}, {255, 5, false, 0}, {285, 5, false, 0}}},
 
-		// The 7th week TM test works up to the training max for 3-5.
-		{"tm test", 2, 1, []expectedSet{{210, 5, false, 0}, {240, 5, false, 0}, {270, 5, false, 0}, {300, 3, false, 5}}},
+		// The 7th week TM test ramps to an AMRAP at the training max, where 3-5
+		// says the training max is right.
+		{"tm test", 2, 1, []expectedSet{{210, 5, false, 0}, {240, 3, false, 0}, {270, 1, false, 0}, {300, 3, true, 5}}},
 
 		// The anchor restores the rep targets and the PR set.
 		{"anchor r1", 3, 1, []expectedSet{{195, 5, false, 0}, {225, 5, false, 0}, {255, 5, true, 0}}},
@@ -97,9 +98,10 @@ func TestBlockMainWork(t *testing.T) {
 	}
 }
 
-// TestOnlyAnchorHasAMRAP guards the defining property of this program: 5's
-// PRO means no set is taken to failure until the anchor.
-func TestOnlyAnchorHasAMRAP(t *testing.T) {
+// TestOnlyAnchorAndTMTestHaveAMRAP guards the defining property of this
+// program: 5's PRO means no set is taken to failure until the TM test and the
+// anchor, which have one each. The deload has none.
+func TestOnlyAnchorAndTMTestHaveAMRAP(t *testing.T) {
 	cfg := LeaderAnchorBBB()
 	s := testSettings()
 
@@ -116,7 +118,7 @@ func TestOnlyAnchorHasAMRAP(t *testing.T) {
 				}
 			}
 			want := 0
-			if cycle.Phase == "anchor" {
+			if cycle.Phase == "anchor" || cycle.Phase == PhaseTMTest {
 				want = 1
 			}
 			if amraps != want {
@@ -311,7 +313,7 @@ func TestWarmupSets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateWorkout: %v", err)
 	}
-	want := []expectedSet{{120, 5, false, 0}, {150, 5, false, 0}, {180, 3, false, 0}}
+	want := []expectedSet{{120, 5, false, 0}, {150, 5, false, 0}, {180, 5, false, 0}}
 	got := setsOfKind(w, KindWarmup)
 	if len(got) != len(want) {
 		t.Fatalf("got %d warmup sets, want %d", len(got), len(want))

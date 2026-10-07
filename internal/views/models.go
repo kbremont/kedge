@@ -149,10 +149,12 @@ type HistoryVM struct {
 	Lifts []LiftTM
 }
 
-// ChartPoint is one AMRAP set plotted over time.
+// ChartPoint is one estimate plotted over time: an AMRAP set logged in the app
+// or, when Past is set, one entered from before it.
 type ChartPoint struct {
 	X, Y  float64 // already in SVG user space
 	Label string
+	Past  bool
 }
 
 // LiftVM is the per-lift detail screen.
@@ -167,6 +169,20 @@ type LiftVM struct {
 	YMax      float64
 	BestE1RM  float64
 	TMHistory []TMHistoryItem
+
+	PastEstimates []PastEstimateVM
+	Today         string // YYYY-MM-DD, the latest date a past estimate can have
+	Error         bool   // the last past estimate submitted was rejected
+}
+
+// PastEstimateVM is an estimate from before the app, as listed under the
+// chart: a set of Weight x Reps worth Estimate as a one rep max.
+type PastEstimateVM struct {
+	ID       int64
+	Date     string
+	Weight   float64
+	Reps     int
+	Estimate float64
 }
 
 // TMHistoryItem is one entry from the append-only training max log.
@@ -244,9 +260,13 @@ type SetupHistoryVM struct {
 	CycleIndex int
 	CycleLabel string
 	Unit       string
-	// AsksReps is set for anchor cycles, where the PR set is the only number
-	// worth recording; leader rounds are 5's PRO and fully determined.
+	// AsksReps is set for anchor and TM test cycles, where the AMRAP set is the
+	// only number worth recording; leader rounds are 5's PRO and fully
+	// determined.
 	AsksReps bool
-	Rounds   []SetupRoundVM
-	Error    string
+	// RepsLabel names that set: the PR set on the anchor, the 100% set on the
+	// TM test.
+	RepsLabel string
+	Rounds    []SetupRoundVM
+	Error     string
 }

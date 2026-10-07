@@ -79,6 +79,8 @@ func (s *Server) Handler() http.Handler {
 
 	app.HandleFunc("GET /history", s.handleHistory)
 	app.HandleFunc("GET /lift/{slug}", s.handleLift)
+	app.HandleFunc("POST /lift/{slug}/estimates", s.handleAddPastEstimate)
+	app.HandleFunc("POST /lift/{slug}/estimates/{id}/delete", s.handleDeletePastEstimate)
 	app.HandleFunc("GET /settings", s.handleSettings)
 	app.HandleFunc("POST /settings", s.handleSaveSettings)
 	app.HandleFunc("POST /training-max", s.handleSetTrainingMax)

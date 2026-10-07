@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -159,9 +160,9 @@ func (h *harness) review() (key string) {
 	return r.Key
 }
 
-// isTopTestSet picks out the 100% x 3-5 set of a TM test.
+// isTopTestSet picks out the 100% AMRAP of a TM test.
 func isTopTestSet(w db.Workout, set db.Set) bool {
-	return w.Phase == "tm_test" && set.Kind == "main" && set.MaxReps > 0
+	return w.Phase == "tm_test" && set.Kind == "main" && set.IsAmrap != 0
 }
 
 // testSession runs the next TM test session, taking the 100% set for the reps
@@ -241,6 +242,15 @@ func TestTMTestThroughToNextBlock(t *testing.T) {
 
 	h.testSession(testReps)
 	mustContain(t, h.dashboard(), "Bench Press TM test", "Nice job, your TM is right.")
+
+	// The 100% set counts toward the best estimated max: 200 x 4 by Epley.
+	best, err := h.s.bestE1RM(context.Background(), "bench")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := 200 * (1 + 4.0/30); math.Abs(best-want) > 0.01 {
+		t.Errorf("bench best estimated max after the TM test = %v, want %v", best, want)
+	}
 
 	squat := h.testSession(testReps)
 	page = h.dashboard()
@@ -484,5 +494,29 @@ func TestSeventhWeekDeload(t *testing.T) {
 	page = h.dashboard()
 	if !strings.Contains(page, "Block 2: new training maxes") || !strings.Contains(page, "No anchor PR sets recorded") {
 		t.Errorf("expected a holding block review:\n%s", page)
+	}
+}
+
+// TestSetupHistoryRepsLabel names the set whose reps onboarding asks for: the
+// PR set on the anchor, the 100% set on the TM test, and nothing on a leader.
+func TestSetupHistoryRepsLabel(t *testing.T) {
+	h := newHarness(t)
+	h.post("/setup", url.Values{"tm_press": {"100"}, "tm_deadlift": {"300"}, "tm_bench": {"200"}, "tm_squat": {"250"}})
+
+	cases := []struct {
+		cycle    string
+		want     string
+		unwanted []string
+	}{
+		{"2", "100% set reps", []string{"PR set reps"}},
+		{"3", "PR set reps", []string{"100% set reps"}},
+		{"0", "", []string{"PR set reps", "100% set reps"}},
+	}
+	for _, tc := range cases {
+		page := h.do(http.MethodGet, "/setup/history?cycle="+tc.cycle, nil).Body.String()
+		if tc.want != "" {
+			mustContain(t, page, tc.want)
+		}
+		mustNotContain(t, page, tc.unwanted...)
 	}
 }

@@ -113,13 +113,15 @@ type Settings struct {
 	Warmups   bool      // include 40/50/60 warmup sets before main work
 }
 
-// Set is one prescribed set.
+// Set is one prescribed set. MaxReps is the top of a rep range such as 3-5,
+// with TargetReps the bottom, or 0 for a fixed count. On an AMRAP set it is
+// the window to aim for rather than a cap.
 type Set struct {
 	Index      int
 	Kind       SetKind
 	Weight     float64
 	TargetReps int
-	MaxReps    int // top of a rep range such as 3-5, or 0 for a fixed count
+	MaxReps    int
 	IsAMRAP    bool
 	Pct        float64 // of training max, for display
 	Plates     []PlatePair

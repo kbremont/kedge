@@ -794,12 +794,13 @@ func repPicker(w WorkoutVM, s SetVM) templ.Component {
 	})
 }
 
-// repChoices offers ten answers. A PR set starts at its target, which covers
-// all but the most exceptional one. A range starts at a single rep, since
-// falling short of it is exactly what a TM test is there to find out.
+// repChoices offers ten answers. An anchor PR set starts at its target, which
+// covers all but the most exceptional one. A set with a window, the TM test's
+// 100% AMRAP or the deload's 80% range, starts at a single rep, since falling
+// short of it is exactly what those sets are there to find out.
 func repChoices(s SetVM) []int {
 	start := 1
-	if s.IsAMRAP && s.TargetReps > 1 {
+	if s.IsAMRAP && s.MaxReps == 0 && s.TargetReps > 1 {
 		start = s.TargetReps
 	}
 	out := make([]int, 10)
