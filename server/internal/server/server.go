@@ -1,13 +1,15 @@
 // Package server assembles the application: the routes, authentication,
-// /healthz and panic recovery. The pages live in package web and the rules
-// they apply in package training.
+// /healthz and panic recovery. The pages live in package web, the app's JSON
+// API in package api, and the rules both apply in package training.
 package server
 
 import (
 	"database/sql"
 	"log/slog"
 	"net/http"
+	"strings"
 
+	"github.com/kbremont/531-tracker/server/internal/api"
 	"github.com/kbremont/531-tracker/server/internal/auth"
 	"github.com/kbremont/531-tracker/server/internal/training"
 	"github.com/kbremont/531-tracker/server/internal/web"
@@ -24,15 +26,18 @@ type Server struct {
 	log      *slog.Logger
 	sessions *auth.Sessions
 	pages    *web.Handler
+	api      *api.Handler
 }
 
 func New(conn *sql.DB, log *slog.Logger, cfg Config) *Server {
 	sessions := auth.New(cfg.Password)
+	svc := training.New(conn, log)
 	return &Server{
 		conn:     conn,
 		log:      log,
 		sessions: sessions,
-		pages:    web.New(training.New(conn, log), sessions, log, cfg.Version),
+		pages:    web.New(svc, sessions, log, cfg.Version),
+		api:      api.New(svc, sessions, log, cfg.Version),
 	}
 }
 
@@ -78,6 +83,10 @@ func (s *Server) Handler() http.Handler {
 	app.HandleFunc("POST /skip-cycle", pages.SkipCycle)
 	app.HandleFunc("GET /backup", pages.Backup)
 
+	// The app's API checks its own sessions, answering a JSON 401 where a
+	// page would redirect to /login. As the longer pattern it wins over "/".
+	mux.Handle("/api/", s.api.Routes())
+
 	mux.Handle("/", s.sessions.RequirePage(app))
 	return s.recoverPanic(mux)
 }
@@ -97,6 +106,12 @@ func (s *Server) recoverPanic(next http.Handler) http.Handler {
 		defer func() {
 			if rec := recover(); rec != nil {
 				s.log.Error("panic serving request", "path", r.URL.Path, "panic", rec)
+				if strings.HasPrefix(r.URL.Path, "/api/") {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					w.Write([]byte(`{"error":"Something went wrong. Check the server log."}` + "\n"))
+					return
+				}
 				http.Error(w, "Something went wrong. Check the server log.", http.StatusInternalServerError)
 			}
 		}()
