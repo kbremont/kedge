@@ -812,6 +812,7 @@ components:
           type: string
         next:
           description: The session to start or resume, or null when there is none.
+          type: object
           nullable: true
           allOf:
             - $ref: "#/components/schemas/NextUp"
@@ -834,6 +835,7 @@ components:
           description: |
             Set at the start of each block after the first. Training waits
             until it is accepted.
+          type: object
           nullable: true
           allOf:
             - $ref: "#/components/schemas/TMReview"
