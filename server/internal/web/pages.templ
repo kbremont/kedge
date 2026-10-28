@@ -1,4 +1,4 @@
-package views
+package web
 
 import (
 	"fmt"
@@ -128,11 +128,11 @@ templ tmReview(r training.TMReview) {
 						<span class={ "verdict", "verdict-" + row.Tone }>{ row.Verdict }</span>
 					</div>
 					<div class="small muted tnum" style="margin:2px 0 8px">{ row.Evidence }</div>
-					<label for={ TMField(row.Slug) }>Now { FmtWeightUnit(row.Current, r.Unit) } &middot; new training max</label>
+					<label for={ tmField(row.Slug) }>Now { FmtWeightUnit(row.Current, r.Unit) } &middot; new training max</label>
 					<input
-						id={ TMField(row.Slug) }
+						id={ tmField(row.Slug) }
 						type="number"
-						name={ TMField(row.Slug) }
+						name={ tmField(row.Slug) }
 						step="0.5"
 						min="1"
 						inputmode="decimal"
@@ -370,7 +370,7 @@ templ Settings(s SettingsPage) {
 					<div class="inline-form" style="margin-bottom:10px">
 						<div class="field">
 							<label>{ b.Name }</label>
-							<select name={ BBBModeField(b.Slug) }>
+							<select name={ bbbModeField(b.Slug) }>
 								<option value="program" selected?={ b.Mode == "program" }>Program default</option>
 								<option value="percent" selected?={ b.Mode == "percent" }>Percent of training max</option>
 								<option value="weight" selected?={ b.Mode == "weight" }>Fixed weight</option>
@@ -378,7 +378,7 @@ templ Settings(s SettingsPage) {
 						</div>
 						<div class="field">
 							<label for={ "bbb-value-" + b.Slug }>Value</label>
-							<input id={ "bbb-value-" + b.Slug } type="number" name={ BBBValueField(b.Slug) } step="0.5" inputmode="decimal" value={ FmtWeight(b.Value) }/>
+							<input id={ "bbb-value-" + b.Slug } type="number" name={ bbbValueField(b.Slug) } step="0.5" inputmode="decimal" value={ FmtWeight(b.Value) }/>
 						</div>
 					</div>
 				}
@@ -441,7 +441,7 @@ templ Setup(s SetupPage) {
 						<input
 							id={ "tm-" + l.Slug }
 							type="number"
-							name={ TMField(l.Slug) }
+							name={ tmField(l.Slug) }
 							step="0.5"
 							inputmode="decimal"
 							required
@@ -511,7 +511,7 @@ templ SetupHistory(vm training.SetupHistory) {
 							<div style="height:1px;background:var(--border);margin:10px 0"></div>
 						}
 						<label style="margin-bottom:0">
-							<input type="checkbox" name={ DoneField(rd.Round, d.Slug) } value="1"/>
+							<input type="checkbox" name={ doneField(rd.Round, d.Slug) } value="1"/>
 							&nbsp;{ d.Name }
 							<span class="muted small tnum">
 								&nbsp;top set { FmtWeightUnit(d.TopWeight, vm.Unit) }
@@ -519,11 +519,11 @@ templ SetupHistory(vm training.SetupHistory) {
 						</label>
 						if vm.AsksReps {
 							<div class="field" style="margin-top:8px;margin-bottom:0">
-								<label for={ RepsField(rd.Round, d.Slug) }>{ vm.RepsLabel }</label>
+								<label for={ repsField(rd.Round, d.Slug) }>{ vm.RepsLabel }</label>
 								<input
-									id={ RepsField(rd.Round, d.Slug) }
+									id={ repsField(rd.Round, d.Slug) }
 									type="number"
-									name={ RepsField(rd.Round, d.Slug) }
+									name={ repsField(rd.Round, d.Slug) }
 									inputmode="numeric"
 									min="1"
 									max="100"

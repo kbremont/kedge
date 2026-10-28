@@ -1,7 +1,4 @@
-// Package views renders the HTML. Templates render the read models from
-// package training, plus the little that only a page needs: a flag from the
-// query string, or a form error to show.
-package views
+package web
 
 import "github.com/kbremont/531-tracker/server/internal/training"
 

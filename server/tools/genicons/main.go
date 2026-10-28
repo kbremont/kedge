@@ -20,7 +20,7 @@ var (
 )
 
 func main() {
-	outDir := filepath.Join("internal", "assets", "static")
+	outDir := filepath.Join("internal", "web", "static")
 	for _, size := range []int{180, 192, 512} {
 		name := filepath.Join(outDir, "icon-"+itoa(size)+".png")
 		if err := write(name, draw(size)); err != nil {

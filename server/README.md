@@ -158,14 +158,21 @@ else.
 cmd/server          entrypoint
 internal/program    the 5/3/1 engine — pure, no I/O, heavily tested
 internal/db         schema, migrations, sqlc-generated queries
-internal/server     HTTP handlers and orchestration
-internal/views      templ templates and view models
-internal/assets     embedded CSS and icons
+internal/training   the program applied to the database; returns read models
+internal/auth       session tokens, from a cookie or a Bearer header
+internal/web        HTML: thin handlers, templ templates, embedded CSS and icons
+internal/server     routes, /healthz, panic recovery
 ```
 
 `internal/program` is where the arithmetic lives — percentages, rounding,
 plate math, which rounds carry a rep-max set. It has no dependencies and is the
 first place to look when something prescribes the wrong number.
+
+`internal/training` is where the rules meet the database: where you are in the
+block, starting and logging sessions, the training max decisions, onboarding.
+Its methods return one read model per screen with everything worked out, so
+the handlers in `internal/web` only parse forms and render, and an API can
+serve the same screens without repeating any of the logic.
 
 ### Deploying to the Pi
 

@@ -1,19 +1,16 @@
-// Package server wires the HTTP routes to the training rules. The handlers
-// only read requests and write responses; the rules live in package training.
+// Package server assembles the application: the routes, authentication,
+// /healthz and panic recovery. The pages live in package web and the rules
+// they apply in package training.
 package server
 
 import (
 	"database/sql"
-	"io/fs"
 	"log/slog"
 	"net/http"
 
-	"github.com/a-h/templ"
-
-	"github.com/kbremont/531-tracker/server/internal/assets"
 	"github.com/kbremont/531-tracker/server/internal/auth"
 	"github.com/kbremont/531-tracker/server/internal/training"
-	"github.com/kbremont/531-tracker/server/internal/views"
+	"github.com/kbremont/531-tracker/server/internal/web"
 )
 
 // Config holds everything the server needs from its environment.
@@ -24,116 +21,75 @@ type Config struct {
 
 type Server struct {
 	conn     *sql.DB
-	svc      *training.Service
 	log      *slog.Logger
 	sessions *auth.Sessions
+	pages    *web.Handler
 }
 
 func New(conn *sql.DB, log *slog.Logger, cfg Config) *Server {
-	views.AssetVersion = cfg.Version
+	sessions := auth.New(cfg.Password)
 	return &Server{
 		conn:     conn,
-		svc:      training.New(conn, log),
 		log:      log,
-		sessions: auth.New(cfg.Password),
+		sessions: sessions,
+		pages:    web.New(training.New(conn, log), sessions, log, cfg.Version),
 	}
 }
 
 // Handler returns the fully routed application.
 func (s *Server) Handler() http.Handler {
+	pages := s.pages
 	mux := http.NewServeMux()
 
 	// Public routes.
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		if err := s.conn.PingContext(r.Context()); err != nil {
-			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		w.Write([]byte("ok"))
-	})
-	mux.HandleFunc("GET /login", s.handleLogin)
-	mux.HandleFunc("POST /login", s.handleLogin)
-	mux.HandleFunc("GET /manifest.webmanifest", s.handleManifest)
-	mux.Handle("GET /static/", s.staticHandler())
+	mux.HandleFunc("GET /healthz", s.healthz)
+	mux.HandleFunc("GET /login", pages.Login)
+	mux.HandleFunc("POST /login", pages.Login)
+	mux.HandleFunc("GET /manifest.webmanifest", pages.Manifest)
+	mux.Handle("GET /static/", pages.Static())
 
 	// Application routes.
 	app := http.NewServeMux()
-	app.HandleFunc("GET /{$}", s.handleDashboard)
-	app.HandleFunc("GET /setup", s.handleSetup)
-	app.HandleFunc("POST /setup", s.handleSetupSave)
-	app.HandleFunc("GET /setup/position", s.handleSetupPosition)
-	app.HandleFunc("POST /setup/position", s.handleSetupPositionSave)
-	app.HandleFunc("GET /setup/history", s.handleSetupHistory)
-	app.HandleFunc("POST /setup/history", s.handleSetupHistorySave)
-	app.HandleFunc("POST /logout", s.handleLogout)
+	app.HandleFunc("GET /{$}", pages.Dashboard)
+	app.HandleFunc("GET /setup", pages.Setup)
+	app.HandleFunc("POST /setup", pages.SaveSetup)
+	app.HandleFunc("GET /setup/position", pages.SetupPosition)
+	app.HandleFunc("POST /setup/position", pages.SaveSetupPosition)
+	app.HandleFunc("GET /setup/history", pages.SetupHistory)
+	app.HandleFunc("POST /setup/history", pages.SaveSetupHistory)
+	app.HandleFunc("POST /logout", pages.Logout)
 
-	app.HandleFunc("POST /workout/start", s.handleStartWorkout)
-	app.HandleFunc("GET /workout/{id}", s.handleWorkout)
-	app.HandleFunc("POST /workout/{id}/set/{idx}", s.handleLogSet)
-	app.HandleFunc("POST /workout/{id}/set/{idx}/undo", s.handleUndoSet)
-	app.HandleFunc("POST /workout/{id}/finish", s.handleFinishWorkout)
-	app.HandleFunc("POST /workout/{id}/abandon", s.handleAbandonWorkout)
+	app.HandleFunc("POST /workout/start", pages.StartWorkout)
+	app.HandleFunc("GET /workout/{id}", pages.Workout)
+	app.HandleFunc("POST /workout/{id}/set/{idx}", pages.LogSet)
+	app.HandleFunc("POST /workout/{id}/set/{idx}/undo", pages.UndoSet)
+	app.HandleFunc("POST /workout/{id}/finish", pages.FinishWorkout)
+	app.HandleFunc("POST /workout/{id}/abandon", pages.AbandonWorkout)
 
-	app.HandleFunc("GET /history", s.handleHistory)
-	app.HandleFunc("GET /lift/{slug}", s.handleLift)
-	app.HandleFunc("POST /lift/{slug}/estimates", s.handleAddPastEstimate)
-	app.HandleFunc("POST /lift/{slug}/estimates/{id}/delete", s.handleDeletePastEstimate)
-	app.HandleFunc("GET /settings", s.handleSettings)
-	app.HandleFunc("POST /settings", s.handleSaveSettings)
-	app.HandleFunc("POST /training-max", s.handleSetTrainingMax)
-	app.HandleFunc("POST /tm-review", s.handleAcceptReview)
-	app.HandleFunc("POST /tm-test/{id}", s.handleTMTestDecision)
-	app.HandleFunc("POST /skip-cycle", s.handleSkipCycle)
-	app.HandleFunc("GET /backup", s.handleBackup)
+	app.HandleFunc("GET /history", pages.History)
+	app.HandleFunc("GET /lift/{slug}", pages.Lift)
+	app.HandleFunc("POST /lift/{slug}/estimates", pages.AddPastEstimate)
+	app.HandleFunc("POST /lift/{slug}/estimates/{id}/delete", pages.DeletePastEstimate)
+	app.HandleFunc("GET /settings", pages.Settings)
+	app.HandleFunc("POST /settings", pages.SaveSettings)
+	app.HandleFunc("POST /training-max", pages.SetTrainingMax)
+	app.HandleFunc("POST /tm-review", pages.AcceptReview)
+	app.HandleFunc("POST /tm-test/{id}", pages.DecideTMTest)
+	app.HandleFunc("POST /skip-cycle", pages.SkipCycle)
+	app.HandleFunc("GET /backup", pages.Backup)
 
 	mux.Handle("/", s.sessions.RequirePage(app))
 	return s.recoverPanic(mux)
 }
 
-func (s *Server) staticHandler() http.Handler {
-	sub, err := fs.Sub(assets.FS, "static")
-	if err != nil {
-		panic(err) // the embed path is a compile-time constant
+// healthz reports whether the database answers, for the container's health
+// check.
+func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
+	if err := s.conn.PingContext(r.Context()); err != nil {
+		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		return
 	}
-	fileServer := http.FileServer(http.FS(sub))
-	return http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Assets are content-addressed by the ?v= query the templates append,
-		// so they can be cached hard.
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		fileServer.ServeHTTP(w, r)
-	}))
-}
-
-func (s *Server) handleManifest(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/manifest+json")
-	w.Write([]byte(`{
-  "name": "5/3/1 Tracker",
-  "short_name": "5/3/1",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#0d0f12",
-  "theme_color": "#0d0f12",
-  "icons": [
-    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
-  ]
-}`))
-}
-
-func (s *Server) render(w http.ResponseWriter, r *http.Request, c templ.Component) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := c.Render(r.Context(), w); err != nil {
-		s.log.ErrorContext(r.Context(), "render failed", "path", r.URL.Path, "error", err)
-	}
-}
-
-// fail logs the underlying error and shows the user something generic; the
-// detail belongs in the log, not the page.
-func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
-	s.log.ErrorContext(r.Context(), "request failed", "path", r.URL.Path, "method", r.Method, "error", err)
-	http.Error(w, "Something went wrong. Check the server log.", http.StatusInternalServerError)
+	w.Write([]byte("ok"))
 }
 
 func (s *Server) recoverPanic(next http.Handler) http.Handler {
