@@ -40,5 +40,5 @@ func (s *Service) Backup(ctx context.Context) (*Backup, error) {
 		os.Remove(tmp)
 		return nil, fmt.Errorf("open snapshot: %w", err)
 	}
-	return &Backup{Name: fmt.Sprintf("531-%s.db", time.Now().Format("2006-01-02")), File: f}, nil
+	return &Backup{Name: fmt.Sprintf("531-%s.db", s.now().Format("2006-01-02")), File: f}, nil
 }

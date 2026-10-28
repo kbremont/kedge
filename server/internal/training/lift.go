@@ -7,14 +7,17 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"time"
 
 	"github.com/kbremont/531-tracker/server/internal/db"
 	"github.com/kbremont/531-tracker/server/internal/program"
 )
 
-// Plot area within the 320x160 viewBox the chart is drawn in.
+// The chart is drawn in a ChartWidth x ChartHeight viewBox, with the points
+// inside the plot area.
 const (
+	ChartWidth  = 320.0
+	ChartHeight = 160.0
+
 	plotLeft   = 10.0
 	plotRight  = 310.0
 	plotTop    = 10.0
@@ -73,7 +76,7 @@ func (s *Service) Lift(ctx context.Context, slug string) (*Lift, error) {
 			Estimate: program.Epley1RM(e.Weight, e.Reps),
 		})
 	}
-	l.Today = time.Now().Format(dayLayout)
+	l.Today = s.now().Format(dayLayout)
 	return l, nil
 }
 

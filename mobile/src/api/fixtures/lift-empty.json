@@ -1,0 +1,24 @@
+{
+  "name": "Overhead Press",
+  "slug": "press",
+  "unit": "lb",
+  "currentTm": 100,
+  "chart": {
+    "width": 320,
+    "height": 160,
+    "path": "",
+    "points": [],
+    "yMin": 0,
+    "yMax": 0
+  },
+  "bestE1rm": 0,
+  "tmHistory": [
+    {
+      "value": 100,
+      "date": "Jan 6",
+      "note": "initial setup"
+    }
+  ],
+  "pastEstimates": [],
+  "today": "2026-03-16"
+}

@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	_ "time/tzdata"
 
 	"github.com/kbremont/531-tracker/server/internal/db"
+	"github.com/kbremont/531-tracker/server/internal/demo"
 	"github.com/kbremont/531-tracker/server/internal/server"
 )
 
@@ -45,19 +47,22 @@ func healthcheck() int {
 }
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "-healthcheck" {
+	check := flag.Bool("healthcheck", false, "probe the running server's /healthz and exit")
+	seedDemo := flag.Bool("seed-demo", false, "fill an empty database with a realistic demo block before serving")
+	flag.Parse()
+	if *check {
 		os.Exit(healthcheck())
 	}
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	if err := run(log); err != nil {
+	if err := run(log, *seedDemo); err != nil {
 		log.Error("fatal", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(log *slog.Logger) error {
+func run(log *slog.Logger, seedDemo bool) error {
 	password := os.Getenv("AUTH_PASSWORD")
 	if password == "" {
 		return errors.New("AUTH_PASSWORD is required; set it in the environment or compose file")
@@ -75,6 +80,18 @@ func run(log *slog.Logger) error {
 	}
 	defer conn.Close()
 	log.Info("database ready", "path", dbPath)
+
+	if seedDemo {
+		seeded, err := demo.Seed(context.Background(), conn, log)
+		if err != nil {
+			return fmt.Errorf("seed demo data: %w", err)
+		}
+		if seeded {
+			log.Info("seeded demo data")
+		} else {
+			log.Info("demo data not seeded: training maxes already entered")
+		}
+	}
 
 	addr := envOr("ADDR", ":3000")
 	srv := &http.Server{

@@ -2,7 +2,9 @@ package training
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -137,10 +139,16 @@ func (s *Service) SaveSettings(ctx context.Context, in SettingsInput) error {
 }
 
 // SetTrainingMax appends to the training max log. It never updates in place,
-// so past sessions keep the weights they were performed at.
+// so past sessions keep the weights they were performed at. It returns
+// ErrNotFound for an unknown lift.
 func (s *Service) SetTrainingMax(ctx context.Context, slug string, value float64, note string) error {
 	if value <= 0 {
 		return inputError("Enter a positive training max.")
+	}
+	if _, err := s.q.GetLift(ctx, slug); errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return fmt.Errorf("load lift %s: %w", slug, err)
 	}
 	if _, err := s.q.SetTrainingMax(ctx, db.SetTrainingMaxParams{
 		LiftSlug: slug,

@@ -1,0 +1,38 @@
+{
+  "cycleIndex": 2,
+  "cycleLabel": "7th Week TM Test",
+  "unit": "lb",
+  "asksReps": true,
+  "repsLabel": "100% set reps",
+  "rounds": [
+    {
+      "round": 1,
+      "days": [
+        {
+          "slug": "press",
+          "name": "Overhead Press",
+          "topWeight": 100,
+          "prTarget": 3
+        },
+        {
+          "slug": "deadlift",
+          "name": "Deadlift",
+          "topWeight": 300,
+          "prTarget": 3
+        },
+        {
+          "slug": "bench",
+          "name": "Bench Press",
+          "topWeight": 200,
+          "prTarget": 3
+        },
+        {
+          "slug": "squat",
+          "name": "Squat",
+          "topWeight": 250,
+          "prTarget": 3
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# Writes the app's TypeScript types from the API's wire types. Run through
+# `make generate` from the repo root, which also copies the golden responses
+# into the app as fixtures.
+packages:
+  - path: github.com/kbremont/531-tracker/server/internal/api
+    output_path: ../mobile/src/api/types.gen.ts
+    include_files: [types.go]
+    optional_type: "null"
+    indent: "  "
