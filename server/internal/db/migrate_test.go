@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kbremont/531-tracker/internal/program"
+	"github.com/kbremont/531-tracker/server/internal/program"
 )
 
 // oldDefaultProgram is the default program as it was stored before the 7th

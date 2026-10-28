@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kbremont/531-tracker/internal/views"
+	"github.com/kbremont/531-tracker/server/internal/views"
 )
 
 const (

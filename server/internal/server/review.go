@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kbremont/531-tracker/internal/db"
-	"github.com/kbremont/531-tracker/internal/program"
-	"github.com/kbremont/531-tracker/internal/views"
+	"github.com/kbremont/531-tracker/server/internal/db"
+	"github.com/kbremont/531-tracker/server/internal/program"
+	"github.com/kbremont/531-tracker/server/internal/views"
 )
 
 // Training max decisions. There are exactly two points where the user is asked

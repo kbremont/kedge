@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kbremont/531-tracker/internal/db"
+	"github.com/kbremont/531-tracker/server/internal/db"
 )
 
 func amrap(weight float64, reps int64) db.ListAMRAPSetsRow {

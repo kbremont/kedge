@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kbremont/531-tracker/internal/program"
+	"github.com/kbremont/531-tracker/server/internal/program"
 )
 
 // FmtWeight renders a weight without a trailing ".0", since almost every

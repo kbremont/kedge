@@ -12,9 +12,9 @@ import (
 
 	"github.com/a-h/templ"
 
-	"github.com/kbremont/531-tracker/internal/assets"
-	"github.com/kbremont/531-tracker/internal/db"
-	"github.com/kbremont/531-tracker/internal/views"
+	"github.com/kbremont/531-tracker/server/internal/assets"
+	"github.com/kbremont/531-tracker/server/internal/db"
+	"github.com/kbremont/531-tracker/server/internal/views"
 )
 
 // Config holds everything the server needs from its environment.

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kbremont/531-tracker/internal/db"
+	"github.com/kbremont/531-tracker/server/internal/db"
 )
 
 // The bounds on a past estimate. They match the add form's min and max, so

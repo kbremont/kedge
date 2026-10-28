@@ -1,4 +1,4 @@
-module github.com/kbremont/531-tracker
+module github.com/kbremont/531-tracker/server
 
 go 1.27.1
 

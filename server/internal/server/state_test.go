@@ -3,8 +3,8 @@ package server
 import (
 	"testing"
 
-	"github.com/kbremont/531-tracker/internal/db"
-	"github.com/kbremont/531-tracker/internal/program"
+	"github.com/kbremont/531-tracker/server/internal/db"
+	"github.com/kbremont/531-tracker/server/internal/program"
 )
 
 // TestRoundOfBlock pins the "round 8 of 11" line on the dashboard. The count is

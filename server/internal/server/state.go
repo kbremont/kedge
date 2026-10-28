@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kbremont/531-tracker/internal/db"
-	"github.com/kbremont/531-tracker/internal/program"
+	"github.com/kbremont/531-tracker/server/internal/db"
+	"github.com/kbremont/531-tracker/server/internal/program"
 )
 
 // blockState is everything the dashboard and the session routes need to know
