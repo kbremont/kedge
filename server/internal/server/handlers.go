@@ -1,257 +1,98 @@
 package server
 
 import (
-	"context"
-	"database/sql"
-	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"strconv"
-	"time"
+	"strings"
 
-	"github.com/kbremont/531-tracker/server/internal/db"
-	"github.com/kbremont/531-tracker/server/internal/program"
+	"github.com/kbremont/531-tracker/server/internal/training"
 	"github.com/kbremont/531-tracker/server/internal/views"
 )
 
-const recentLimit = 8
-
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	state, err := s.loadState(ctx)
+	d, err := s.svc.Dashboard(r.Context())
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	// No training maxes means the app has never been set up.
-	if len(state.TMOrder) < len(state.Lifts) {
+	if d.NeedsSetup {
 		http.Redirect(w, r, "/setup", http.StatusSeeOther)
 		return
 	}
+	s.render(w, r, views.Dashboard(*d))
+}
 
-	vm := views.DashboardVM{
-		Unit:        state.Raw.Unit,
-		ProgramName: state.Config.Name,
+func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
+	h, err := s.svc.History(r.Context())
+	if err != nil {
+		s.fail(w, r, err)
+		return
 	}
-	for _, tm := range state.TMOrder {
-		vm.TMs = append(vm.TMs, views.LiftTM{Slug: tm.Slug, Name: tm.Name, Value: tm.Value})
+	s.render(w, r, views.History(*h))
+}
+
+func (s *Server) handleLift(w http.ResponseWriter, r *http.Request) {
+	lift, err := s.svc.Lift(r.Context(), r.PathValue("slug"))
+	if err != nil {
+		s.notFoundOrFail(w, r, err)
+		return
+	}
+	s.render(w, r, views.LiftDetail(views.LiftPage{Lift: *lift, Error: r.URL.Query().Get("error") != ""}))
+}
+
+// handleAddPastEstimate records an estimate from before the app. Input the
+// browser should already have caught goes back to the lift with an error and
+// nothing is written.
+func (s *Server) handleAddPastEstimate(w http.ResponseWriter, r *http.Request) {
+	slug := r.PathValue("slug")
+	// A form that does not parse leaves the fields empty, which training
+	// rejects once it has checked the lift exists.
+	r.ParseForm()
+
+	// Unparseable numbers become zeros, which training rejects as well.
+	weight, _ := strconv.ParseFloat(strings.TrimSpace(r.PostForm.Get("weight")), 64)
+	reps, err := strconv.Atoi(strings.TrimSpace(r.PostForm.Get("reps")))
+	if err != nil {
+		reps = 0
 	}
 
+	err = s.svc.AddPastEstimate(r.Context(), slug, r.PostForm.Get("recorded_on"), weight, reps)
+	var input *training.InputError
 	switch {
-	case state.InProgress != nil:
-		var lift db.Lift
-		for _, l := range state.Lifts {
-			if l.Slug == state.InProgress.LiftSlug {
-				lift = l
-				break
-			}
-		}
-		vm.Next = &views.NextUp{
-			LiftName:      lift.Name,
-			LiftSlug:      lift.Slug,
-			CycleLabel:    state.InProgress.CycleLabel,
-			Phase:         state.InProgress.Phase,
-			TrainingMax:   state.InProgress.TrainingMax,
-			InProgress:    true,
-			WorkoutID:     state.InProgress.ID,
-			BlockNumber:   int(state.Block.Number),
-			RoundOfBlock:  roundOfBlock(state.Config, program.Position{CycleIndex: int(state.InProgress.CycleIndex), Round: int(state.InProgress.Round)}),
-			RoundsInBlock: state.Config.RoundsPerBlock(),
-		}
-	case state.HasNext:
-		lift := state.LiftByDay[state.Next.Day]
-		vm.Next = &views.NextUp{
-			LiftName:      lift.Name,
-			LiftSlug:      lift.Slug,
-			CycleLabel:    state.Config.Describe(state.Next),
-			TrainingMax:   state.TMs[lift.Slug],
-			Day:           state.Next.Day,
-			BlockNumber:   int(state.Block.Number),
-			RoundOfBlock:  roundOfBlock(state.Config, state.Next),
-			RoundsInBlock: state.Config.RoundsPerBlock(),
-		}
-		if cycle, err := state.Config.CycleAt(state.Next.CycleIndex); err == nil {
-			vm.Next.Phase = cycle.Phase
-		}
+	case errors.As(err, &input):
+		http.Redirect(w, r, "/lift/"+slug+"?error=1", http.StatusSeeOther)
+	case err != nil:
+		s.notFoundOrFail(w, r, err)
+	default:
+		http.Redirect(w, r, "/lift/"+slug, http.StatusSeeOther)
 	}
+}
 
-	results, review, held, err := s.trainingHold(ctx, state)
+func (s *Server) handleDeletePastEstimate(w http.ResponseWriter, r *http.Request) {
+	slug := r.PathValue("slug")
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
+		http.Error(w, "Not found.", http.StatusNotFound)
+		return
+	}
+	if err := s.svc.DeletePastEstimate(r.Context(), slug, id); err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	vm.TestResults = results
-	vm.Review = review
-	if vm.Next != nil && !vm.Next.InProgress {
-		vm.Next.Blocked = held
-		vm.Next.CanSkip = state.canSkipNext()
-	}
-
-	recent, err := s.recentHistory(ctx, recentLimit)
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	vm.Recent = recent
-
-	s.render(w, r, views.Dashboard(vm))
-}
-
-func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	raw, _, err := s.loadSettings(ctx)
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	lifts, err := s.q.ListLifts(ctx)
-	if err != nil {
-		s.fail(w, r, fmt.Errorf("list lifts: %w", err))
-		return
-	}
-
-	vm := views.SetupVM{Unit: raw.Unit}
-	for _, l := range lifts {
-		item := views.LiftTM{Slug: l.Slug, Name: l.Name}
-		if tm, err := s.q.GetCurrentTrainingMax(ctx, l.Slug); err == nil {
-			item.Value = tm.Value
-		}
-		vm.Lifts = append(vm.Lifts, item)
-	}
-	s.render(w, r, views.Setup(vm))
-}
-
-func (s *Server) handleSetupSave(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	lifts, err := s.q.ListLifts(ctx)
-	if err != nil {
-		s.fail(w, r, fmt.Errorf("list lifts: %w", err))
-		return
-	}
-
-	values := make(map[string]float64, len(lifts))
-	for _, l := range lifts {
-		v, err := strconv.ParseFloat(r.PostFormValue("tm_"+l.Slug), 64)
-		if err != nil || v <= 0 {
-			s.renderSetupError(w, r, lifts, fmt.Sprintf("Enter a positive training max for %s.", l.Name))
-			return
-		}
-		values[l.Slug] = v
-	}
-
-	err = s.tx(ctx, func(q *db.Queries) error {
-		for slug, v := range values {
-			if _, err := q.SetTrainingMax(ctx, db.SetTrainingMaxParams{
-				LiftSlug: slug,
-				Value:    v,
-				Note:     "initial setup",
-			}); err != nil {
-				return fmt.Errorf("set training max for %s: %w", slug, err)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	// Training maxes alone are not enough to know which session is next; ask
-	// where in the programme they are before opening the dashboard.
-	http.Redirect(w, r, "/setup/position", http.StatusSeeOther)
-}
-
-func (s *Server) renderSetupError(w http.ResponseWriter, r *http.Request, lifts []db.Lift, msg string) {
-	raw, _, _ := s.loadSettings(r.Context())
-	vm := views.SetupVM{Unit: raw.Unit, Error: msg}
-	for _, l := range lifts {
-		v, _ := strconv.ParseFloat(r.PostFormValue("tm_"+l.Slug), 64)
-		vm.Lifts = append(vm.Lifts, views.LiftTM{Slug: l.Slug, Name: l.Name, Value: v})
-	}
-	w.WriteHeader(http.StatusBadRequest)
-	s.render(w, r, views.Setup(vm))
-}
-
-// handleSetTrainingMax appends to the training max log. It never updates in
-// place, so past sessions keep the weights they were performed at.
-func (s *Server) handleSetTrainingMax(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	slug := r.PostFormValue("lift")
-	value, err := strconv.ParseFloat(r.PostFormValue("value"), 64)
-	if err != nil || value <= 0 {
-		http.Redirect(w, r, "/settings", http.StatusSeeOther)
-		return
-	}
-
-	if _, err := s.q.SetTrainingMax(r.Context(), db.SetTrainingMaxParams{
-		LiftSlug: slug,
-		Value:    value,
-		Note:     r.PostFormValue("note"),
-	}); err != nil {
-		s.fail(w, r, fmt.Errorf("set training max for %s: %w", slug, err))
-		return
-	}
-
-	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+	http.Redirect(w, r, "/lift/"+slug, http.StatusSeeOther)
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	raw, settings, err := s.loadSettings(ctx)
+	settings, err := s.svc.Settings(r.Context())
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	tms, err := s.q.ListCurrentTrainingMaxes(ctx)
-	if err != nil {
-		s.fail(w, r, fmt.Errorf("list training maxes: %w", err))
-		return
-	}
-	lifts, err := s.q.ListLifts(ctx)
-	if err != nil {
-		s.fail(w, r, fmt.Errorf("list lifts: %w", err))
-		return
-	}
-
-	vm := views.SettingsVM{
-		Unit:              raw.Unit,
-		Rounding:          raw.Rounding,
-		BarWeight:         raw.BarWeight,
-		Plates:            formatPlates(settings.Plates),
-		Warmups:           settings.Warmups,
-		RestWarmupSeconds: int(raw.RestWarmupSeconds),
-		RestMainSeconds:   int(raw.RestMainSeconds),
-		RestSuppSeconds:   int(raw.RestSuppSeconds),
-		Saved:             r.URL.Query().Get("saved") == "1",
-	}
-	for _, tm := range tms {
-		vm.TMs = append(vm.TMs, views.LiftTM{Slug: tm.Slug, Name: tm.Name, Value: tm.Value})
-	}
-	for _, l := range lifts {
-		bbb := views.LiftBBB{
-			Slug:       l.Slug,
-			Name:       l.Name,
-			Mode:       l.BbbMode,
-			Value:      l.BbbValue,
-			ModeField:  bbbModeField(l.Slug),
-			ValueField: bbbValueField(l.Slug),
-		}
-		if bbb.Mode == "percent" {
-			bbb.Value *= 100
-		}
-		vm.BBB = append(vm.BBB, bbb)
-	}
-	s.render(w, r, views.Settings(vm))
+	s.render(w, r, views.Settings(views.SettingsPage{Settings: *settings, Saved: r.URL.Query().Get("saved") == "1"}))
 }
 
 func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
@@ -261,188 +102,177 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	raw, _, err := s.loadSettings(ctx)
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-
 	plates, err := parsePlates(r.PostFormValue("plates"))
 	if err != nil {
 		http.Redirect(w, r, "/settings", http.StatusSeeOther)
 		return
 	}
-	encoded, err := json.Marshal(plates)
-	if err != nil {
-		s.fail(w, r, fmt.Errorf("encode plates: %w", err))
-		return
-	}
-
-	warmups := int64(0)
-	if r.PostFormValue("warmups") != "" {
-		warmups = 1
-	}
-
-	params := db.UpdateSettingsParams{
-		Unit:              raw.Unit, // pounds only for now; the column exists for later
-		Rounding:          positiveOr(r.PostFormValue("rounding"), raw.Rounding),
-		BarWeight:         positiveOr(r.PostFormValue("bar_weight"), raw.BarWeight),
-		Plates:            string(encoded),
-		Warmups:           warmups,
-		RestWarmupSeconds: int64(positiveOr(r.PostFormValue("rest_warmup_seconds"), float64(raw.RestWarmupSeconds))),
-		RestMainSeconds:   int64(positiveOr(r.PostFormValue("rest_main_seconds"), float64(raw.RestMainSeconds))),
-		RestSuppSeconds:   int64(positiveOr(r.PostFormValue("rest_supp_seconds"), float64(raw.RestSuppSeconds))),
-	}
-	if err := s.q.UpdateSettings(ctx, params); err != nil {
-		s.fail(w, r, fmt.Errorf("update settings: %w", err))
-		return
-	}
-
-	lifts, err := s.q.ListLifts(ctx)
-	if err != nil {
-		s.fail(w, r, fmt.Errorf("list lifts: %w", err))
-		return
-	}
-	err = s.tx(ctx, func(q *db.Queries) error {
-		for _, l := range lifts {
-			mode := r.PostFormValue(bbbModeField(l.Slug))
-			value := positiveOr(r.PostFormValue(bbbValueField(l.Slug)), 0)
-			switch mode {
-			case "percent":
-				value /= 100
-			case "weight":
-				// value is already an absolute weight
-			default:
-				mode = "program"
-			}
-			if value <= 0 {
-				mode = "program"
-			}
-			if err := q.SetLiftBBB(ctx, db.SetLiftBBBParams{
-				BbbMode:  mode,
-				BbbValue: value,
-				Slug:     l.Slug,
-			}); err != nil {
-				return fmt.Errorf("set BBB for %s: %w", l.Slug, err)
-			}
-		}
-		return nil
-	})
+	// The BBB inputs are named for each lift, so read back the lifts the form
+	// was drawn from.
+	current, err := s.svc.Settings(ctx)
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+
+	in := training.SettingsInput{
+		Rounding:          formFloat(r.PostForm, "rounding"),
+		BarWeight:         formFloat(r.PostForm, "bar_weight"),
+		Plates:            plates,
+		Warmups:           r.PostFormValue("warmups") != "",
+		RestWarmupSeconds: int(formFloat(r.PostForm, "rest_warmup_seconds")),
+		RestMainSeconds:   int(formFloat(r.PostForm, "rest_main_seconds")),
+		RestSuppSeconds:   int(formFloat(r.PostForm, "rest_supp_seconds")),
+		BBB:               make(map[string]training.LiftBBB, len(current.BBB)),
+	}
+	for _, b := range current.BBB {
+		in.BBB[b.Slug] = training.LiftBBB{
+			Mode:  r.PostFormValue(views.BBBModeField(b.Slug)),
+			Value: formFloat(r.PostForm, views.BBBValueField(b.Slug)),
+		}
+	}
+
+	err = s.svc.SaveSettings(ctx, in)
+	var input *training.InputError
+	switch {
+	case errors.As(err, &input):
+		http.Redirect(w, r, "/settings", http.StatusSeeOther)
+	case err != nil:
+		s.fail(w, r, err)
+	default:
+		http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+	}
 }
 
-func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+// handleSetTrainingMax appends to the training max log from settings.
+func (s *Server) handleSetTrainingMax(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	value, err := strconv.ParseFloat(r.PostFormValue("value"), 64)
+	if err != nil {
+		http.Redirect(w, r, "/settings", http.StatusSeeOther)
+		return
+	}
 
-	items, err := s.recentHistory(ctx, 60)
+	err = s.svc.SetTrainingMax(r.Context(), r.PostFormValue("lift"), value, r.PostFormValue("note"))
+	var input *training.InputError
+	switch {
+	case errors.As(err, &input):
+		http.Redirect(w, r, "/settings", http.StatusSeeOther)
+	case err != nil:
+		s.fail(w, r, err)
+	default:
+		http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+	}
+}
+
+// handleAcceptReview writes the training maxes the user settled on at the
+// start of a block. A review no longer pending, or a value missing, goes back
+// to the dashboard with nothing written.
+func (s *Server) handleAcceptReview(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	err := s.svc.AcceptReview(r.Context(), r.PostFormValue("key"), formTMs(r.PostForm))
+	s.backToDashboard(w, r, err)
+}
+
+// handleTMTestDecision settles a failed TM test: lower the training max, or
+// keep it.
+func (s *Server) handleTMTestDecision(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	keep := r.PostFormValue("action") == "keep"
+	tm, _ := strconv.ParseFloat(strings.TrimSpace(r.PostFormValue("tm")), 64)
+	s.backToDashboard(w, r, s.svc.DecideTMTest(r.Context(), id, keep, tm))
+}
+
+// handleSkipCycle passes on an optional cycle before its first session.
+func (s *Server) handleSkipCycle(w http.ResponseWriter, r *http.Request) {
+	s.backToDashboard(w, r, s.svc.SkipCycle(r.Context()))
+}
+
+// backToDashboard finishes a training max decision. Whether it was made, was
+// no longer on offer or had a bad value, the dashboard shows where things
+// stand.
+func (s *Server) backToDashboard(w http.ResponseWriter, r *http.Request, err error) {
+	var input *training.InputError
+	if err != nil && !errors.As(err, &input) && !errors.Is(err, training.ErrStale) && !errors.Is(err, training.ErrHeld) {
+		s.fail(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// handleBackup streams a consistent snapshot of the database. It is safe to
+// call while the app is running.
+func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
+	backup, err := s.svc.Backup(r.Context())
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	lifts, err := s.q.ListLifts(ctx)
-	if err != nil {
-		s.fail(w, r, fmt.Errorf("list lifts: %w", err))
+	defer backup.Close()
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", backup.Name))
+	if _, err := io.Copy(w, backup); err != nil {
+		s.log.ErrorContext(r.Context(), "backup stream interrupted", "error", err)
+	}
+}
+
+func (s *Server) notFoundOrFail(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, training.ErrNotFound) {
+		http.Error(w, "Not found.", http.StatusNotFound)
 		return
 	}
-
-	vm := views.HistoryVM{Items: items}
-	for _, l := range lifts {
-		vm.Lifts = append(vm.Lifts, views.LiftTM{Slug: l.Slug, Name: l.Name})
-	}
-	s.render(w, r, views.History(vm))
+	s.fail(w, r, err)
 }
 
-// recentHistory summarises completed sessions. The per-workout set lookup is
-// a query each, which is the right trade against a more complex join when the
-// database is a local file and the list is at most a screen or two long.
-func (s *Server) recentHistory(ctx context.Context, limit int64) ([]views.HistoryItem, error) {
-	rows, err := s.q.ListRecentWorkouts(ctx, limit)
+// formFloat reads a number from a form, or 0 when the field is missing or not
+// a number.
+func formFloat(form url.Values, field string) float64 {
+	v, err := strconv.ParseFloat(form.Get(field), 64)
 	if err != nil {
-		return nil, fmt.Errorf("list recent workouts: %w", err)
-	}
-
-	items := make([]views.HistoryItem, 0, len(rows))
-	for _, row := range rows {
-		sets, err := s.q.ListSets(ctx, row.ID)
-		if err != nil {
-			return nil, fmt.Errorf("list sets for workout %d: %w", row.ID, err)
-		}
-		items = append(items, views.HistoryItem{
-			WorkoutID:  row.ID,
-			LiftName:   row.LiftName,
-			LiftSlug:   row.LiftSlug,
-			CycleLabel: row.CycleLabel,
-			Date:       formatDate(row.CompletedAt),
-			Summary:    topSetSummary(sets),
-		})
-	}
-	return items, nil
-}
-
-// topSetSummary picks the set worth remembering: the PR set when there is
-// one, otherwise the heaviest main set that was completed.
-func topSetSummary(sets []db.Set) string {
-	var best db.Set
-	var found bool
-	for _, set := range sets {
-		if !set.CompletedAt.Valid || set.Kind != string(program.KindMain) {
-			continue
-		}
-		switch {
-		case !found:
-			best, found = set, true
-		case set.IsAmrap != 0 && best.IsAmrap == 0:
-			best = set
-		case set.IsAmrap == best.IsAmrap && set.Weight > best.Weight:
-			best = set
-		}
-	}
-	if !found {
-		return ""
-	}
-	return fmt.Sprintf("%s x %d", views.FmtWeight(best.Weight), best.ActualReps.Int64)
-}
-
-func positiveOr(raw string, fallback float64) float64 {
-	v, err := strconv.ParseFloat(raw, 64)
-	if err != nil || v <= 0 {
-		return fallback
+		return 0
 	}
 	return v
 }
 
-// formatDate renders a SQLite UTC timestamp in the server's local zone, which
-// is what the TZ environment variable in the compose file is for.
-func formatDate(ts sql.NullString) string {
-	if !ts.Valid {
-		return ""
+// formTMs reads the training max inputs, one per lift, by slug. A value that
+// is not a number reads as 0, which training rejects.
+func formTMs(form url.Values) map[string]float64 {
+	out := make(map[string]float64)
+	for field := range form {
+		if slug, ok := strings.CutPrefix(field, views.TMField("")); ok {
+			out[slug], _ = strconv.ParseFloat(strings.TrimSpace(form.Get(field)), 64)
+		}
 	}
-	t, err := time.Parse("2006-01-02 15:04:05", ts.String)
-	if err != nil {
-		return ts.String
-	}
-	return t.UTC().In(time.Local).Format("Jan 2")
+	return out
 }
 
-// dayLayout is how a calendar date with no time is written in the database and
-// in a date input.
-const dayLayout = "2006-01-02"
-
-// formatDay renders a calendar date such as "2026-03-03" as "Mar 3, 2026". The
-// year is kept because a date from a notebook can be from any year.
-func formatDay(d string) string {
-	t, err := time.Parse(dayLayout, d)
-	if err != nil {
-		return d
+// parsePlates reads the comma-separated plate list shown in settings.
+func parsePlates(in string) ([]float64, error) {
+	fields := strings.FieldsFunc(in, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\n'
+	})
+	out := make([]float64, 0, len(fields))
+	for _, f := range fields {
+		v, err := strconv.ParseFloat(strings.TrimSpace(f), 64)
+		if err != nil {
+			return nil, fmt.Errorf("%q is not a number", f)
+		}
+		out = append(out, v)
 	}
-	return t.Format("Jan 2, 2006")
-}
-
-// formatTimestamp renders a non-null SQLite UTC timestamp in local time.
-func formatTimestamp(ts string) string {
-	return formatDate(sql.NullString{String: ts, Valid: true})
+	return out, nil
 }

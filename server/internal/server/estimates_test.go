@@ -21,7 +21,7 @@ func (h *harness) addPast(slug, date, weight, reps string) string {
 
 func (h *harness) pastEstimates(slug string) []db.PastEstimate {
 	h.t.Helper()
-	rows, err := h.s.q.ListPastEstimates(context.Background(), slug)
+	rows, err := h.q.ListPastEstimates(context.Background(), slug)
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func (h *harness) liftPage(slug string) string {
 
 func (h *harness) bestE1RM(slug string) float64 {
 	h.t.Helper()
-	best, err := h.s.bestE1RM(context.Background(), slug)
+	best, err := h.svc.BestE1RM(context.Background(), slug)
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestPastEstimatesFeedTheChartAndBest(t *testing.T) {
 	h.setup(map[string]float64{"press": 100, "deadlift": 300, "bench": 200, "squat": 250}, 2)
 
 	lastYear := time.Now().AddDate(-1, 0, 0)
-	loc := h.addPast("press", lastYear.Format(dayLayout), "120", "1")
+	loc := h.addPast("press", lastYear.Format("2006-01-02"), "120", "1")
 	if loc != "/lift/press" {
 		t.Errorf("redirected to %q, want the lift page", loc)
 	}
@@ -102,7 +102,7 @@ func TestPastEstimateRejectsBadInput(t *testing.T) {
 	h := newHarness(t)
 	h.setup(map[string]float64{"press": 100, "deadlift": 300, "bench": 200, "squat": 250}, 2)
 
-	tomorrow := time.Now().AddDate(0, 0, 1).Format(dayLayout)
+	tomorrow := time.Now().AddDate(0, 0, 1).Format("2006-01-02")
 	for name, form := range map[string][3]string{
 		"future date":    {tomorrow, "120", "1"},
 		"zero weight":    {"2025-01-15", "0", "1"},
@@ -133,12 +133,12 @@ func TestPastEstimateRejectsBadInput(t *testing.T) {
 		t.Errorf("unknown lift = %d, want 404", rec.Code)
 	}
 	var n int
-	if err := h.s.conn.QueryRow(`SELECT COUNT(*) FROM past_estimates`).Scan(&n); err != nil || n != 0 {
+	if err := h.conn.QueryRow(`SELECT COUNT(*) FROM past_estimates`).Scan(&n); err != nil || n != 0 {
 		t.Errorf("%d estimates in the database after invalid input (%v), want 0", n, err)
 	}
 
 	// Today and the bounds are fine.
-	h.addPast("press", time.Now().Format(dayLayout), "1", "30")
+	h.addPast("press", time.Now().Format("2006-01-02"), "1", "30")
 	if n := len(h.pastEstimates("press")); n != 1 {
 		t.Errorf("%d estimates after a valid one, want 1", n)
 	}
@@ -200,15 +200,15 @@ func TestPastEstimatesAreNotEvidence(t *testing.T) {
 		for range 4 {
 			h.testSession(reps)
 		}
-		st, err := h.s.loadState(ctx)
+		block, err := h.q.GetCurrentBlock(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
-		tops, err := h.s.q.ListTMTestTopSets(ctx, st.Block.ID)
+		tops, err := h.q.ListTMTestTopSets(ctx, block.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		anchors, err := h.s.q.ListAnchorPRSets(ctx, st.Block.ID)
+		anchors, err := h.q.ListAnchorPRSets(ctx, block.ID)
 		if err != nil {
 			t.Fatal(err)
 		}

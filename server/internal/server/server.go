@@ -1,10 +1,8 @@
-// Package server wires the HTTP routes to the program engine and the
-// database. Anything that can be expressed as a pure function lives in
-// package program instead; what remains here is orchestration.
+// Package server wires the HTTP routes to the training rules. The handlers
+// only read requests and write responses; the rules live in package training.
 package server
 
 import (
-	"context"
 	"database/sql"
 	"io/fs"
 	"log/slog"
@@ -14,7 +12,7 @@ import (
 
 	"github.com/kbremont/531-tracker/server/internal/assets"
 	"github.com/kbremont/531-tracker/server/internal/auth"
-	"github.com/kbremont/531-tracker/server/internal/db"
+	"github.com/kbremont/531-tracker/server/internal/training"
 	"github.com/kbremont/531-tracker/server/internal/views"
 )
 
@@ -26,7 +24,7 @@ type Config struct {
 
 type Server struct {
 	conn     *sql.DB
-	q        *db.Queries
+	svc      *training.Service
 	log      *slog.Logger
 	sessions *auth.Sessions
 }
@@ -35,7 +33,7 @@ func New(conn *sql.DB, log *slog.Logger, cfg Config) *Server {
 	views.AssetVersion = cfg.Version
 	return &Server{
 		conn:     conn,
-		q:        db.New(conn),
+		svc:      training.New(conn, log),
 		log:      log,
 		sessions: auth.New(cfg.Password),
 	}
@@ -148,18 +146,4 @@ func (s *Server) recoverPanic(next http.Handler) http.Handler {
 		}()
 		next.ServeHTTP(w, r)
 	})
-}
-
-// tx runs fn inside a transaction, rolling back on error.
-func (s *Server) tx(ctx context.Context, fn func(*db.Queries) error) error {
-	tx, err := s.conn.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if err := fn(s.q.WithTx(tx)); err != nil {
-		return err
-	}
-	return tx.Commit()
 }

@@ -1,8 +1,12 @@
 package views
 
-import "fmt"
+import (
+	"fmt"
 
-templ Workout(w WorkoutVM) {
+	"github.com/kbremont/531-tracker/server/internal/training"
+)
+
+templ Workout(w WorkoutPage) {
 	@Layout(w.LiftName, NavHome) {
 		<div style="margin-top:20px">
 			<div class="next">
@@ -62,7 +66,7 @@ func restStyle(seconds int) string {
 	)
 }
 
-templ setRow(w WorkoutVM, s SetVM) {
+templ setRow(w WorkoutPage, s training.Set) {
 	if s.Done {
 		@doneSet(w, s)
 	} else if s.Idx == w.CurrentIdx {
@@ -72,7 +76,7 @@ templ setRow(w WorkoutVM, s SetVM) {
 	}
 }
 
-templ doneSet(w WorkoutVM, s SetVM) {
+templ doneSet(w WorkoutPage, s training.Set) {
 	<div class="set done" id={ fmt.Sprintf("set-%d", s.Idx) }>
 		<div class="set-info">
 			<span class="set-weight">{ FmtWeight(s.Weight) }</span>
@@ -84,62 +88,53 @@ templ doneSet(w WorkoutVM, s SetVM) {
 	</div>
 }
 
-templ upcomingSet(w WorkoutVM, s SetVM) {
+templ upcomingSet(w WorkoutPage, s training.Set) {
 	<div class="set" id={ fmt.Sprintf("set-%d", s.Idx) }>
 		<div class="set-info">
 			<div class="set-tag">{ s.Tag }</div>
 			<div class="set-weight">{ FmtWeightUnit(s.Weight, w.Unit) }</div>
 			<div class="set-meta">
-				{ RepTarget(s.TargetReps, s.MaxReps, s.IsAMRAP) } reps &middot; { FmtPct(s.Pct) }
+				{ s.RepTarget() } reps &middot; { FmtPct(s.Pct) }
 			</div>
 		</div>
 	</div>
 }
 
-templ currentSet(w WorkoutVM, s SetVM) {
+templ currentSet(w WorkoutPage, s training.Set) {
 	<div class="set current" id={ fmt.Sprintf("set-%d", s.Idx) }>
 		<div class="set-info">
 			<div class="set-tag">{ s.Tag }</div>
 			<div class="set-weight">{ FmtWeightUnit(s.Weight, w.Unit) }</div>
 			<div class="set-meta">
-				{ RepTarget(s.TargetReps, s.MaxReps, s.IsAMRAP) } reps &middot; { FmtPct(s.Pct) }
+				{ s.RepTarget() } reps &middot; { FmtPct(s.Pct) }
 			</div>
 			@plateLine(s, w.Unit)
 		</div>
-		if !asksReps(s) {
+		if !s.AsksReps() {
 			<form method="post" action={ templ.SafeURL(fmt.Sprintf("/workout/%d/set/%d", w.ID, s.Idx)) }>
 				<input type="hidden" name="reps" value={ FmtInt(s.TargetReps) }/>
 				<button class="check" type="submit" aria-label="Log set">&check;</button>
 			</form>
 		}
 	</div>
-	if asksReps(s) {
+	if s.AsksReps() {
 		@repPicker(w, s)
 	}
 }
 
-templ plateLine(s SetVM, unit string) {
-	if s.Plates != "" {
-		<div class="plates">
-			Bar + { s.Plates } per side
-			if s.Unloadable != 0 {
-				<span class="warn">({ FmtWeightUnit(s.Unloadable, unit) } short)</span>
-			}
-		</div>
-	} else {
-		<div class="plates">Empty bar</div>
-	}
-}
-
-// asksReps reports whether a set needs its reps entered rather than ticked
-// off: a PR set, or a range such as 3-5 where the number done is the point.
-func asksReps(s SetVM) bool {
-	return s.IsAMRAP || s.MaxReps > 0
+templ plateLine(s training.Set, unit string) {
+	<div class="plates">
+		{ s.PlateLine() }
+		if s.Unloadable != 0 {
+			<span class="warn">({ FmtWeightUnit(s.Unloadable, unit) } short)</span>
+		}
+	</div>
 }
 
 // repPicker replaces a stepper with one tap per plausible answer, so the reps
-// can be logged without a keyboard. The prescribed target is highlighted.
-templ repPicker(w WorkoutVM, s SetVM) {
+// can be logged without a keyboard. The answers that meet the prescription are
+// highlighted.
+templ repPicker(w WorkoutPage, s training.Set) {
 	<div class="card">
 		<div class="amrap-prompt">
 			How many reps?
@@ -149,8 +144,8 @@ templ repPicker(w WorkoutVM, s SetVM) {
 		</div>
 		<form method="post" action={ templ.SafeURL(fmt.Sprintf("/workout/%d/set/%d", w.ID, s.Idx)) }>
 			<div class="reps">
-				for _, r := range repChoices(s) {
-					if isTargetRep(s, r) {
+				for _, r := range s.RepChoices() {
+					if s.IsTargetRep(r) {
 						<button class="target" type="submit" name="reps" value={ FmtInt(r) }>{ FmtInt(r) }</button>
 					} else {
 						<button type="submit" name="reps" value={ FmtInt(r) }>{ FmtInt(r) }</button>
@@ -166,28 +161,4 @@ templ repPicker(w WorkoutVM, s SetVM) {
 			<button class="btn" type="submit">Log</button>
 		</form>
 	</div>
-}
-
-// repChoices offers ten answers. An anchor PR set starts at its target, which
-// covers all but the most exceptional one. A set with a window, the TM test's
-// 100% AMRAP or the deload's 80% range, starts at a single rep, since falling
-// short of it is exactly what those sets are there to find out.
-func repChoices(s SetVM) []int {
-	start := 1
-	if s.IsAMRAP && s.MaxReps == 0 && s.TargetReps > 1 {
-		start = s.TargetReps
-	}
-	out := make([]int, 10)
-	for i := range out {
-		out[i] = start + i
-	}
-	return out
-}
-
-// isTargetRep marks the answers that meet the prescription.
-func isTargetRep(s SetVM, r int) bool {
-	if s.MaxReps > 0 {
-		return r >= s.TargetReps && r <= s.MaxReps
-	}
-	return r == s.TargetReps
 }

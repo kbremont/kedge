@@ -1,17 +1,15 @@
-package server
+package training
 
 import (
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/kbremont/531-tracker/server/internal/db"
 	"github.com/kbremont/531-tracker/server/internal/program"
-	"github.com/kbremont/531-tracker/server/internal/views"
 )
 
 // Training max decisions. There are exactly two points where the user is asked
@@ -30,12 +28,10 @@ import (
 
 func reviewKey(blockID int64, cycleIdx int) string { return fmt.Sprintf("b%d:c%d", blockID, cycleIdx) }
 
-func tmField(slug string) string { return "tm_" + slug }
-
 // tmTestResults reports the current block's TM tests worth showing: every
 // failed lift still waiting on a decision, and the session just finished while
 // nothing has been started after it.
-func (s *Server) tmTestResults(ctx context.Context, st *blockState) ([]views.TMTestResultVM, error) {
+func (s *Service) tmTestResults(ctx context.Context, st *blockState) ([]TMTestResult, error) {
 	tops, err := s.q.ListTMTestTopSets(ctx, st.Block.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list TM test results in block %d: %w", st.Block.ID, err)
@@ -58,7 +54,7 @@ func (s *Server) tmTestResults(ctx context.Context, st *blockState) ([]views.TMT
 		names[l.Slug] = l.Name
 	}
 
-	var out []views.TMTestResultVM
+	var out []TMTestResult
 	for _, t := range tops {
 		reps := int(t.ActualReps.Int64)
 		verdict := program.TMTestVerdict(reps)
@@ -72,7 +68,7 @@ func (s *Server) tmTestResults(ctx context.Context, st *blockState) ([]views.TMT
 		}
 
 		current := st.TMs[t.LiftSlug]
-		r := views.TMTestResultVM{
+		r := TMTestResult{
 			WorkoutID: t.ID,
 			LiftName:  names[t.LiftSlug],
 			Unit:      st.Raw.Unit,
@@ -103,7 +99,7 @@ func (s *Server) tmTestResults(ctx context.Context, st *blockState) ([]views.TMT
 
 // awaitingTMTestDecision reports whether a failed TM test is holding training.
 // Only the anchor waits on it; the rest of the TM test week carries on.
-func awaitingTMTestDecision(st *blockState, results []views.TMTestResultVM) bool {
+func awaitingTMTestDecision(st *blockState, results []TMTestResult) bool {
 	if !st.HasNext {
 		return false
 	}
@@ -120,7 +116,7 @@ func awaitingTMTestDecision(st *blockState, results []views.TMTestResultVM) bool
 
 // trainingHold gathers what the dashboard shows above the next session, and
 // reports whether that session has to wait for a decision.
-func (s *Server) trainingHold(ctx context.Context, st *blockState) (results []views.TMTestResultVM, review *views.TMReviewVM, held bool, err error) {
+func (s *Service) trainingHold(ctx context.Context, st *blockState) (results []TMTestResult, review *TMReview, held bool, err error) {
 	if results, err = s.tmTestResults(ctx, st); err != nil {
 		return nil, nil, false, err
 	}
@@ -133,7 +129,7 @@ func (s *Server) trainingHold(ctx context.Context, st *blockState) (results []vi
 // pendingReview returns the block review waiting to be accepted, or nil. It
 // sits before the first session of every block after the first; accepting it
 // records its key, which is what stops it reappearing.
-func (s *Server) pendingReview(ctx context.Context, st *blockState) (*views.TMReviewVM, error) {
+func (s *Service) pendingReview(ctx context.Context, st *blockState) (*TMReview, error) {
 	if st.InProgress != nil || !st.HasNext || st.Block.Number < 2 {
 		return nil, nil
 	}
@@ -148,7 +144,7 @@ func (s *Server) pendingReview(ctx context.Context, st *blockState) (*views.TMRe
 	return s.blockReview(ctx, st, key)
 }
 
-func (s *Server) blockReview(ctx context.Context, st *blockState, key string) (*views.TMReviewVM, error) {
+func (s *Service) blockReview(ctx context.Context, st *blockState, key string) (*TMReview, error) {
 	prev, err := s.q.GetBlockByNumber(ctx, st.Block.Number-1)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -178,7 +174,7 @@ func (s *Server) blockReview(ctx context.Context, st *blockState, key string) (*
 		})
 	}
 
-	vm := &views.TMReviewVM{
+	vm := &TMReview{
 		Title: fmt.Sprintf("Block %d: new training maxes", st.Block.Number),
 		Intro: "Recommended from last block's TM test and anchor PR sets. Edit any of them, then accept to start the block.",
 		Key:   key,
@@ -188,7 +184,7 @@ func (s *Server) blockReview(ctx context.Context, st *blockState, key string) (*
 		reps, hasTest := testReps[tm.Slug]
 		proposed, reason := program.RecommendBump(st.Config, tm.Value, tm.IsUpper != 0, anchor[tm.Slug], reps, hasTest, st.Settings)
 		verdict, tone := bumpVerdict(reason, proposed-tm.Value, st.Raw.Unit)
-		vm.Rows = append(vm.Rows, views.TMReviewRow{
+		vm.Rows = append(vm.Rows, TMReviewRow{
 			Slug:     tm.Slug,
 			Name:     tm.Name,
 			Evidence: bumpEvidence(anchor[tm.Slug], reps, hasTest),
@@ -196,7 +192,6 @@ func (s *Server) blockReview(ctx context.Context, st *blockState, key string) (*
 			Tone:     tone,
 			Current:  tm.Value,
 			Proposed: proposed,
-			Field:    tmField(tm.Slug),
 		})
 	}
 	return vm, nil
@@ -228,58 +223,47 @@ func bumpVerdict(reason program.BumpReason, delta float64, unit string) (text, t
 	case program.ReasonMissedPR:
 		return "Missed a PR set: reset 10%", "down"
 	case program.ReasonHitPRAndTM:
-		return "PR sets and TM test: +" + views.FmtWeightUnit(delta, unit), "up"
+		return "PR sets and TM test: +" + FormatWeightUnit(delta, unit), "up"
 	case program.ReasonHitPR:
-		return "Hit every PR set: +" + views.FmtWeightUnit(delta, unit), "up"
+		return "Hit every PR set: +" + FormatWeightUnit(delta, unit), "up"
 	default:
 		return "Hold", "hold"
 	}
 }
 
-// handleAcceptReview writes the training maxes the user settled on at the
-// start of a block. The review is rebuilt here rather than trusted from the
-// form, so a stale page cannot accept a review that is no longer pending.
-func (s *Server) handleAcceptReview(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-
+// AcceptReview writes the training maxes the user settled on at the start of
+// a block, from values by lift slug. The review is rebuilt here rather than
+// trusted from the caller, so a stale screen cannot accept a review that is no
+// longer pending: that returns ErrStale. Every lift needs a positive value, or
+// nothing is written.
+func (s *Service) AcceptReview(ctx context.Context, key string, values map[string]float64) error {
 	state, err := s.loadState(ctx)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return err
 	}
 	review, err := s.pendingReview(ctx, state)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return err
 	}
-	if review == nil || review.Key != r.PostFormValue("key") {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
+	if review == nil || review.Key != key {
+		return ErrStale
 	}
 
-	values := make([]float64, len(review.Rows))
-	for i, row := range review.Rows {
-		v, err := strconv.ParseFloat(strings.TrimSpace(r.PostFormValue(row.Field)), 64)
-		if err != nil || v <= 0 {
+	for _, row := range review.Rows {
+		if v := values[row.Slug]; v <= 0 {
 			// All or nothing: a half-applied review is worse than none.
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
+			return inputError(fmt.Sprintf("Enter a positive training max for %s.", row.Name))
 		}
-		values[i] = v
 	}
 
-	err = s.tx(ctx, func(q *db.Queries) error {
-		for i, row := range review.Rows {
-			if values[i] == row.Current {
+	return s.tx(ctx, func(q *db.Queries) error {
+		for _, row := range review.Rows {
+			if values[row.Slug] == row.Current {
 				continue
 			}
 			if _, err := q.SetTrainingMax(ctx, db.SetTrainingMaxParams{
 				LiftSlug: row.Slug,
-				Value:    values[i],
+				Value:    values[row.Slug],
 				Note:     "block bump",
 			}); err != nil {
 				return fmt.Errorf("set training max for %s: %w", row.Slug, err)
@@ -290,66 +274,45 @@ func (s *Server) handleAcceptReview(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// handleTMTestDecision settles a failed TM test: lower the training max, or
-// keep it. Either way the anchor stops waiting on it. The offer is rebuilt
-// from the database rather than trusted from the form, and it can only ever
-// lower: a value at or above the current training max keeps it as it is.
-func (s *Server) handleTMTestDecision(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-
+// DecideTMTest settles a failed TM test: lower the training max to tm, or keep
+// it. Either way the anchor stops waiting on it. The offer is rebuilt from the
+// database rather than trusted from the caller, so a test with no decision
+// waiting returns ErrStale. It can only ever lower: a value at or above the
+// current training max keeps it as it is.
+func (s *Service) DecideTMTest(ctx context.Context, workoutID int64, keep bool, tm float64) error {
 	state, err := s.loadState(ctx)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return err
 	}
 	results, err := s.tmTestResults(ctx, state)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return err
 	}
-	var offer *views.TMTestResultVM
+	var offer *TMTestResult
 	for i := range results {
-		if results[i].WorkoutID == id && results[i].NeedsDecision {
+		if results[i].WorkoutID == workoutID && results[i].NeedsDecision {
 			offer = &results[i]
 		}
 	}
 	if offer == nil {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
+		return ErrStale
 	}
 
 	value := offer.Current
-	if r.PostFormValue("action") != "keep" {
-		v, err := strconv.ParseFloat(strings.TrimSpace(r.PostFormValue("tm")), 64)
-		if err != nil || v <= 0 {
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
+	if !keep {
+		if tm <= 0 {
+			return inputError("Enter a positive training max.")
 		}
-		value = v
+		value = tm
 	}
 
-	workout, err := s.q.GetWorkout(ctx, id)
+	workout, err := s.q.GetWorkout(ctx, workoutID)
 	if err != nil {
-		s.fail(w, r, fmt.Errorf("load workout %d: %w", id, err))
-		return
+		return fmt.Errorf("load workout %d: %w", workoutID, err)
 	}
-	err = s.tx(ctx, func(q *db.Queries) error {
+	return s.tx(ctx, func(q *db.Queries) error {
 		// Only a lower value is written; anything else keeps the training max.
 		if value < offer.Current {
 			if _, err := q.SetTrainingMax(ctx, db.SetTrainingMaxParams{
@@ -360,47 +323,37 @@ func (s *Server) handleTMTestDecision(w http.ResponseWriter, r *http.Request) {
 				return fmt.Errorf("set training max for %s: %w", workout.LiftSlug, err)
 			}
 		}
-		if err := q.MarkTMTestReviewed(ctx, id); err != nil {
-			return fmt.Errorf("settle TM test %d: %w", id, err)
+		if err := q.MarkTMTestReviewed(ctx, workoutID); err != nil {
+			return fmt.Errorf("settle TM test %d: %w", workoutID, err)
 		}
 		return nil
 	})
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// handleSkipCycle passes on an optional cycle before its first session. The
-// next state load leaves it out of the schedule; skipping the block's last
-// cycle ends the block, and the new one opens with its training max review.
-func (s *Server) handleSkipCycle(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
+// SkipCycle passes on an optional cycle before its first session. The next
+// state load leaves it out of the schedule; skipping the block's last cycle
+// ends the block, and the new one opens with its training max review. It
+// returns ErrStale when the next cycle cannot be skipped, and ErrHeld while a
+// training max decision is waiting.
+func (s *Service) SkipCycle(ctx context.Context) error {
 	state, err := s.loadState(ctx)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return err
 	}
 	if !state.canSkipNext() {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
+		return ErrStale
 	}
 	if _, _, held, err := s.trainingHold(ctx, state); err != nil {
-		s.fail(w, r, err)
-		return
+		return err
 	} else if held {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
+		return ErrHeld
 	}
 
 	if err := s.q.SkipCycle(ctx, db.SkipCycleParams{
 		BlockID:    state.Block.ID,
 		CycleIndex: int64(state.Next.CycleIndex),
 	}); err != nil {
-		s.fail(w, r, fmt.Errorf("skip cycle %d: %w", state.Next.CycleIndex, err))
-		return
+		return fmt.Errorf("skip cycle %d: %w", state.Next.CycleIndex, err)
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
 }

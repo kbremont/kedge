@@ -1,16 +1,13 @@
-package server
+package training
 
 import (
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/http"
-	"strconv"
 
 	"github.com/kbremont/531-tracker/server/internal/db"
 	"github.com/kbremont/531-tracker/server/internal/program"
-	"github.com/kbremont/531-tracker/server/internal/views"
 )
 
 // Onboarding lets someone who is already mid-programme start using the app
@@ -18,147 +15,148 @@ import (
 // on and tick off the sessions of that cycle they have already done; earlier
 // cycles are excluded from the block rather than fabricated.
 
-func doneField(round int, slug string) string { return fmt.Sprintf("done_r%d_%s", round, slug) }
-func repsField(round int, slug string) string { return fmt.Sprintf("reps_r%d_%s", round, slug) }
-
-func bbbModeField(slug string) string  { return "bbb_mode_" + slug }
-func bbbValueField(slug string) string { return "bbb_value_" + slug }
-
-func (s *Server) handleSetupPosition(w http.ResponseWriter, r *http.Request) {
-	_, cfg, err := s.activeProgram(r.Context())
+// Setup returns the first-run screen: every lift, with its training max if
+// one has been entered.
+func (s *Service) Setup(ctx context.Context) (*Setup, error) {
+	raw, _, err := s.loadSettings(ctx)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return nil, err
+	}
+	lifts, err := s.q.ListLifts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list lifts: %w", err)
 	}
 
-	vm := views.SetupPositionVM{}
+	setup := &Setup{Unit: raw.Unit}
+	for _, l := range lifts {
+		item := LiftTM{Slug: l.Slug, Name: l.Name}
+		if tm, err := s.q.GetCurrentTrainingMax(ctx, l.Slug); err == nil {
+			item.Value = tm.Value
+		}
+		setup.Lifts = append(setup.Lifts, item)
+	}
+	return setup, nil
+}
+
+// SaveSetup records the first training maxes, from values by lift slug. Every
+// lift needs a positive value, or nothing is written.
+func (s *Service) SaveSetup(ctx context.Context, values map[string]float64) error {
+	lifts, err := s.q.ListLifts(ctx)
+	if err != nil {
+		return fmt.Errorf("list lifts: %w", err)
+	}
+	for _, l := range lifts {
+		if values[l.Slug] <= 0 {
+			return inputError(fmt.Sprintf("Enter a positive training max for %s.", l.Name))
+		}
+	}
+
+	return s.tx(ctx, func(q *db.Queries) error {
+		for _, l := range lifts {
+			if _, err := q.SetTrainingMax(ctx, db.SetTrainingMaxParams{
+				LiftSlug: l.Slug,
+				Value:    values[l.Slug],
+				Note:     "initial setup",
+			}); err != nil {
+				return fmt.Errorf("set training max for %s: %w", l.Slug, err)
+			}
+		}
+		return nil
+	})
+}
+
+// SetupPosition returns the cycles a new user can say they are on.
+func (s *Service) SetupPosition(ctx context.Context) (*SetupPosition, error) {
+	_, cfg, err := s.activeProgram(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	pos := &SetupPosition{}
 	for i, c := range cfg.Cycles {
-		vm.Cycles = append(vm.Cycles, views.SetupCycleOption{
+		pos.Cycles = append(pos.Cycles, SetupCycle{
 			Index:  i,
 			Label:  c.Label,
 			Detail: cycleDetail(c),
 		})
 	}
-	s.render(w, r, views.SetupPosition(vm))
+	return pos, nil
 }
 
-func (s *Server) handleSetupPositionSave(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-
-	choice := r.PostFormValue("cycle")
-	if choice == "" || choice == "fresh" {
-		// Nothing to record; the block already starts at cycle zero.
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-	}
-
-	_, cfg, err := s.activeProgram(r.Context())
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	idx, err := strconv.Atoi(choice)
-	if err != nil {
-		http.Redirect(w, r, "/setup/position", http.StatusSeeOther)
-		return
-	}
-	if _, err := cfg.CycleAt(idx); err != nil {
-		http.Redirect(w, r, "/setup/position", http.StatusSeeOther)
-		return
-	}
-	http.Redirect(w, r, fmt.Sprintf("/setup/history?cycle=%d", idx), http.StatusSeeOther)
+// PastSession is one session of the chosen cycle that the user says they have
+// already done. PRReps is the reps on its AMRAP set, or 0 if not given.
+type PastSession struct {
+	Round  int
+	Slug   string
+	PRReps int
 }
 
-func (s *Server) handleSetupHistory(w http.ResponseWriter, r *http.Request) {
-	vm, _, err := s.buildSetupHistory(r.Context(), r.URL.Query().Get("cycle"))
-	if errors.Is(err, errNeedsTrainingMaxes) {
-		http.Redirect(w, r, "/setup", http.StatusSeeOther)
-		return
-	}
-	if errors.Is(err, errBadCycle) {
-		http.Redirect(w, r, "/setup/position", http.StatusSeeOther)
-		return
-	}
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	s.render(w, r, views.SetupHistory(*vm))
+// SetupHistory returns the checklist for a cycle. It returns ErrUnknownCycle
+// for a cycle the program does not have, and ErrNeedsSetup before training
+// maxes are entered.
+func (s *Service) SetupHistory(ctx context.Context, cycleIdx int) (*SetupHistory, error) {
+	hist, _, err := s.buildSetupHistory(ctx, cycleIdx)
+	return hist, err
 }
 
-func (s *Server) handleSetupHistorySave(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-
-	vm, ctxData, err := s.buildSetupHistory(ctx, r.PostFormValue("cycle"))
-	if errors.Is(err, errNeedsTrainingMaxes) {
-		http.Redirect(w, r, "/setup", http.StatusSeeOther)
-		return
-	}
-	if errors.Is(err, errBadCycle) {
-		http.Redirect(w, r, "/setup/position", http.StatusSeeOther)
-		return
-	}
+// SaveSetupHistory joins the current block at a cycle and records the sessions
+// of it already done, with the same errors as SetupHistory. Sessions not in
+// the cycle are ignored, and so is a PR rep count for a cycle that does not ask
+// for one or one outside 1 to 500.
+func (s *Service) SaveSetupHistory(ctx context.Context, cycleIdx int, done []PastSession) error {
+	hist, data, err := s.buildSetupHistory(ctx, cycleIdx)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return err
+	}
+	type session struct {
+		round int
+		slug  string
+	}
+	prReps := make(map[session]int, len(done))
+	for _, d := range done {
+		prReps[session{d.Round, d.Slug}] = d.PRReps
 	}
 
 	prog, cfg, err := s.activeProgram(ctx)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return err
 	}
 	block, err := s.currentBlock(ctx, prog.ID)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return err
 	}
 
-	err = s.tx(ctx, func(q *db.Queries) error {
+	return s.tx(ctx, func(q *db.Queries) error {
 		if err := q.SetBlockStartCycle(ctx, db.SetBlockStartCycleParams{
-			StartCycleIndex: int64(vm.CycleIndex),
+			StartCycleIndex: int64(hist.CycleIndex),
 			ID:              block.ID,
 		}); err != nil {
 			return fmt.Errorf("set block start cycle: %w", err)
 		}
 
-		for _, rd := range vm.Rounds {
+		for _, rd := range hist.Rounds {
 			for _, day := range rd.Days {
-				if r.PostFormValue(day.Field) == "" {
+				n, ok := prReps[session{rd.Round, day.Slug}]
+				if !ok {
 					continue
 				}
-				prReps := 0
-				if vm.AsksReps {
-					if n, err := strconv.Atoi(r.PostFormValue(day.RepsField)); err == nil && n > 0 && n <= 500 {
-						prReps = n
-					}
+				reps := 0
+				if hist.AsksReps && n > 0 && n <= maxLoggedReps {
+					reps = n
 				}
-				if err := s.recordPastSession(ctx, q, cfg, ctxData, block.ID, vm.CycleIndex, rd.Round, day.Slug, prReps); err != nil {
+				if err := s.recordPastSession(ctx, q, cfg, data, block.ID, hist.CycleIndex, rd.Round, day.Slug, reps); err != nil {
 					return err
 				}
 			}
 		}
 		return nil
 	})
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // recordPastSession writes a session the user says they already performed. The
 // sets come from the same pure generator the live flow uses, so the weights
 // match exactly what the app would have prescribed at this training max.
-func (s *Server) recordPastSession(
+func (s *Service) recordPastSession(
 	ctx context.Context,
 	q *db.Queries,
 	cfg program.Config,
@@ -244,19 +242,9 @@ type setupData struct {
 	BBBPct   map[string]float64
 }
 
-var (
-	errBadCycle           = errors.New("unknown cycle")
-	errNeedsTrainingMaxes = errors.New("training maxes not set")
-)
-
 // buildSetupHistory assembles the checklist for a cycle. Each row carries the
 // weight of its top main set, which is what makes a session recognisable.
-func (s *Server) buildSetupHistory(ctx context.Context, rawCycle string) (*views.SetupHistoryVM, *setupData, error) {
-	idx, err := strconv.Atoi(rawCycle)
-	if err != nil {
-		return nil, nil, errBadCycle
-	}
-
+func (s *Service) buildSetupHistory(ctx context.Context, idx int) (*SetupHistory, *setupData, error) {
 	raw, settings, err := s.loadSettings(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -267,7 +255,7 @@ func (s *Server) buildSetupHistory(ctx context.Context, rawCycle string) (*views
 	}
 	cycle, err := cfg.CycleAt(idx)
 	if err != nil {
-		return nil, nil, errBadCycle
+		return nil, nil, ErrUnknownCycle
 	}
 
 	lifts, err := s.q.ListLifts(ctx)
@@ -279,7 +267,7 @@ func (s *Server) buildSetupHistory(ctx context.Context, rawCycle string) (*views
 		return nil, nil, fmt.Errorf("list training maxes: %w", err)
 	}
 	if len(tmRows) < len(lifts) {
-		return nil, nil, errNeedsTrainingMaxes
+		return nil, nil, ErrNeedsSetup
 	}
 	tms := make(map[string]float64, len(tmRows))
 	for _, row := range tmRows {
@@ -290,37 +278,35 @@ func (s *Server) buildSetupHistory(ctx context.Context, rawCycle string) (*views
 		bbbPct[lift.Slug] = bbbPctFor(lift, tms[lift.Slug])
 	}
 
-	vm := &views.SetupHistoryVM{
+	hist := &SetupHistory{
 		CycleIndex: idx,
 		CycleLabel: cycle.Label,
 		Unit:       raw.Unit,
 	}
 	switch cycle.Main {
 	case program.Scheme531PR:
-		vm.AsksReps, vm.RepsLabel = true, "PR set reps"
+		hist.AsksReps, hist.RepsLabel = true, "PR set reps"
 	case program.SchemeTMTest:
-		vm.AsksReps, vm.RepsLabel = true, "100% set reps"
+		hist.AsksReps, hist.RepsLabel = true, "100% set reps"
 	}
 	for round := 1; round <= cycle.Rounds; round++ {
-		rd := views.SetupRoundVM{Round: round}
+		rd := SetupRound{Round: round}
 		for _, lift := range lifts {
 			generated, err := program.GenerateWorkout(cfg.WithBBBPct(bbbPct[lift.Slug]), idx, round, tms[lift.Slug], settings)
 			if err != nil {
 				return nil, nil, err
 			}
 			top, prTarget := topMainSet(generated)
-			rd.Days = append(rd.Days, views.SetupDayVM{
+			rd.Days = append(rd.Days, SetupDay{
 				Slug:      lift.Slug,
 				Name:      lift.Name,
 				TopWeight: top,
 				PRTarget:  prTarget,
-				Field:     doneField(round, lift.Slug),
-				RepsField: repsField(round, lift.Slug),
 			})
 		}
-		vm.Rounds = append(vm.Rounds, rd)
+		hist.Rounds = append(hist.Rounds, rd)
 	}
-	return vm, &setupData{Settings: settings, TMs: tms, BBBPct: bbbPct}, nil
+	return hist, &setupData{Settings: settings, TMs: tms, BBBPct: bbbPct}, nil
 }
 
 // topMainSet returns the heaviest main set of a session, and the rep target of
@@ -363,7 +349,7 @@ func cycleDetail(c program.CycleSpec) string {
 	var supp string
 	switch c.Supp.Kind {
 	case program.SuppBBB:
-		supp = fmt.Sprintf(" + BBB %dx%d @ %s", c.Supp.Sets, c.Supp.Reps, views.FmtPct(c.Supp.Pct))
+		supp = fmt.Sprintf(" + BBB %dx%d @ %s", c.Supp.Sets, c.Supp.Reps, FormatPct(c.Supp.Pct))
 	case program.SuppFSL:
 		supp = fmt.Sprintf(" + FSL %dx%d", c.Supp.Sets, c.Supp.Reps)
 	}

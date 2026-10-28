@@ -17,13 +17,18 @@ import (
 
 	"github.com/kbremont/531-tracker/server/internal/auth"
 	"github.com/kbremont/531-tracker/server/internal/db"
+	"github.com/kbremont/531-tracker/server/internal/training"
 )
 
 // harness drives the real routes, auth included, over an in-memory database.
+// It reads the database directly, or through the training rules, to check
+// what the routes did.
 type harness struct {
 	t      *testing.T
-	s      *Server
 	h      http.Handler
+	conn   *sql.DB
+	q      *db.Queries
+	svc    *training.Service
 	cookie *http.Cookie
 }
 
@@ -39,11 +44,14 @@ func newHarness(t *testing.T) *harness {
 		t.Fatalf("migrate: %v", err)
 	}
 
-	s := New(conn, slog.New(slog.NewTextHandler(io.Discard, nil)), Config{Password: "test"})
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	s := New(conn, log, Config{Password: "test"})
 	return &harness{
 		t:      t,
-		s:      s,
 		h:      s.Handler(),
+		conn:   conn,
+		q:      db.New(conn),
+		svc:    training.New(conn, log),
 		cookie: &http.Cookie{Name: auth.CookieName, Value: s.sessions.Sign(time.Now().Add(time.Hour))},
 	}
 }
@@ -104,11 +112,11 @@ func (h *harness) session(reps func(w db.Workout, set db.Set) int) db.Workout {
 	if err != nil {
 		h.t.Fatalf("start session redirected to %q, want a workout", loc)
 	}
-	workout, err := h.s.q.GetWorkout(ctx, id)
+	workout, err := h.q.GetWorkout(ctx, id)
 	if err != nil {
 		h.t.Fatal(err)
 	}
-	sets, err := h.s.q.ListSets(ctx, id)
+	sets, err := h.q.ListSets(ctx, id)
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -125,7 +133,7 @@ func (h *harness) session(reps func(w db.Workout, set db.Set) int) db.Workout {
 
 func (h *harness) currentTMs() map[string]float64 {
 	h.t.Helper()
-	rows, err := h.s.q.ListCurrentTrainingMaxes(context.Background())
+	rows, err := h.q.ListCurrentTrainingMaxes(context.Background())
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -139,7 +147,7 @@ func (h *harness) currentTMs() map[string]float64 {
 func (h *harness) workoutCount() int {
 	h.t.Helper()
 	var n int
-	if err := h.s.conn.QueryRow(`SELECT COUNT(*) FROM workouts`).Scan(&n); err != nil {
+	if err := h.conn.QueryRow(`SELECT COUNT(*) FROM workouts`).Scan(&n); err != nil {
 		h.t.Fatal(err)
 	}
 	return n
@@ -147,14 +155,11 @@ func (h *harness) workoutCount() int {
 
 func (h *harness) review() (key string) {
 	h.t.Helper()
-	st, err := h.s.loadState(context.Background())
+	d, err := h.svc.Dashboard(context.Background())
 	if err != nil {
 		h.t.Fatal(err)
 	}
-	r, err := h.s.pendingReview(context.Background(), st)
-	if err != nil {
-		h.t.Fatal(err)
-	}
+	r := d.Review
 	if r == nil {
 		h.t.Fatal("expected a pending training max review")
 	}
@@ -245,7 +250,7 @@ func TestTMTestThroughToNextBlock(t *testing.T) {
 	mustContain(t, h.dashboard(), "Bench Press TM test", "Nice job, your TM is right.")
 
 	// The 100% set counts toward the best estimated max: 200 x 4 by Epley.
-	best, err := h.s.bestE1RM(context.Background(), "bench")
+	best, err := h.svc.BestE1RM(context.Background(), "bench")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,11 +364,11 @@ func TestFailedTMTestHoldsOnlyTheAnchor(t *testing.T) {
 		t.Fatal("a failed press test should not hold the rest of the TM test week")
 	}
 	// That start began deadlift's test; finish it, then the rest.
-	st, err := h.s.loadState(context.Background())
-	if err != nil || st.InProgress == nil {
+	d, err := h.svc.Dashboard(context.Background())
+	if err != nil || d.Next == nil || !d.Next.InProgress {
 		t.Fatalf("expected deadlift's test in progress: %v", err)
 	}
-	h.post(fmt.Sprintf("/workout/%d/abandon", st.InProgress.ID), nil)
+	h.post(fmt.Sprintf("/workout/%d/abandon", d.Next.WorkoutID), nil)
 	h.testSession(testReps)
 	h.testSession(testReps)
 	squat := h.testSession(testReps)
@@ -387,7 +392,7 @@ func TestFailedTMTestHoldsOnlyTheAnchor(t *testing.T) {
 		t.Errorf("TMs = press %v, squat %v; want both kept at 100 and 250", got["press"], got["squat"])
 	}
 	var notes int
-	if err := h.s.conn.QueryRow(`SELECT COUNT(*) FROM training_maxes WHERE note = 'tm test'`).Scan(&notes); err != nil {
+	if err := h.conn.QueryRow(`SELECT COUNT(*) FROM training_maxes WHERE note = 'tm test'`).Scan(&notes); err != nil {
 		t.Fatal(err)
 	}
 	if notes != 0 {
@@ -423,14 +428,11 @@ func TestBlockReviewProposals(t *testing.T) {
 	}
 	h.post("/skip-cycle", nil)
 
-	st, err := h.s.loadState(context.Background())
-	if err != nil {
-		t.Fatal(err)
+	d, err := h.svc.Dashboard(context.Background())
+	if err != nil || d.Review == nil {
+		t.Fatalf("pending review = %v, %v; want a block review", d, err)
 	}
-	r, err := h.s.pendingReview(context.Background(), st)
-	if err != nil || r == nil {
-		t.Fatalf("pendingReview = %v, %v; want a block review", r, err)
-	}
+	r := d.Review
 	proposed := map[string]float64{}
 	for _, row := range r.Rows {
 		proposed[row.Slug] = row.Proposed
@@ -463,7 +465,7 @@ func TestSeventhWeekDeload(t *testing.T) {
 	}
 
 	w := h.session(nil)
-	sets, err := h.s.q.ListSets(context.Background(), w.ID)
+	sets, err := h.q.ListSets(context.Background(), w.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

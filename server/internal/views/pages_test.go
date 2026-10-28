@@ -5,9 +5,11 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/kbremont/531-tracker/server/internal/training"
 )
 
-func renderDashboard(t *testing.T, d DashboardVM) string {
+func renderDashboard(t *testing.T, d training.Dashboard) string {
 	t.Helper()
 	var buf bytes.Buffer
 	if err := Dashboard(d).Render(context.Background(), &buf); err != nil {
@@ -21,10 +23,10 @@ func renderDashboard(t *testing.T, d DashboardVM) string {
 // with the proposal prefilled, capped at the current value, and a way to keep
 // it that skips the input's validation.
 func TestTMTestResultCards(t *testing.T) {
-	d := DashboardVM{
+	d := training.Dashboard{
 		Unit: "lb",
-		Next: &NextUp{LiftName: "Squat", CycleLabel: "Anchor - Round 1", Blocked: true},
-		TestResults: []TMTestResultVM{
+		Next: &training.NextUp{LiftName: "Squat", CycleLabel: "Anchor - Round 1", Blocked: true},
+		TestResults: []training.TMTestResult{
 			{WorkoutID: 7, LiftName: "Bench Press", Unit: "lb", Tested: 200, Reps: 4, Headline: "Nice job, your TM is right.", Tone: "hold", Current: 200},
 			{WorkoutID: 8, LiftName: "Squat", Unit: "lb", Tested: 250, Reps: 2, Headline: "Your TM is too high.", Tone: "down", NeedsDecision: true, Current: 250, Proposed: 225},
 		},
@@ -55,14 +57,14 @@ func TestTMTestResultCards(t *testing.T) {
 // proposal and left uncapped: the start of a block is the one place a training
 // max may rise.
 func TestBlockReviewCard(t *testing.T) {
-	d := DashboardVM{
+	d := training.Dashboard{
 		Unit: "lb",
-		Review: &TMReviewVM{
+		Review: &training.TMReview{
 			Title: "Block 2: new training maxes",
 			Key:   "b2:c0",
 			Unit:  "lb",
-			Rows: []TMReviewRow{
-				{Slug: "squat", Name: "Squat", Verdict: "Hit every PR set: +10 lb", Tone: "up", Current: 250, Proposed: 260, Field: "tm_squat"},
+			Rows: []training.TMReviewRow{
+				{Slug: "squat", Name: "Squat", Verdict: "Hit every PR set: +10 lb", Tone: "up", Current: 250, Proposed: 260},
 			},
 		},
 	}
@@ -79,7 +81,7 @@ func TestBlockReviewCard(t *testing.T) {
 
 // TestSkipOffered shows the skip button only when the cycle may be skipped.
 func TestSkipOffered(t *testing.T) {
-	d := DashboardVM{Unit: "lb", Next: &NextUp{LiftName: "Press", CycleLabel: "7th Week Deload", CanSkip: true}}
+	d := training.Dashboard{Unit: "lb", Next: &training.NextUp{LiftName: "Press", CycleLabel: "7th Week Deload", CanSkip: true}}
 	html := renderDashboard(t, d)
 	if !strings.Contains(html, `action="/skip-cycle"`) || !strings.Contains(html, "Start session") {
 		t.Error("expected both start and skip")
@@ -91,7 +93,7 @@ func TestSkipOffered(t *testing.T) {
 	}
 }
 
-func renderLift(t *testing.T, l LiftVM) string {
+func renderLift(t *testing.T, l LiftPage) string {
 	t.Helper()
 	var buf bytes.Buffer
 	if err := LiftDetail(l).Render(context.Background(), &buf); err != nil {
@@ -103,8 +105,8 @@ func renderLift(t *testing.T, l LiftVM) string {
 // TestLiftChartFromFirstPoint shows the chart as soon as there is one
 // estimate, labelled with its value, and keeps the empty state for none.
 func TestLiftChartFromFirstPoint(t *testing.T) {
-	one := LiftVM{Name: "Overhead Press", Unit: "lb", CurrentTM: 100, BestE1RM: 130,
-		Points: []ChartPoint{{X: 160, Y: 70, Label: "130"}}, Path: "M 160.0 70.0", YMin: 120, YMax: 140}
+	one := LiftPage{Lift: training.Lift{Name: "Overhead Press", Unit: "lb", CurrentTM: 100, BestE1RM: 130,
+		Points: []training.ChartPoint{{X: 160, Y: 70, Label: "130"}}, Path: "M 160.0 70.0", YMin: 120, YMax: 140}}
 	html := renderLift(t, one)
 	for _, want := range []string{`<svg class="chart"`, `<circle class="dot" cx="160" cy="70"`, `text-anchor="middle">130</text>`} {
 		if !strings.Contains(html, want) {
@@ -116,12 +118,12 @@ func TestLiftChartFromFirstPoint(t *testing.T) {
 	}
 
 	two := one
-	two.Points = []ChartPoint{{X: 10, Y: 90, Label: "120"}, {X: 310, Y: 40, Label: "130"}}
+	two.Points = []training.ChartPoint{{X: 10, Y: 90, Label: "120"}, {X: 310, Y: 40, Label: "130"}}
 	if html := renderLift(t, two); strings.Contains(html, `text-anchor="middle"`) {
 		t.Error("a line should not carry the lone-point label")
 	}
 
-	none := LiftVM{Name: "Overhead Press", Unit: "lb", CurrentTM: 100}
+	none := LiftPage{Lift: training.Lift{Name: "Overhead Press", Unit: "lb", CurrentTM: 100}}
 	if html := renderLift(t, none); !strings.Contains(html, "Not enough data yet") || strings.Contains(html, "<svg") {
 		t.Error("expected the empty state and no chart with no points")
 	}
@@ -131,15 +133,15 @@ func TestLiftChartFromFirstPoint(t *testing.T) {
 // year, a delete button each, and the form to add another, and draws their
 // points hollow.
 func TestLiftPastEstimates(t *testing.T) {
-	l := LiftVM{Name: "Overhead Press", Slug: "press", Unit: "lb", CurrentTM: 100, BestE1RM: 171,
-		Points: []ChartPoint{{X: 10, Y: 40, Label: "171", Past: true}, {X: 310, Y: 90, Label: "130"}},
+	l := LiftPage{Lift: training.Lift{Name: "Overhead Press", Slug: "press", Unit: "lb", CurrentTM: 100, BestE1RM: 171,
+		Points: []training.ChartPoint{{X: 10, Y: 40, Label: "171", Past: true}, {X: 310, Y: 90, Label: "130"}},
 		Path:   "M 10.0 40.0 L 310.0 90.0", YMin: 120, YMax: 180,
-		PastEstimates: []PastEstimateVM{
+		PastEstimates: []training.PastEstimate{
 			{ID: 7, Date: "Mar 3, 2025", Weight: 135, Reps: 8, Estimate: 171},
 			{ID: 9, Date: "Jun 1, 2025", Weight: 120, Reps: 1, Estimate: 120},
 		},
 		Today: "2026-10-06",
-	}
+	}}
 	html := renderLift(t, l)
 	for _, want := range []string{
 		"Past estimates", "Mar 3, 2025", "135 x 8", "est. 171 lb", "Jun 1, 2025", "120 x 1",
@@ -169,7 +171,7 @@ func TestLiftPastEstimates(t *testing.T) {
 	}
 
 	// With none yet there is still a form to add the first.
-	l = LiftVM{Name: "Overhead Press", Slug: "press", Unit: "lb", Today: "2026-10-06"}
+	l = LiftPage{Lift: training.Lift{Name: "Overhead Press", Slug: "press", Unit: "lb", Today: "2026-10-06"}}
 	html = renderLift(t, l)
 	if !strings.Contains(html, `action="/lift/press/estimates"`) || strings.Contains(html, "/delete") {
 		t.Error("expected the add form and no delete buttons with no estimates")

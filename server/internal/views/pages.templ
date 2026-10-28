@@ -1,8 +1,12 @@
 package views
 
-import "fmt"
+import (
+	"fmt"
 
-templ Dashboard(d DashboardVM) {
+	"github.com/kbremont/531-tracker/server/internal/training"
+)
+
+templ Dashboard(d training.Dashboard) {
 	@Layout("Today", NavHome) {
 		for _, t := range d.TestResults {
 			@tmTestResult(t)
@@ -44,7 +48,7 @@ templ Dashboard(d DashboardVM) {
 	}
 }
 
-templ nextUpCard(n NextUp, unit string) {
+templ nextUpCard(n training.NextUp, unit string) {
 	<div class="card next" style="margin-top:20px">
 		<div class="eyebrow">
 			if n.InProgress {
@@ -79,7 +83,7 @@ templ nextUpCard(n NextUp, unit string) {
 // tmTestResult reports one lift's TM test as soon as it is done. A failed test
 // offers to lower the training max; keeping it is a choice too, and either one
 // settles it. Nothing is written until a button is pressed.
-templ tmTestResult(t TMTestResultVM) {
+templ tmTestResult(t training.TMTestResult) {
 	<div class="notice" style="margin-top:20px">
 		<div class="row">
 			<strong>{ t.LiftName } TM test</strong>
@@ -111,7 +115,7 @@ templ tmTestResult(t TMTestResultVM) {
 // tmReview asks the user to settle every training max at once. The proposed
 // values are only a starting point: nothing is written until Accept, and what
 // is written is whatever the inputs hold at that moment.
-templ tmReview(r TMReviewVM) {
+templ tmReview(r training.TMReview) {
 	<div class="notice" style="margin-top:20px">
 		<strong>{ r.Title }</strong>
 		<div class="small muted" style="margin:4px 0 4px">{ r.Intro }</div>
@@ -124,11 +128,11 @@ templ tmReview(r TMReviewVM) {
 						<span class={ "verdict", "verdict-" + row.Tone }>{ row.Verdict }</span>
 					</div>
 					<div class="small muted tnum" style="margin:2px 0 8px">{ row.Evidence }</div>
-					<label for={ row.Field }>Now { FmtWeightUnit(row.Current, r.Unit) } &middot; new training max</label>
+					<label for={ TMField(row.Slug) }>Now { FmtWeightUnit(row.Current, r.Unit) } &middot; new training max</label>
 					<input
-						id={ row.Field }
+						id={ TMField(row.Slug) }
 						type="number"
-						name={ row.Field }
+						name={ TMField(row.Slug) }
 						step="0.5"
 						min="1"
 						inputmode="decimal"
@@ -142,7 +146,7 @@ templ tmReview(r TMReviewVM) {
 	</div>
 }
 
-templ History(h HistoryVM) {
+templ History(h training.History) {
 	@Layout("History", NavHistory) {
 		<h2>By lift</h2>
 		<div class="card">
@@ -175,7 +179,7 @@ templ History(h HistoryVM) {
 	}
 }
 
-templ LiftDetail(l LiftVM) {
+templ LiftDetail(l LiftPage) {
 	@Layout(l.Name, NavHistory) {
 		<div style="margin-top:20px">
 			<div class="next">
@@ -197,7 +201,7 @@ templ LiftDetail(l LiftVM) {
 			</div>
 		} else {
 			<div class="card">
-				@chart(l)
+				@chart(l.Lift)
 			</div>
 		}
 		// The add form waits behind a plus in the heading. <details> opens and
@@ -272,7 +276,7 @@ templ LiftDetail(l LiftVM) {
 	}
 }
 
-templ chart(l LiftVM) {
+templ chart(l training.Lift) {
 	<svg class="chart" viewBox="0 0 320 160" preserveAspectRatio="none" role="img" aria-label="Estimated one rep max over time">
 		<line class="grid" x1="0" y1="130" x2="320" y2="130"></line>
 		<line class="grid" x1="0" y1="70" x2="320" y2="70"></line>
@@ -294,7 +298,7 @@ templ chart(l LiftVM) {
 	</svg>
 }
 
-templ Settings(s SettingsVM) {
+templ Settings(s SettingsPage) {
 	@Layout("Settings", NavSettings) {
 		if s.Saved {
 			<div class="notice" style="margin-top:20px">Saved.</div>
@@ -329,7 +333,7 @@ templ Settings(s SettingsVM) {
 				</div>
 				<div class="field">
 					<label for="plates">Plates available, per side</label>
-					<input id="plates" type="text" name="plates" inputmode="decimal" value={ s.Plates }/>
+					<input id="plates" type="text" name="plates" inputmode="decimal" value={ FmtPlateList(s.Plates) }/>
 				</div>
 				<div class="field">
 					<label>
@@ -366,7 +370,7 @@ templ Settings(s SettingsVM) {
 					<div class="inline-form" style="margin-bottom:10px">
 						<div class="field">
 							<label>{ b.Name }</label>
-							<select name={ b.ModeField }>
+							<select name={ BBBModeField(b.Slug) }>
 								<option value="program" selected?={ b.Mode == "program" }>Program default</option>
 								<option value="percent" selected?={ b.Mode == "percent" }>Percent of training max</option>
 								<option value="weight" selected?={ b.Mode == "weight" }>Fixed weight</option>
@@ -374,7 +378,7 @@ templ Settings(s SettingsVM) {
 						</div>
 						<div class="field">
 							<label for={ "bbb-value-" + b.Slug }>Value</label>
-							<input id={ "bbb-value-" + b.Slug } type="number" name={ b.ValueField } step="0.5" inputmode="decimal" value={ FmtWeight(b.Value) }/>
+							<input id={ "bbb-value-" + b.Slug } type="number" name={ BBBValueField(b.Slug) } step="0.5" inputmode="decimal" value={ FmtWeight(b.Value) }/>
 						</div>
 					</div>
 				}
@@ -417,7 +421,7 @@ templ Login(errMsg string) {
 	}
 }
 
-templ Setup(s SetupVM) {
+templ Setup(s SetupPage) {
 	@Bare("Set up") {
 		<div class="next" style="margin-bottom:16px">
 			<div class="lift">Training maxes</div>
@@ -437,7 +441,7 @@ templ Setup(s SetupVM) {
 						<input
 							id={ "tm-" + l.Slug }
 							type="number"
-							name={ "tm_" + l.Slug }
+							name={ TMField(l.Slug) }
 							step="0.5"
 							inputmode="decimal"
 							required
@@ -456,7 +460,7 @@ templ Setup(s SetupVM) {
 // SetupPosition asks which cycle the user is currently on. The options come
 // from the program config, so renaming or reordering cycles needs no change
 // here.
-templ SetupPosition(vm SetupPositionVM) {
+templ SetupPosition(vm training.SetupPosition) {
 	@Bare("Where are you?") {
 		<div class="next" style="margin-bottom:16px">
 			<div class="lift">Where are you?</div>
@@ -486,7 +490,7 @@ templ SetupPosition(vm SetupPositionVM) {
 }
 
 // SetupHistory records which sessions of the chosen cycle are already done.
-templ SetupHistory(vm SetupHistoryVM) {
+templ SetupHistory(vm training.SetupHistory) {
 	@Bare("What have you done?") {
 		<div class="next" style="margin-bottom:16px">
 			<div class="lift">{ vm.CycleLabel }</div>
@@ -495,9 +499,6 @@ templ SetupHistory(vm SetupHistoryVM) {
 				unticked is where the app will pick up.
 			</div>
 		</div>
-		if vm.Error != "" {
-			<div class="error">{ vm.Error }</div>
-		}
 		<form method="post" action="/setup/history">
 			<input type="hidden" name="cycle" value={ FmtInt(vm.CycleIndex) }/>
 			for _, rd := range vm.Rounds {
@@ -510,7 +511,7 @@ templ SetupHistory(vm SetupHistoryVM) {
 							<div style="height:1px;background:var(--border);margin:10px 0"></div>
 						}
 						<label style="margin-bottom:0">
-							<input type="checkbox" name={ d.Field } value="1"/>
+							<input type="checkbox" name={ DoneField(rd.Round, d.Slug) } value="1"/>
 							&nbsp;{ d.Name }
 							<span class="muted small tnum">
 								&nbsp;top set { FmtWeightUnit(d.TopWeight, vm.Unit) }
@@ -518,11 +519,11 @@ templ SetupHistory(vm SetupHistoryVM) {
 						</label>
 						if vm.AsksReps {
 							<div class="field" style="margin-top:8px;margin-bottom:0">
-								<label for={ d.RepsField }>{ vm.RepsLabel }</label>
+								<label for={ RepsField(rd.Round, d.Slug) }>{ vm.RepsLabel }</label>
 								<input
-									id={ d.RepsField }
+									id={ RepsField(rd.Round, d.Slug) }
 									type="number"
-									name={ d.RepsField }
+									name={ RepsField(rd.Round, d.Slug) }
 									inputmode="numeric"
 									min="1"
 									max="100"

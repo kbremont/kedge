@@ -1,19 +1,19 @@
-package server
+package training
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"math"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/kbremont/531-tracker/server/internal/db"
 	"github.com/kbremont/531-tracker/server/internal/program"
-	"github.com/kbremont/531-tracker/server/internal/views"
 )
 
-// Plot area within the 320x160 viewBox declared by the chart template.
+// Plot area within the 320x160 viewBox the chart is drawn in.
 const (
 	plotLeft   = 10.0
 	plotRight  = 310.0
@@ -21,35 +21,34 @@ const (
 	plotBottom = 130.0
 )
 
-func (s *Server) handleLift(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	slug := r.PathValue("slug")
+// Lift returns a lift's page, or ErrNotFound: its training max and history,
+// the trend of its estimated max, and the estimates from before the app.
+func (s *Service) Lift(ctx context.Context, slug string) (*Lift, error) {
 	lift, err := s.q.GetLift(ctx, slug)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
 	if err != nil {
-		http.Error(w, "Not found.", http.StatusNotFound)
-		return
+		return nil, fmt.Errorf("load lift %s: %w", slug, err)
 	}
 
 	raw, _, err := s.loadSettings(ctx)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return nil, err
 	}
 
-	vm := views.LiftVM{Name: lift.Name, Slug: lift.Slug, Unit: raw.Unit}
+	l := &Lift{Name: lift.Name, Slug: lift.Slug, Unit: raw.Unit}
 
 	if tm, err := s.q.GetCurrentTrainingMax(ctx, slug); err == nil {
-		vm.CurrentTM = tm.Value
+		l.CurrentTM = tm.Value
 	}
 
 	history, err := s.q.ListTrainingMaxHistory(ctx, slug)
 	if err != nil {
-		s.fail(w, r, fmt.Errorf("list training max history for %s: %w", slug, err))
-		return
+		return nil, fmt.Errorf("list training max history for %s: %w", slug, err)
 	}
 	for _, h := range history {
-		vm.TMHistory = append(vm.TMHistory, views.TMHistoryItem{
+		l.TMHistory = append(l.TMHistory, TMHistoryItem{
 			Value: h.Value,
 			Date:  formatTimestamp(h.EffectiveFrom),
 			Note:  h.Note,
@@ -58,16 +57,15 @@ func (s *Server) handleLift(w http.ResponseWriter, r *http.Request) {
 
 	ests, err := s.estimates(ctx, slug)
 	if err != nil {
-		s.fail(w, r, fmt.Errorf("list estimates for %s: %w", slug, err))
-		return
+		return nil, fmt.Errorf("list estimates for %s: %w", slug, err)
 	}
-	vm.Points, vm.Path, vm.YMin, vm.YMax, vm.BestE1RM = buildChart(ests)
+	l.Points, l.Path, l.YMin, l.YMax, l.BestE1RM = buildChart(ests)
 
 	for _, e := range ests {
 		if !e.Past {
 			continue
 		}
-		vm.PastEstimates = append(vm.PastEstimates, views.PastEstimateVM{
+		l.PastEstimates = append(l.PastEstimates, PastEstimate{
 			ID:       e.ID,
 			Date:     formatDay(e.When),
 			Weight:   e.Weight,
@@ -75,10 +73,8 @@ func (s *Server) handleLift(w http.ResponseWriter, r *http.Request) {
 			Estimate: program.Epley1RM(e.Weight, e.Reps),
 		})
 	}
-	vm.Today = time.Now().Format(dayLayout)
-	vm.Error = r.URL.Query().Get("error") != ""
-
-	s.render(w, r, views.LiftDetail(vm))
+	l.Today = time.Now().Format(dayLayout)
+	return l, nil
 }
 
 // estimate is one set, performed or remembered, that says what a lift can do.
@@ -121,7 +117,7 @@ func day(when string) string {
 
 // estimates returns everything known about what a lift can do, oldest first:
 // the AMRAP sets logged in the app and the estimates entered from before it.
-func (s *Server) estimates(ctx context.Context, slug string) ([]estimate, error) {
+func (s *Service) estimates(ctx context.Context, slug string) ([]estimate, error) {
 	logged, err := s.q.ListAMRAPSets(ctx, slug)
 	if err != nil {
 		return nil, fmt.Errorf("list AMRAP sets: %w", err)
@@ -134,9 +130,9 @@ func (s *Server) estimates(ctx context.Context, slug string) ([]estimate, error)
 }
 
 // buildChart turns estimates into a trend of estimated one rep maxes. The
-// coordinates are computed here rather than in the template so the arithmetic
-// can be read in one place.
-func buildChart(ests []estimate) (points []views.ChartPoint, path string, yMin, yMax, best float64) {
+// coordinates are computed here rather than where the chart is drawn so the
+// arithmetic can be read in one place.
+func buildChart(ests []estimate) (points []ChartPoint, path string, yMin, yMax, best float64) {
 	values := make([]float64, 0, len(ests))
 	past := make([]bool, 0, len(ests))
 	for _, est := range ests {
@@ -169,7 +165,7 @@ func buildChart(ests []estimate) (points []views.ChartPoint, path string, yMin, 
 	}
 
 	var b strings.Builder
-	points = make([]views.ChartPoint, 0, len(values))
+	points = make([]ChartPoint, 0, len(values))
 	for i, v := range values {
 		// A lone point sits in the middle; a line spans the full width.
 		x := (plotLeft + plotRight) / 2
@@ -183,7 +179,7 @@ func buildChart(ests []estimate) (points []views.ChartPoint, path string, yMin, 
 		} else {
 			fmt.Fprintf(&b, " L %.1f %.1f", x, y)
 		}
-		points = append(points, views.ChartPoint{X: x, Y: y, Label: views.FmtWeight(v), Past: past[i]})
+		points = append(points, ChartPoint{X: x, Y: y, Label: FormatWeight(v), Past: past[i]})
 	}
 	return points, b.String(), yMin, yMax, best
 }

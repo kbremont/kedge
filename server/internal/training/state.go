@@ -1,4 +1,4 @@
-package server
+package training
 
 import (
 	"context"
@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/kbremont/531-tracker/server/internal/db"
 	"github.com/kbremont/531-tracker/server/internal/program"
@@ -41,7 +39,7 @@ type blockState struct {
 
 // loadSettings reads the settings row and converts it into the loading
 // preferences the program engine works with.
-func (s *Server) loadSettings(ctx context.Context) (db.Setting, program.Settings, error) {
+func (s *Service) loadSettings(ctx context.Context) (db.Setting, program.Settings, error) {
 	raw, err := s.q.GetSettings(ctx)
 	if err != nil {
 		return db.Setting{}, program.Settings{}, fmt.Errorf("load settings: %w", err)
@@ -67,7 +65,7 @@ func (s *Server) loadSettings(ctx context.Context) (db.Setting, program.Settings
 
 // activeProgram returns the configured program, seeding the default one the
 // first time the app runs.
-func (s *Server) activeProgram(ctx context.Context) (db.Program, program.Config, error) {
+func (s *Service) activeProgram(ctx context.Context) (db.Program, program.Config, error) {
 	row, err := s.q.GetActiveProgram(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		cfg := program.LeaderAnchorBBB()
@@ -97,7 +95,7 @@ func (s *Server) activeProgram(ctx context.Context) (db.Program, program.Config,
 }
 
 // currentBlock returns the open block, starting the first one if needed.
-func (s *Server) currentBlock(ctx context.Context, programID int64) (db.Block, error) {
+func (s *Service) currentBlock(ctx context.Context, programID int64) (db.Block, error) {
 	block, err := s.q.GetCurrentBlock(ctx)
 	if err == nil {
 		return block, nil
@@ -123,7 +121,7 @@ func (s *Server) currentBlock(ctx context.Context, programID int64) (db.Block, e
 // loadState assembles the current position in the program. When the open
 // block turns out to be finished it is closed and the next one started, so
 // the user never has to do anything to roll over.
-func (s *Server) loadState(ctx context.Context) (*blockState, error) {
+func (s *Service) loadState(ctx context.Context) (*blockState, error) {
 	raw, settings, err := s.loadSettings(ctx)
 	if err != nil {
 		return nil, err
@@ -292,35 +290,4 @@ func roundOfBlock(cfg program.Config, p program.Position) int {
 		round += cycle.Rounds
 	}
 	return round
-}
-
-// parsePlates accepts the comma-separated list shown in settings and returns
-// it sorted heaviest first.
-func parsePlates(in string) ([]float64, error) {
-	fields := strings.FieldsFunc(in, func(r rune) bool {
-		return r == ',' || r == ' ' || r == '\t' || r == '\n'
-	})
-	out := make([]float64, 0, len(fields))
-	for _, f := range fields {
-		v, err := strconv.ParseFloat(strings.TrimSpace(f), 64)
-		if err != nil {
-			return nil, fmt.Errorf("%q is not a number", f)
-		}
-		if v > 0 {
-			out = append(out, v)
-		}
-	}
-	if len(out) == 0 {
-		return nil, errors.New("list at least one plate")
-	}
-	sort.Sort(sort.Reverse(sort.Float64Slice(out)))
-	return out, nil
-}
-
-func formatPlates(plates []float64) string {
-	parts := make([]string, len(plates))
-	for i, p := range plates {
-		parts[i] = strconv.FormatFloat(p, 'f', -1, 64)
-	}
-	return strings.Join(parts, ", ")
 }

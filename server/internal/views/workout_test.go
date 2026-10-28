@@ -5,26 +5,28 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/kbremont/531-tracker/server/internal/training"
 )
 
-func baseWorkoutVM() WorkoutVM {
-	return WorkoutVM{
+func baseWorkoutVM() WorkoutPage {
+	return WorkoutPage{Workout: training.Workout{
 		ID:          1,
 		LiftName:    "Squat",
 		CycleLabel:  "Leader 1",
 		Unit:        "lb",
 		TrainingMax: 300,
 		RestSeconds: 90,
-		Sets: []SetVM{
+		Sets: []training.Set{
 			{Idx: 0, Tag: "Warmup", Weight: 135, TargetReps: 5, Done: true, ActualReps: 5},
 			{Idx: 1, Tag: "Warmup", Weight: 185, TargetReps: 3, Done: true, ActualReps: 3},
 			{Idx: 2, Tag: "Main", Weight: 225, TargetReps: 5},
 			{Idx: 3, Tag: "Main", Weight: 255, TargetReps: 5},
 		},
-	}
+	}}
 }
 
-func render(t *testing.T, w WorkoutVM) string {
+func render(t *testing.T, w WorkoutPage) string {
 	t.Helper()
 	var buf bytes.Buffer
 	if err := Workout(w).Render(context.Background(), &buf); err != nil {
@@ -60,11 +62,11 @@ func TestRestTimerPosition(t *testing.T) {
 func TestRestTimerNotRendered(t *testing.T) {
 	cases := []struct {
 		name string
-		vm   func(WorkoutVM) WorkoutVM
+		vm   func(WorkoutPage) WorkoutPage
 	}{
 		{
 			name: "ShowRest false",
-			vm: func(vm WorkoutVM) WorkoutVM {
+			vm: func(vm WorkoutPage) WorkoutPage {
 				vm.CurrentIdx = 2
 				vm.ShowRest = false
 				return vm
@@ -72,7 +74,7 @@ func TestRestTimerNotRendered(t *testing.T) {
 		},
 		{
 			name: "all sets logged",
-			vm: func(vm WorkoutVM) WorkoutVM {
+			vm: func(vm WorkoutPage) WorkoutPage {
 				for i := range vm.Sets {
 					vm.Sets[i].Done = true
 				}
@@ -127,7 +129,7 @@ func TestRestStyleClampsNonPositive(t *testing.T) {
 // one so a short set can be recorded, with the range itself highlighted.
 func TestRangedSetAsksForReps(t *testing.T) {
 	vm := baseWorkoutVM()
-	vm.Sets = append(vm.Sets, SetVM{Idx: 4, Tag: "Main", Weight: 300, Pct: 1, TargetReps: 3, MaxReps: 5})
+	vm.Sets = append(vm.Sets, training.Set{Idx: 4, Tag: "Main", Weight: 300, Pct: 1, TargetReps: 3, MaxReps: 5})
 	vm.Sets[2].Done, vm.Sets[3].Done = true, true
 	vm.CurrentIdx = 4
 
@@ -162,7 +164,7 @@ func TestRangedSetAsksForReps(t *testing.T) {
 func TestTMTestTopSet(t *testing.T) {
 	vm := baseWorkoutVM()
 	vm.BestE1RM = 330
-	vm.Sets = append(vm.Sets, SetVM{Idx: 4, Tag: "Main", Weight: 300, Pct: 1, TargetReps: 3, MaxReps: 5, IsAMRAP: true})
+	vm.Sets = append(vm.Sets, training.Set{Idx: 4, Tag: "Main", Weight: 300, Pct: 1, TargetReps: 3, MaxReps: 5, IsAMRAP: true})
 	vm.Sets[2].Done, vm.Sets[3].Done = true, true
 	vm.CurrentIdx = 4
 
@@ -191,36 +193,6 @@ func TestTMTestTopSet(t *testing.T) {
 	for _, r := range []int{1, 2, 6} {
 		if strings.Contains(html, `class="target" type="submit" name="reps" value="`+FmtInt(r)+`"`) {
 			t.Errorf("%d reps should not be highlighted", r)
-		}
-	}
-}
-
-// TestAnchorPRSetStartsAtTarget keeps the picker for a PR set without a window
-// starting at its minimum, which covers all but the most exceptional result.
-func TestAnchorPRSetStartsAtTarget(t *testing.T) {
-	got := repChoices(SetVM{TargetReps: 5, IsAMRAP: true})
-	if got[0] != 5 || got[9] != 14 {
-		t.Errorf("repChoices = %v, want 5 through 14", got)
-	}
-	got = repChoices(SetVM{TargetReps: 3, MaxReps: 5, IsAMRAP: true})
-	if got[0] != 1 || got[9] != 10 {
-		t.Errorf("repChoices with a window = %v, want 1 through 10", got)
-	}
-}
-
-func TestRepTarget(t *testing.T) {
-	cases := []struct {
-		reps, max int
-		amrap     bool
-		want      string
-	}{
-		{5, 0, false, "5"},
-		{3, 0, true, "3+"},
-		{3, 5, false, "3–5"},
-	}
-	for _, tc := range cases {
-		if got := RepTarget(tc.reps, tc.max, tc.amrap); got != tc.want {
-			t.Errorf("RepTarget(%d, %d, %v) = %q, want %q", tc.reps, tc.max, tc.amrap, got, tc.want)
 		}
 	}
 }
