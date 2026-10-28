@@ -9,7 +9,7 @@ After discussion, the target is a **native iOS app built with Expo, published to
 Decisions made with the user:
 - **Stack:** Expo app on the Go backend, in **one repo**.
 - **Layouts:** the Go side and the Expo/TypeScript side each follow their community's usual layout and code style.
-- **Look:** dark only, amber accent; screens designed and approved before they're wired up.
+- **Look:** chosen in Phase 3 from three directions built as real screens: "Career Line", recorded in `DESIGN.md`. It replaces the first idea of dark only with an amber accent. Screens are designed and approved before they're wired up.
 - **Releases:** EAS for builds and over-the-air updates (self-hosting updates may come later).
 - **App Store:** a public demo server for Apple's review; an original app name, with 5/3/1 in the description and a not-affiliated note.
 - **Audience:** mostly the user, so no extra hardening for other self-hosters yet.
@@ -22,8 +22,11 @@ Decisions made with the user:
 531-tracker/
 ├── README.md                 overview of both halves, links into server/ and mobile/
 ├── AGENTS.md, CLAUDE.md      repo map and conventions (CLAUDE.md = "@AGENTS.md", as in survivor)
+├── PRODUCT.md, DESIGN.md     product context and the design system, read by the Impeccable plugin
+├── .impeccable/              design.json (the system's tokens) and surfaces/ (the direction each surface
+│                             was reviewed against); captures and runtime state are ignored
 ├── Makefile                  runs both halves: generate, check, run, app
-├── .claude/settings.json     Expo plugin, enabled for this project
+├── .claude/settings.json     Expo and Impeccable plugins, enabled for this project
 ├── .github/workflows/        ci.yml (server and mobile jobs, path-filtered), release.yml (server image)
 ├── docs/                     design overview screenshots, App Store listing text and review notes, privacy policy
 │
@@ -49,25 +52,30 @@ Decisions made with the user:
 │
 └── mobile/                   Expo app (create-expo-app default template, SDK 58)
     ├── package.json, package-lock.json, .nvmrc (24), tsconfig.json (strict, "@/*" → src/*)
-    ├── app.config.ts, eas.json, metro.config.js, global.css (NativeWind tokens), eslint.config.js
+    ├── app.config.ts, eas.json, eslint.config.js
     ├── AGENTS.md             from the template: points agents at the SDK-matched docs
-    ├── assets/               icon, splash, Geist font files
+    ├── assets/               icon, splash, fonts/ (Sofia Sans Extra Condensed, with its OFL licence)
     ├── scripts/shoot.mjs     simulator screenshots and a contact sheet
     └── src/
         ├── app/              Expo Router screens
         │   ├── _layout.tsx   root stack, query client, sign-in gate
         │   ├── connect.tsx
-        │   ├── (tabs)/       _layout.tsx, index.tsx (Today), history.tsx, settings.tsx
+        │   ├── (tabs)/       _layout.tsx (NativeTabs), (today)/ (a stack for the large title),
+        │   │                 history.tsx, settings.tsx
         │   ├── workout/[id].tsx
         │   ├── lift/[slug]/  index.tsx, add-estimate.tsx (native sheet)
         │   ├── setup/        index.tsx, position.tsx, history.tsx
         │   └── gallery/      dev-only: every screen and state from fixtures
-        ├── components/       ui/ (Button, Card, ListRow, Segmented, Switch, Field, PageHeader)
-        │                     workout/ (SetRow, RepPicker, RestTimer), today/ (NextUpCard,
-        │                     TMTestResult, BlockReview), lift/ (LiftChart, PastEstimates)
+        ├── theme/            the design system's tokens: both palettes, the lift inks, fonts, the
+        │                     Dynamic Type cap
+        ├── components/       card-back.tsx (page, panel, lift band, stat line, headings, table head,
+        │                     rest bar, totals, button), lift-chart.tsx; more as screens need them
         ├── api/              client.ts (openapi-fetch, Bearer, errors), queries.ts (openapi-react-query
         │                     hooks), schema.gen.ts (generated), fixtures/ (generated)
-        └── lib/              connection.ts (server URL and token in the keychain), small helpers
+        ├── sample/           dev: the -seed-demo block fetched through the API, until Phase 4
+        ├── dev/              remote-step.ts: lets the screenshot script move between screens
+        └── lib/              format.ts (the server's formatting rules, the rest clock), connection.ts
+                              (server URL and token in the keychain)
 ```
 
 ### One repo, not separate repos
@@ -104,7 +112,7 @@ Split `mobile/` out later with `git subtree split` if other people start contrib
   - `staticcheck` added to the checks.
 - **Expo/TypeScript conventions:**
   - The default template's `src/app` routes, with `components/`, `api/` and `lib/` beside them.
-  - Strict TypeScript, the `@/` path alias, `npx expo lint` (eslint-config-expo), Prettier with the Tailwind plugin.
+  - Strict TypeScript, the `@/` path alias, `npx expo lint` (eslint-config-expo), Prettier.
   - `jest-expo` + React Native Testing Library, with tests next to the code they cover.
   - Dependencies added with `npx expo install` so versions match the SDK.
 - **Contract between the halves:**
@@ -219,7 +227,43 @@ Where the result differs from what was planned, or is worth knowing:
 - **CI:** the generate job sets up Node from `mobile/.nvmrc` and runs `npm ci` before `make generate`, and also runs when `mobile/package.json` or its lockfile change (the spec is already under `server/**`). `release.yml`'s generate check now covers `oapi.gen.go`.
 - **The spec is served** at `/api/v1/openapi.json`, without a session and with `Access-Control-Allow-Origin: *`, for docs viewers.
 
-### 3. Design the screens. **Checkpoint: user approval**
+### 3. Design the screens. **Checkpoint: user approval** 🚧 In progress
+
+The look is chosen and built on three screens, but most of the 30 states below aren't designed yet. The visual design bullets further down are the original plan and no longer apply. Done so far, in two commits:
+
+- **Product context.** `PRODUCT.md` records what the design work has to respect:
+  - the iOS app is the product and the web UI is legacy
+  - the owner comes first and other self-hosters second
+  - the server decides every number
+  - what is still undecided, and what must not be invented
+- **The look.** Three directions were built as real screens and compared in the simulator. The user chose **Career Line**, which reads training as the back of a sports card:
+  - **Colour:** chipboard stock and navy ink in light, the two swapped in dark, and one spot colour per lift (press gold, deadlift brick, bench blue, squat green) everywhere that lift appears.
+  - **Type:** Sofia Sans Extra Condensed sets headings and every number; SF sets body text.
+  - **Lists:** set as ruled stat lines, under headings with a heavy ink rule.
+  - **Records:** `DESIGN.md` and `.impeccable/design.json` describe the system as built, and the other two directions are kept outside the repo.
+- **Built:**
+  - Tokens are in `src/theme`, and the shared pieces are in `src/components/card-back.tsx` and `lift-chart.tsx`.
+  - The screens and states are marked in the table below.
+  - Light and dark both work.
+  - At accessibility text sizes, display numerals stop growing at 1.3x and table rows stack.
+- **Reviewed.** Impeccable's finish review passed it after three rounds of fixes, judged on simulator screenshots.
+
+Still to do:
+- the `gallery` route, with `?state=` for every state in the table
+- the remaining states
+- `scripts/shoot.mjs` and the overview contact sheet
+- the app name and icon
+- the approval checkpoint
+
+Where the result differs from the plan below:
+
+- **Visual design:** Career Line replaces the survivor palette, amber, Geist, lucide icons, eyebrow lines and `rounded-2xl` cards. Icons are SF Symbols, following Apple's guidelines. Verdict colours (up, hold, down) aren't designed yet: they come with the TM test and block review states, still as an icon and a label.
+- **No NativeWind:** the tokens are a TypeScript module, components use `StyleSheet`, and the palette follows the system's light or dark setting.
+- **Sample data:** until Phase 4, the screens read `src/sample`, which is the `-seed-demo` block fetched through the API, for all four lifts. Logging, undo, discard and the add-estimate sheet only change that sample. `src/api/fixtures` stays the source for states the demo block doesn't reach.
+- **Screenshots:** opening the app's scheme with `xcrun simctl openurl` brings up an iOS "Open in…?" prompt, so the captures use a dev-only stepper, `src/dev/remote-step.ts`, instead. It's active only when Metro runs with `EXPO_PUBLIC_REMOTE_STEP=1`, and the app polls a local file for the screen to show. `shoot.mjs` should drive the stepper rather than deep links.
+- **Phase 4 work done early:** the session screen already keeps the current set in view and counts the rest timer against the clock, as Phase 4 asks.
+- **iOS 26 header:** a header background colour hides the native large title (react-native-screens), so Today's header has none and the screen's background shows through.
+- **New dependencies:** `react-native-svg` for the chart. The native date picker is `@expo/ui`'s SwiftUI `DatePicker`.
 
 - **Build:** real Expo screens fed from the fixtures, collected in the dev-only `gallery` route (survivor's `?state=` equivalent).
 - **Screenshots:** `mobile/scripts/shoot.mjs` boots the simulator, opens each state by deep link (`xcrun simctl openurl`) and screenshots it (`simctl io … screenshot`). Output goes to `.context/mockups/` and `docs/mockups/overview.png`. Agents can also tap through with the Expo MCP local tools.
@@ -231,15 +275,15 @@ Where the result differs from what was planned, or is worth knowing:
   - **Controls:** a segmented control for BBB mode, a switch for warmups, the native date picker, 54px buttons.
 - **Screens and states:**
 
-  | Screen | States |
-  |---|---|
-  | connect | default; error |
-  | today | next up, in progress, TM test passed, TM test failed, block review, skip deload, blocked, empty |
-  | workout | current set, rest timer, AMRAP picker, 3–5 range picker, plates short, finish, completed |
-  | history | list; empty |
-  | lift | line, single point, empty, add sheet, error |
-  | settings | default; saved |
-  | setup | TMs, position, leader history, anchor history |
+  | Screen | States | Designed so far |
+  |---|---|---|
+  | connect | default; error | none |
+  | today | next up, in progress, TM test passed, TM test failed, block review, skip deload, blocked, empty | next up |
+  | workout | current set, rest timer, AMRAP picker, 3–5 range picker, plates short, finish, completed | current set, rest timer, AMRAP picker, finish; range picker and plates short are coded but not yet reviewed |
+  | history | list; empty | none (placeholder tab) |
+  | lift | line, single point, empty, add sheet, error | line, add sheet |
+  | settings | default; saved | none (placeholder tab) |
+  | setup | TMs, position, leader history, anchor history | none |
 
 - **Also decided here:** the app name and the 1024px icon.
 - **Stop:** show the contact sheet and iterate until the user approves.
