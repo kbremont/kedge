@@ -1,0 +1,709 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-28T23:19:23+00:00",
+  "title": "Design System: 531 Tracker",
+  "extensions": {
+    "colorMeta": {
+      "chipboard": {
+        "role": "neutral",
+        "displayName": "Chipboard",
+        "canonical": "#C9C3B7",
+        "tonalRamp": [
+          "#0C0B09",
+          "#27251F",
+          "#45423B",
+          "#656159",
+          "#868278",
+          "#AAA49A",
+          "#CEC8BD",
+          "#F1EEE8"
+        ]
+      },
+      "chipboard-stock": {
+        "role": "neutral",
+        "displayName": "Chipboard Stock",
+        "canonical": "#D8D3C9",
+        "tonalRamp": [
+          "#0C0B09",
+          "#272520",
+          "#44423C",
+          "#64615A",
+          "#86827A",
+          "#A9A59C",
+          "#CDC9BF",
+          "#F1EEE9"
+        ]
+      },
+      "navy-ink": {
+        "role": "primary",
+        "displayName": "Navy Ink",
+        "canonical": "#1B2240",
+        "tonalRamp": [
+          "#080A16",
+          "#1C2341",
+          "#38405E",
+          "#58607C",
+          "#79819C",
+          "#9DA4BC",
+          "#C2C8DE",
+          "#EBEEF7"
+        ]
+      },
+      "navy-ink-soft": {
+        "role": "neutral",
+        "displayName": "Navy Ink Soft",
+        "canonical": "#454B63",
+        "tonalRamp": [
+          "#090B11",
+          "#202436",
+          "#3B4157",
+          "#5A6077",
+          "#7C8197",
+          "#9FA4B7",
+          "#C4C8D9",
+          "#ECEEF5"
+        ]
+      },
+      "ink-rule": {
+        "role": "neutral",
+        "displayName": "Ink Rule",
+        "canonical": "rgba(27, 34, 64, 0.26)",
+        "tonalRamp": [
+          "#080A16",
+          "#1C2341",
+          "#38405E",
+          "#58607C",
+          "#79819C",
+          "#9DA4BC",
+          "#C2C8DE",
+          "#EBEEF7"
+        ]
+      },
+      "danger-red": {
+        "role": "tertiary",
+        "displayName": "Danger Red",
+        "canonical": "#8A2A17",
+        "tonalRamp": [
+          "#1B0301",
+          "#4F0000",
+          "#7A1807",
+          "#A63522",
+          "#C4614E",
+          "#E28A79",
+          "#FEB4A4",
+          "#FFE7E0"
+        ]
+      },
+      "night-navy": {
+        "role": "neutral",
+        "displayName": "Night Navy (dark ground)",
+        "canonical": "#121729",
+        "tonalRamp": [
+          "#080B13",
+          "#1F2436",
+          "#3C4153",
+          "#5B6172",
+          "#7C8292",
+          "#A0A5B4",
+          "#C4C9D6",
+          "#ECEEF4"
+        ]
+      },
+      "night-navy-stock": {
+        "role": "neutral",
+        "displayName": "Night Navy Stock (dark)",
+        "canonical": "#1C2238",
+        "tonalRamp": [
+          "#080B13",
+          "#1E243A",
+          "#3A4157",
+          "#5A6075",
+          "#7B8295",
+          "#9FA4B6",
+          "#C4C9D8",
+          "#ECEEF5"
+        ]
+      },
+      "chipboard-ink": {
+        "role": "primary",
+        "displayName": "Chipboard Ink (dark)",
+        "canonical": "#E4DED2",
+        "tonalRamp": [
+          "#0C0B09",
+          "#272520",
+          "#45423B",
+          "#656159",
+          "#868279",
+          "#A9A49A",
+          "#CEC8BD",
+          "#F1EEE8"
+        ]
+      },
+      "chipboard-ink-soft": {
+        "role": "neutral",
+        "displayName": "Chipboard Ink Soft (dark)",
+        "canonical": "#A9AEC2",
+        "tonalRamp": [
+          "#0A0B0E",
+          "#22252E",
+          "#3E414D",
+          "#5D606F",
+          "#7D8292",
+          "#9FA4B7",
+          "#C3C8DB",
+          "#ECEEF7"
+        ]
+      },
+      "chipboard-rule": {
+        "role": "neutral",
+        "displayName": "Chipboard Rule (dark)",
+        "canonical": "rgba(228, 222, 210, 0.18)",
+        "tonalRamp": [
+          "#0C0B09",
+          "#272520",
+          "#45423B",
+          "#656159",
+          "#868279",
+          "#A9A49A",
+          "#CEC8BD",
+          "#F1EEE8"
+        ]
+      },
+      "danger-coral": {
+        "role": "tertiary",
+        "displayName": "Danger Coral (dark)",
+        "canonical": "#F07A62",
+        "tonalRamp": [
+          "#190502",
+          "#480B02",
+          "#702618",
+          "#9A4230",
+          "#C75F4A",
+          "#F37E66",
+          "#FFA790",
+          "#FFE1D5"
+        ]
+      },
+      "band-white": {
+        "role": "neutral",
+        "displayName": "Band White",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#A5A5A5",
+          "#C9C9C9",
+          "#EEEEEE"
+        ]
+      },
+      "press-gold": {
+        "role": "secondary",
+        "displayName": "Press Gold",
+        "canonical": "#D9A21B",
+        "tonalRamp": [
+          "#130900",
+          "#3A1E00",
+          "#5C3B00",
+          "#815900",
+          "#A87900",
+          "#D19B13",
+          "#F4C055",
+          "#FFECC0"
+        ]
+      },
+      "press-gold-line": {
+        "role": "secondary",
+        "displayName": "Press Gold Line",
+        "canonical": "#8A6206",
+        "tonalRamp": [
+          "#120900",
+          "#371F00",
+          "#5A3B00",
+          "#7F5900",
+          "#A17B38",
+          "#C0A068",
+          "#E1C597",
+          "#F8EDDA"
+        ]
+      },
+      "press-gold-line-dark": {
+        "role": "secondary",
+        "displayName": "Press Gold Line (dark)",
+        "canonical": "#E8B84A",
+        "tonalRamp": [
+          "#120A00",
+          "#372000",
+          "#583C00",
+          "#7C5B00",
+          "#A27C1A",
+          "#CA9E37",
+          "#F1C258",
+          "#FFECC1"
+        ]
+      },
+      "deadlift-brick": {
+        "role": "secondary",
+        "displayName": "Deadlift Brick",
+        "canonical": "#C2412A",
+        "tonalRamp": [
+          "#1B0301",
+          "#4F0000",
+          "#7A1704",
+          "#A8321D",
+          "#D0563F",
+          "#EF826C",
+          "#FFAC98",
+          "#FFE3DA"
+        ]
+      },
+      "deadlift-brick-line": {
+        "role": "secondary",
+        "displayName": "Deadlift Brick Line",
+        "canonical": "#A8361F",
+        "tonalRamp": [
+          "#1A0401",
+          "#4E0000",
+          "#791A06",
+          "#A6351E",
+          "#C5604B",
+          "#E28A76",
+          "#FFB4A3",
+          "#FFE7DF"
+        ]
+      },
+      "deadlift-brick-dark": {
+        "role": "secondary",
+        "displayName": "Deadlift Brick (dark)",
+        "canonical": "#C24A33",
+        "tonalRamp": [
+          "#1A0402",
+          "#4D0100",
+          "#771D0C",
+          "#A43824",
+          "#CD5943",
+          "#EC846E",
+          "#FFAD99",
+          "#FFE4DB"
+        ]
+      },
+      "deadlift-brick-line-dark": {
+        "role": "secondary",
+        "displayName": "Deadlift Brick Line (dark)",
+        "canonical": "#F07A62",
+        "tonalRamp": [
+          "#190502",
+          "#480B02",
+          "#702618",
+          "#9A4230",
+          "#C75F4A",
+          "#F37E66",
+          "#FFA790",
+          "#FFE1D5"
+        ]
+      },
+      "bench-blue": {
+        "role": "secondary",
+        "displayName": "Bench Blue",
+        "canonical": "#2B5FA8",
+        "tonalRamp": [
+          "#020B1B",
+          "#002252",
+          "#14407C",
+          "#2C60A9",
+          "#5683C4",
+          "#7FA7E0",
+          "#AACBFC",
+          "#E2F0FF"
+        ]
+      },
+      "bench-blue-dark": {
+        "role": "secondary",
+        "displayName": "Bench Blue (dark)",
+        "canonical": "#3F72BD",
+        "tonalRamp": [
+          "#030B1A",
+          "#04234F",
+          "#1A4179",
+          "#3260A5",
+          "#5283CA",
+          "#7BA7E7",
+          "#A5CBFF",
+          "#E0F0FF"
+        ]
+      },
+      "bench-blue-line-dark": {
+        "role": "secondary",
+        "displayName": "Bench Blue Line (dark)",
+        "canonical": "#7FA6E6",
+        "tonalRamp": [
+          "#050B17",
+          "#112444",
+          "#2A4269",
+          "#456191",
+          "#6183BA",
+          "#7FA6E6",
+          "#A6CBFF",
+          "#DFF0FF"
+        ]
+      },
+      "squat-green": {
+        "role": "secondary",
+        "displayName": "Squat Green",
+        "canonical": "#2E7A48",
+        "tonalRamp": [
+          "#020F05",
+          "#002F10",
+          "#0E4F28",
+          "#287242",
+          "#529365",
+          "#7DB48B",
+          "#A8D7B3",
+          "#E2F4E6"
+        ]
+      },
+      "squat-green-line": {
+        "role": "secondary",
+        "displayName": "Squat Green Line",
+        "canonical": "#276B3E",
+        "tonalRamp": [
+          "#020F05",
+          "#002F10",
+          "#114F29",
+          "#307144",
+          "#5A9169",
+          "#84B28F",
+          "#AED5B7",
+          "#E4F3E7"
+        ]
+      },
+      "squat-green-dark": {
+        "role": "secondary",
+        "displayName": "Squat Green (dark)",
+        "canonical": "#33844F",
+        "tonalRamp": [
+          "#020F05",
+          "#002F10",
+          "#0B4F28",
+          "#267242",
+          "#4B9562",
+          "#78B688",
+          "#A3D8B0",
+          "#DFF5E4"
+        ]
+      },
+      "squat-green-line-dark": {
+        "role": "secondary",
+        "displayName": "Squat Green Line (dark)",
+        "canonical": "#6CC08A",
+        "tonalRamp": [
+          "#020F06",
+          "#002E14",
+          "#154E2E",
+          "#307049",
+          "#4B9466",
+          "#67BA85",
+          "#91DEAA",
+          "#D7F8E0"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display-set": {
+        "displayName": "Display Set",
+        "purpose": "The current set weight only."
+      },
+      "display-band": {
+        "displayName": "Display Band",
+        "purpose": "Lift name in a full lift band."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings over the 3pt ink rule."
+      },
+      "stat-value": {
+        "displayName": "Stat Value",
+        "purpose": "Values in a stat row."
+      },
+      "number": {
+        "displayName": "Number",
+        "purpose": "Numbers in table rows, rep choices, PR targets."
+      },
+      "number-small": {
+        "displayName": "Number Small",
+        "purpose": "Percentages and dates in a row."
+      },
+      "band-slim": {
+        "displayName": "Band Slim",
+        "purpose": "Slim band text; rest and totals labels at 18pt."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Button labels."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Stat labels, column heads, field labels."
+      },
+      "body-name": {
+        "displayName": "Body Name",
+        "purpose": "Set and session names, prose dates, sheet links."
+      },
+      "body-sub": {
+        "displayName": "Body Sub",
+        "purpose": "Cycle lines, notes, legends, the Logged line."
+      }
+    },
+    "fonts": [
+      {
+        "family": "Sofia Sans Extra Condensed",
+        "weights": [
+          600,
+          800,
+          900
+        ],
+        "postScript": [
+          "SofiaSansExtraCondensed-SemiBold",
+          "SofiaSansExtraCondensed-ExtraBold",
+          "SofiaSansExtraCondensed-Black"
+        ],
+        "files": "mobile/assets/fonts/SofiaSansExtraCondensed-{600,800,900}.ttf",
+        "license": "SIL OFL 1.1"
+      }
+    ],
+    "dynamicType": {
+      "displayScaleCap": 1.3,
+      "stackRowsAboveFontScale": 1.5,
+      "purpose": "Condensed text caps at 1.3x; SF body scales fully; tables stack label over numbers above 1.5x."
+    },
+    "rules": [
+      {
+        "name": "hairline",
+        "value": "2 × StyleSheet.hairlineWidth",
+        "purpose": "Between stat rows, columns and table rows."
+      },
+      {
+        "name": "heading-rule",
+        "value": "3pt solid ink",
+        "purpose": "Under section headings and over totals lines."
+      }
+    ],
+    "shadows": [],
+    "motion": [
+      {
+        "name": "press",
+        "value": "opacity 0.8",
+        "purpose": "Pressed state for buttons and tappable rows; no scale."
+      },
+      {
+        "name": "rest-drain",
+        "value": "linear, real seconds",
+        "purpose": "The rest bar fill drains against the wall clock."
+      }
+    ],
+    "appearances": {
+      "light": {
+        "ground": "chipboard",
+        "stock": "chipboard-stock",
+        "ink": "navy-ink",
+        "ink2": "navy-ink-soft",
+        "rule": "ink-rule",
+        "button": "navy-ink",
+        "onButton": "chipboard-stock",
+        "danger": "danger-red"
+      },
+      "dark": {
+        "ground": "night-navy",
+        "stock": "night-navy-stock",
+        "ink": "chipboard-ink",
+        "ink2": "chipboard-ink-soft",
+        "rule": "chipboard-rule",
+        "button": "chipboard-ink",
+        "onButton": "night-navy",
+        "danger": "danger-coral"
+      }
+    },
+    "liftInks": {
+      "light": {
+        "press": {
+          "band": "press-gold",
+          "onBand": "navy-ink",
+          "line": "press-gold-line"
+        },
+        "deadlift": {
+          "band": "deadlift-brick",
+          "onBand": "band-white",
+          "line": "deadlift-brick-line"
+        },
+        "bench": {
+          "band": "bench-blue",
+          "onBand": "band-white",
+          "line": "bench-blue"
+        },
+        "squat": {
+          "band": "squat-green",
+          "onBand": "band-white",
+          "line": "squat-green-line"
+        }
+      },
+      "dark": {
+        "press": {
+          "band": "press-gold",
+          "onBand": "navy-ink",
+          "line": "press-gold-line-dark"
+        },
+        "deadlift": {
+          "band": "deadlift-brick-dark",
+          "onBand": "band-white",
+          "line": "deadlift-brick-line-dark"
+        },
+        "bench": {
+          "band": "bench-blue-dark",
+          "onBand": "band-white",
+          "line": "bench-blue-line-dark"
+        },
+        "squat": {
+          "band": "squat-green-dark",
+          "onBand": "band-white",
+          "line": "squat-green-line-dark"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Full-width ink-filled action: Start session, Log reps, Finish, Add estimate.",
+      "html": "<button class=\"ds-btn\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 12.5l5 5L20 6.5\"/></svg>LOG 3 REPS</button>",
+      "css": ".ds-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:54px;border:0;border-radius:6px;background:#1B2240;color:#D8D3C9;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:22px;letter-spacing:0.6px;text-transform:uppercase;cursor:pointer;transition:opacity .1s}.ds-btn:hover{opacity:.9}.ds-btn:active{opacity:.8}.ds-btn:focus-visible{outline:3px solid #2B5FA8;outline-offset:2px}"
+    },
+    {
+      "name": "Primary Button (dark)",
+      "kind": "button",
+      "refersTo": "button-primary-dark",
+      "description": "The same action in dark appearance: chipboard ink on night navy.",
+      "html": "<div class=\"ds-dk\"><button class=\"ds-btn-dk\">START SESSION</button></div>",
+      "css": ".ds-dk{background:#1C2238;padding:12px;border-radius:6px}.ds-btn-dk{width:100%;height:54px;border:0;border-radius:6px;background:#E4DED2;color:#121729;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:22px;letter-spacing:0.6px;text-transform:uppercase;cursor:pointer}.ds-btn-dk:active{opacity:.8}.ds-btn-dk:focus-visible{outline:3px solid #7FA6E6;outline-offset:2px}"
+    },
+    {
+      "name": "Number Field",
+      "kind": "input",
+      "refersTo": "input-number",
+      "description": "Weight or reps entry in a sheet, labelled above.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-l\">WEIGHT, LB</span><input class=\"ds-input\" value=\"215\" inputmode=\"decimal\"></label>",
+      "css": ".ds-field{display:block;background:#C9C3B7;padding:12px}.ds-field-l{display:block;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.8px;color:#454B63}.ds-input{box-sizing:border-box;width:100%;height:52px;margin-top:4px;padding:0 12px;border:1px solid rgba(27,34,64,.26);border-radius:6px;background:#D8D3C9;color:#1B2240;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:26px;font-variant-numeric:tabular-nums}.ds-input:focus-visible{outline:2px solid #1B2240;outline-offset:1px}"
+    },
+    {
+      "name": "Tab Bar",
+      "kind": "nav",
+      "refersTo": "",
+      "description": "Native iOS tabs with SF Symbols, tinted ink (rendered here as an approximation of the system bar).",
+      "html": "<nav class=\"ds-tabs\"><a class=\"ds-tab ds-on\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><circle cx=\"12\" cy=\"4\" r=\"2.5\"/><rect x=\"2\" y=\"9\" width=\"20\" height=\"2\" rx=\"1\"/><path d=\"M10 9h4v6l2 6h-2.4L12 16l-1.6 5H8l2-6z\"/></svg>Today</a><a class=\"ds-tab\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"8.5\"/><path d=\"M12 7v5l3 2\"/></svg>History</a><a class=\"ds-tab\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><circle cx=\"12\" cy=\"12\" r=\"8\" stroke-dasharray=\"3 2.3\"/></svg>Settings</a></nav>",
+      "css": ".ds-tabs{display:flex;justify-content:space-around;padding:8px 12px;border-radius:999px;background:rgba(240,236,228,.92);font-family:-apple-system,system-ui,sans-serif;}.ds-tab{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 18px;border-radius:999px;color:#1B2240;font-size:11px;font-weight:500;text-decoration:none}.ds-tab:hover{background:rgba(27,34,64,.06)}.ds-tab:focus-visible{outline:2px solid #1B2240}.ds-on{background:rgba(27,34,64,.1);font-weight:600}"
+    },
+    {
+      "name": "Lift Chip",
+      "kind": "chip",
+      "refersTo": "lift-chip",
+      "description": "A 10pt square of the lift's band ink before a lift name in a list.",
+      "html": "<div class=\"ds-chiprow\"><span class=\"ds-chip\" style=\"background:#C2412A\"></span><span class=\"ds-chipn\">Deadlift</span><span class=\"ds-chip\" style=\"background:#D9A21B\"></span><span class=\"ds-chipn\">Overhead Press</span></div>",
+      "css": ".ds-chiprow{display:flex;align-items:center;gap:7px;background:#C9C3B7;padding:12px;font-family:-apple-system,system-ui,sans-serif;}.ds-chip{width:10px;height:10px;border-radius:1px}.ds-chipn{font-size:16px;font-weight:600;color:#1B2240;margin-right:14px}"
+    },
+    {
+      "name": "Next Session Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Stock panel headed by the full lift band, a stat row, and the primary button.",
+      "html": "<div class=\"ds-pg\"><div class=\"ds-panel\"><div class=\"ds-band\"><div class=\"ds-band-t\">BENCH PRESS</div><div class=\"ds-band-s\">Anchor · Round 2</div></div><div class=\"ds-stats\"><div class=\"ds-stat\"><div class=\"ds-lbl\">BLOCK</div><div class=\"ds-val\">1</div></div><div class=\"ds-stat\"><div class=\"ds-lbl\">ROUND</div><div class=\"ds-val\">9<span class=\"ds-u\"> of 11</span></div></div><div class=\"ds-stat\"><div class=\"ds-lbl\">TM</div><div class=\"ds-val\">205<span class=\"ds-u\"> lb</span></div></div></div><button class=\"ds-pbtn\">START SESSION</button></div></div>",
+      "css": ".ds-pg{background:#C9C3B7;padding:16px}.ds-panel{background:#D8D3C9;border-radius:6px;overflow:hidden}.ds-band{background:#2B5FA8;color:#fff;padding:14px 16px 12px}.ds-band-t{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:900;font-size:46px;line-height:46px;letter-spacing:0.4px}.ds-band-s{font-family:-apple-system,system-ui,sans-serif;font-size:15px;font-weight:600;margin-top:4px;opacity:.9}.ds-stats{display:flex;border-bottom:1px solid rgba(27,34,64,.26)}.ds-stat{flex:1;padding:10px 14px;border-right:1px solid rgba(27,34,64,.26)}.ds-stat:last-child{border-right:0}.ds-lbl{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.8px;color:#454B63}.ds-val{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:32px;color:#1B2240;font-variant-numeric:tabular-nums}.ds-u{font-weight:600;font-size:17px;color:#454B63}.ds-pbtn{display:block;width:calc(100% - 24px);margin:12px;height:54px;border:0;border-radius:6px;background:#1B2240;color:#D8D3C9;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:22px;letter-spacing:0.6px;cursor:pointer}.ds-pbtn:active{opacity:.8}.ds-pbtn:focus-visible{outline:3px solid #2B5FA8;outline-offset:2px}"
+    },
+    {
+      "name": "Section Heading and Ruled Table",
+      "kind": "custom",
+      "refersTo": "section-heading",
+      "description": "Black condensed heading over a 3pt ink rule, label column heads, hairline rows, a totals line.",
+      "html": "<div class=\"ds-tb\"><div class=\"ds-h\">PAST ESTIMATES</div><div class=\"ds-th\"><span style=\"flex:1\">DATE</span><span class=\"ds-c\">SET</span><span class=\"ds-c\">EST. MAX</span></div><div class=\"ds-tr\"><span class=\"ds-nm\">Sep 28, 2025</span><span class=\"ds-c ds-n\">215 × 3</span><span class=\"ds-c ds-n\">236.5</span></div><div class=\"ds-tr\"><span class=\"ds-nm\">Jun 28, 2025</span><span class=\"ds-c ds-n\">195 × 6</span><span class=\"ds-c ds-n\">234</span></div><div class=\"ds-tot\"><span>BEST, ALL SOURCES</span><b>239.2</b></div></div>",
+      "css": ".ds-tb{background:#C9C3B7;padding:0 16px 16px;color:#1B2240}.ds-h{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:900;font-size:26px;letter-spacing:0.4px;padding:16px 0 4px;border-bottom:3px solid #1B2240}.ds-th{display:flex;padding:10px 0 4px;border-bottom:1px solid rgba(27,34,64,.26);font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.8px;color:#454B63}.ds-c{width:92px;text-align:right}.ds-tr{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid rgba(27,34,64,.26)}.ds-nm{flex:1;font-family:-apple-system,system-ui,sans-serif;font-size:16px;font-weight:600}.ds-n{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:24px;font-variant-numeric:tabular-nums}.ds-tot{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:3px solid #1B2240;margin-top:-1px;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:18px;letter-spacing:0.6px}.ds-tot b{font-weight:900;font-size:30px;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Current Set with Rest Bar",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "The to-scale rest bar, then the current set on stock at 88pt with plates per side.",
+      "html": "<div class=\"ds-cs\"><div class=\"ds-rest\"><span class=\"ds-rl\">REST</span><div class=\"ds-rt\"><div class=\"ds-rf\"></div></div><span class=\"ds-rc\">2:10</span></div><div class=\"ds-cur\"><div class=\"ds-top\"><span class=\"ds-w\">165<span class=\"ds-wu\"> lb</span></span><span class=\"ds-r\"><span class=\"ds-x\">× </span>3</span></div><div class=\"ds-meta\">Main · 80% of training max</div><div class=\"ds-pl\"><span class=\"ds-pll\">PER SIDE</span><span class=\"ds-plv\">45 · 10 · 5</span></div></div></div>",
+      "css": ".ds-cs{background:#C9C3B7;padding:0 16px 16px;color:#1B2240}.ds-rest{display:flex;align-items:center;gap:12px;padding:14px 0 10px}.ds-rl{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:18px;letter-spacing:0.8px}.ds-rt{flex:1;height:6px;background:rgba(27,34,64,.26);border-radius:1px}.ds-rf{width:58%;height:6px;background:#2B5FA8;border-radius:1px;transition:width 1s linear}.ds-rc{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:900;font-size:30px;font-variant-numeric:tabular-nums}.ds-cur{background:#D8D3C9;border-radius:6px;padding:10px 0 16px}.ds-top{display:flex;align-items:baseline;justify-content:space-between;padding:0 16px}.ds-w{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:900;font-size:88px;line-height:92px}.ds-wu{font-weight:800;font-size:24px;color:#454B63}.ds-r{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:900;font-size:56px}.ds-x{font-weight:600;font-size:32px;color:#454B63}.ds-meta{font-family:-apple-system,system-ui,sans-serif;font-size:15px;color:#454B63;padding:0 16px}.ds-pl{display:flex;align-items:center;gap:12px;margin:12px 16px 0;padding-top:10px;border-top:1px solid rgba(27,34,64,.26)}.ds-pll{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.8px;color:#454B63}.ds-plv{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:26px;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Rep Picker",
+      "kind": "custom",
+      "refersTo": "rep-choice",
+      "description": "One tap per plausible rep count; counts that meet the target print in the lift's line colour.",
+      "html": "<div class=\"ds-rp\"><button class=\"ds-rep\">1</button><button class=\"ds-rep\">2</button><button class=\"ds-rep ds-tg\">3</button><button class=\"ds-rep ds-tg\">4</button><button class=\"ds-rep ds-tg\">5</button></div>",
+      "css": ".ds-rp{display:flex;gap:8px;background:#D8D3C9;padding:16px}.ds-rep{flex:1;height:52px;border:2px solid rgba(27,34,64,.26);border-radius:6px;background:#C9C3B7;color:#1B2240;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:24px;font-variant-numeric:tabular-nums;cursor:pointer}.ds-tg{border-color:#2B5FA8;color:#2B5FA8}.ds-rep:hover{border-color:#1B2240}.ds-rep:active{background:#2B5FA8;color:#fff;border-color:#2B5FA8}.ds-rep:focus-visible{outline:3px solid #1B2240;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Career Line",
+    "overview": "**Creative North Star: \"Career Line\"**\n\nEvery screen is the back of a sports card. The page is uncoated chipboard printed in one navy ink; a lift's identity arrives as a solid band of spot colour, the way a team colour heads a player's card; and every number sits in a ruled stat line, read across like a season's row. The lifter's history becomes a career, the best estimate becomes the totals line under the seasons, and the next set is the one stat printed large.\n\nThe system is dense and typographic rather than decorative. Condensed black caps carry headings and every figure; SF carries sentences and controls. There is no imagery, no gradient, no shadow and no glow: hierarchy comes from type size, ink weight, the heavy rule under a heading, and the one spot colour per lift. Dark appearance reverses the stock, not the idea: navy card, chipboard ink, the same lift inks.\n\nThe world sits inside native iOS structure. The tab bar, stack navigation, large titles, sheets, alerts, date pickers and SF Symbols are the system's own; the card back is printed on the content, not on the chrome.",
+    "keyCharacteristics": [
+      "Chipboard ground and navy ink in light; night navy ground and chipboard ink in dark.",
+      "One spot colour per lift (press gold, deadlift brick, bench blue, squat green), used everywhere that lift appears and nowhere else.",
+      "Sofia Sans Extra Condensed for headings and all numerals, tabular; SF for body text.",
+      "Hairline-ruled stat rows; a 3pt ink rule under every section heading and over every totals line.",
+      "Flat print: panels are a lighter stock, never lifted by shadow.",
+      "Display numerals follow Dynamic Type to a 1.3x cap; body text scales fully."
+    ],
+    "rules": [
+      {
+        "name": "The One Ink Per Lift Rule",
+        "body": "A lift's spot colour marks that lift and nothing else: its band, its chip, its chart line, its rest bar, its PR target. No spot ink is ever a generic accent, link colour or state colour, and no screen borrows another lift's ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The Band, On-Band, Line Rule",
+        "body": "Fills use `band`, text on a fill uses `onBand`, and anything drawn on the ground or stock uses `line`. Never set a lift's band colour as text or a stroke on the ground.",
+        "section": "colors"
+      },
+      {
+        "name": "The Every Number Rule",
+        "body": "Every figure the lifter reads (weights, reps, percentages, maxes, dates in a table, clocks) is set in the condensed face with tabular numerals. Numbers inside a sentence stay in SF.",
+        "section": "typography"
+      },
+      {
+        "name": "The Display Cap Rule",
+        "body": "Text in the condensed face carries `maxFontSizeMultiplier` 1.3 so bands and the set weight stay on one line; SF body text scales fully. Above a 1.5x font scale, tables stack each row's label over its numbers and drop the cap on those numbers.",
+        "section": "typography"
+      },
+      {
+        "name": "The Stat Line Rule",
+        "body": "Numbers live in ruled rows and columns, read across. Don't wrap a single stat in its own card.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Print Rule",
+        "body": "A surface is either ground or stock. If something needs more emphasis, it gets more ink (a heavier rule, a band, larger type), never a shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do print every number in Sofia Sans Extra Condensed with tabular numerals and cap its Dynamic Type growth at 1.3x.",
+      "Do take lift colour from the lift's ink set (`band`, `onBand`, `line`) and use it everywhere that lift appears.",
+      "Do put a 3pt ink rule under every section heading and over every totals line, and hairline rules between rows.",
+      "Do separate surfaces only by the stock step: ground for the page, stock for panels.",
+      "Do keep native iOS chrome native: tabs, stack headers, large titles, form sheets, alerts, date pickers and SF Symbols.",
+      "Do stack a row's label over its numbers above a 1.5x font scale instead of shrinking or truncating."
+    ],
+    "donts": [
+      "Don't use a lift's spot ink as a generic accent, link, selection or status colour.",
+      "Don't add shadows, blur, gradients or glows to content; emphasis is ink and type.",
+      "Don't wrap individual stats in their own cards; they belong in ruled rows and stat lines.",
+      "Don't set a header background on a large-title tab root; it hides the large title on iOS 26.",
+      "Don't add corner radii beyond the 6pt panel corner and the 1pt chip corner.",
+      "Don't use a keyboard where a bounded set of answers can be tapped."
+    ]
+  }
+}

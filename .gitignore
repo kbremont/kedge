@@ -5,3 +5,7 @@
 *.db-shm
 *.db-wal
 .env
+
+# Impeccable capture artifacts, regenerated on demand
+.impeccable/review/
+.impeccable/mocks/
