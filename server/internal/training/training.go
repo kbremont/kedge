@@ -13,6 +13,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/kbremont/531-tracker/server/internal/db"
 )
@@ -22,11 +23,21 @@ type Service struct {
 	conn *sql.DB
 	q    *db.Queries
 	log  *slog.Logger
+	now  func() time.Time
 }
 
 // New returns the service for a migrated database.
 func New(conn *sql.DB, log *slog.Logger) *Service {
-	return &Service{conn: conn, q: db.New(conn), log: log}
+	return &Service{conn: conn, q: db.New(conn), log: log, now: time.Now}
+}
+
+// WithClock returns a copy of the service that reads the time from now: the
+// latest date a past estimate can have, and the backup's filename. Tests use
+// it to pin dates, and the demo seeder to place sessions in the past.
+func (s *Service) WithClock(now func() time.Time) *Service {
+	c := *s
+	c.now = now
+	return &c
 }
 
 var (

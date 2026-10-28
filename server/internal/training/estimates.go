@@ -31,7 +31,7 @@ func (s *Service) AddPastEstimate(ctx context.Context, slug, date string, weight
 		return fmt.Errorf("load lift %s: %w", slug, err)
 	}
 
-	recordedOn, ok := validPastEstimate(date, weight, reps, time.Now())
+	recordedOn, ok := validPastEstimate(date, weight, reps, s.now())
 	if !ok {
 		return inputError("That estimate was not saved. Check the date, weight and reps.")
 	}
