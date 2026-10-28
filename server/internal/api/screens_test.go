@@ -61,8 +61,8 @@ func (h *harness) pinTimestamps() {
 // sessions given already done.
 func (h *harness) setupDone(cycleIdx int, done ...PastSession) {
 	h.t.Helper()
-	send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{TMs: startingTMs})
-	send[Dashboard](h, http.MethodPut, fmt.Sprintf("/api/v1/setup/history/%d", cycleIdx), SetupHistoryInput{Done: done})
+	send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{Tms: startingTMs})
+	send[Dashboard](h, http.MethodPut, fmt.Sprintf("/api/v1/setup/history/%d", cycleIdx), SetupHistoryInput{Done: append([]PastSession{}, done...)})
 }
 
 // rounds lists every session of the first n rounds as done, with prReps on
@@ -71,7 +71,7 @@ func rounds(n, prReps int) []PastSession {
 	var out []PastSession
 	for round := 1; round <= n; round++ {
 		for _, slug := range []string{"press", "deadlift", "bench", "squat"} {
-			out = append(out, PastSession{Round: round, Slug: slug, PRReps: prReps})
+			out = append(out, PastSession{Round: round, Slug: slug, PRReps: new(prReps)})
 		}
 	}
 	return out
@@ -86,7 +86,7 @@ func (h *harness) start(stop func(Set) bool) Workout {
 		if stop != nil && stop(s) {
 			break
 		}
-		w = send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, s.Idx), LogSetInput{Reps: new(s.TargetReps)})
+		w = send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, s.Idx), LogSetInput{Reps: s.TargetReps})
 	}
 	return w
 }
@@ -192,7 +192,7 @@ var screens = []struct {
 	}},
 	{name: "workout-plates-short", prepare: func(h *harness) (string, string, any) {
 		h.setupDone(0)
-		send[Settings](h, http.MethodPut, "/api/v1/settings", SettingsInput{Plates: []float64{45, 25, 10}, Warmups: true})
+		send[Settings](h, http.MethodPut, "/api/v1/settings", SettingsInput{Plates: []float64{45, 25, 10}, Warmups: true, BBB: map[string]BBBInput{}})
 		w := h.start(firstMain)
 		return http.MethodGet, fmt.Sprintf("/api/v1/workouts/%d", w.ID), nil
 	}},
@@ -244,7 +244,7 @@ var screens = []struct {
 				return set.TargetReps
 			})
 		}
-		send[Settings](h, http.MethodPost, "/api/v1/training-maxes", TrainingMaxInput{Lift: "press", Value: 105, Note: "felt light"})
+		send[Settings](h, http.MethodPost, "/api/v1/training-maxes", TrainingMaxInput{Lift: "press", Value: 105, Note: new("felt light")})
 		return http.MethodGet, "/api/v1/lifts/press", nil
 	}},
 	{name: "lift-single", prepare: func(h *harness) (string, string, any) {
@@ -279,19 +279,19 @@ var screens = []struct {
 		return http.MethodGet, "/api/v1/setup", nil
 	}},
 	{name: "setup-position", prepare: func(h *harness) (string, string, any) {
-		send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{TMs: startingTMs})
+		send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{Tms: startingTMs})
 		return http.MethodGet, "/api/v1/setup/position", nil
 	}},
 	{name: "setup-history-leader", prepare: func(h *harness) (string, string, any) {
-		send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{TMs: startingTMs})
+		send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{Tms: startingTMs})
 		return http.MethodGet, "/api/v1/setup/history/0", nil
 	}},
 	{name: "setup-history-anchor", prepare: func(h *harness) (string, string, any) {
-		send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{TMs: startingTMs})
+		send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{Tms: startingTMs})
 		return http.MethodGet, "/api/v1/setup/history/3", nil
 	}},
 	{name: "setup-history-tm-test", prepare: func(h *harness) (string, string, any) {
-		send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{TMs: startingTMs})
+		send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{Tms: startingTMs})
 		return http.MethodGet, "/api/v1/setup/history/2", nil
 	}},
 }

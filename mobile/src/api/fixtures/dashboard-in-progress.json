@@ -1,109 +1,109 @@
 {
   "needsSetup": false,
-  "unit": "lb",
-  "programName": "5's PRO + BBB / 5-3-1 + FSL",
   "next": {
+    "blockNumber": 1,
+    "blocked": false,
+    "canSkip": false,
+    "cycleLabel": "Leader 2 - Round 3",
+    "inProgress": true,
     "liftName": "Overhead Press",
     "liftSlug": "press",
-    "cycleLabel": "Leader 2 - Round 3",
     "phase": "leader",
-    "trainingMax": 100,
-    "inProgress": true,
-    "workoutId": 9,
-    "blockNumber": 1,
     "roundOfBlock": 6,
     "roundsInBlock": 11,
-    "blocked": false,
-    "canSkip": false
+    "trainingMax": 100,
+    "workoutId": 9
   },
+  "programName": "5's PRO + BBB / 5-3-1 + FSL",
+  "recent": [
+    {
+      "cycleLabel": "Leader 2 - Round 2",
+      "date": "Jan 21",
+      "liftName": "Squat",
+      "liftSlug": "squat",
+      "summary": "225 x 5",
+      "workoutId": 8
+    },
+    {
+      "cycleLabel": "Leader 2 - Round 2",
+      "date": "Jan 19",
+      "liftName": "Bench Press",
+      "liftSlug": "bench",
+      "summary": "180 x 5",
+      "workoutId": 7
+    },
+    {
+      "cycleLabel": "Leader 2 - Round 2",
+      "date": "Jan 17",
+      "liftName": "Deadlift",
+      "liftSlug": "deadlift",
+      "summary": "270 x 5",
+      "workoutId": 6
+    },
+    {
+      "cycleLabel": "Leader 2 - Round 2",
+      "date": "Jan 15",
+      "liftName": "Overhead Press",
+      "liftSlug": "press",
+      "summary": "90 x 5",
+      "workoutId": 5
+    },
+    {
+      "cycleLabel": "Leader 2 - Round 1",
+      "date": "Jan 13",
+      "liftName": "Squat",
+      "liftSlug": "squat",
+      "summary": "215 x 5",
+      "workoutId": 4
+    },
+    {
+      "cycleLabel": "Leader 2 - Round 1",
+      "date": "Jan 11",
+      "liftName": "Bench Press",
+      "liftSlug": "bench",
+      "summary": "170 x 5",
+      "workoutId": 3
+    },
+    {
+      "cycleLabel": "Leader 2 - Round 1",
+      "date": "Jan 9",
+      "liftName": "Deadlift",
+      "liftSlug": "deadlift",
+      "summary": "255 x 5",
+      "workoutId": 2
+    },
+    {
+      "cycleLabel": "Leader 2 - Round 1",
+      "date": "Jan 7",
+      "liftName": "Overhead Press",
+      "liftSlug": "press",
+      "summary": "85 x 5",
+      "workoutId": 1
+    }
+  ],
+  "review": null,
+  "testResults": [],
   "tms": [
     {
-      "slug": "press",
       "name": "Overhead Press",
+      "slug": "press",
       "value": 100
     },
     {
-      "slug": "deadlift",
       "name": "Deadlift",
+      "slug": "deadlift",
       "value": 300
     },
     {
-      "slug": "bench",
       "name": "Bench Press",
+      "slug": "bench",
       "value": 200
     },
     {
-      "slug": "squat",
       "name": "Squat",
+      "slug": "squat",
       "value": 250
     }
   ],
-  "recent": [
-    {
-      "workoutId": 8,
-      "liftName": "Squat",
-      "liftSlug": "squat",
-      "cycleLabel": "Leader 2 - Round 2",
-      "date": "Jan 21",
-      "summary": "225 x 5"
-    },
-    {
-      "workoutId": 7,
-      "liftName": "Bench Press",
-      "liftSlug": "bench",
-      "cycleLabel": "Leader 2 - Round 2",
-      "date": "Jan 19",
-      "summary": "180 x 5"
-    },
-    {
-      "workoutId": 6,
-      "liftName": "Deadlift",
-      "liftSlug": "deadlift",
-      "cycleLabel": "Leader 2 - Round 2",
-      "date": "Jan 17",
-      "summary": "270 x 5"
-    },
-    {
-      "workoutId": 5,
-      "liftName": "Overhead Press",
-      "liftSlug": "press",
-      "cycleLabel": "Leader 2 - Round 2",
-      "date": "Jan 15",
-      "summary": "90 x 5"
-    },
-    {
-      "workoutId": 4,
-      "liftName": "Squat",
-      "liftSlug": "squat",
-      "cycleLabel": "Leader 2 - Round 1",
-      "date": "Jan 13",
-      "summary": "215 x 5"
-    },
-    {
-      "workoutId": 3,
-      "liftName": "Bench Press",
-      "liftSlug": "bench",
-      "cycleLabel": "Leader 2 - Round 1",
-      "date": "Jan 11",
-      "summary": "170 x 5"
-    },
-    {
-      "workoutId": 2,
-      "liftName": "Deadlift",
-      "liftSlug": "deadlift",
-      "cycleLabel": "Leader 2 - Round 1",
-      "date": "Jan 9",
-      "summary": "255 x 5"
-    },
-    {
-      "workoutId": 1,
-      "liftName": "Overhead Press",
-      "liftSlug": "press",
-      "cycleLabel": "Leader 2 - Round 1",
-      "date": "Jan 7",
-      "summary": "85 x 5"
-    }
-  ],
-  "testResults": [],
-  "review": null
+  "unit": "lb"
 }

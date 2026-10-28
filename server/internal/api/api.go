@@ -1,12 +1,15 @@
 // Package api is the JSON API the iOS app talks to, under /api/v1. Like the
-// pages in package web, its handlers only translate: they decode a request,
-// call package training, and encode what it returns. Neither makes a training
-// decision of its own.
+// pages in package web, its handlers only translate: they take a request,
+// call package training, and convert what it returns. Neither makes a
+// training decision of its own.
 //
-// The wire types in types.go are the contract with the app. They are kept
+// The contract with the app is the OpenAPI spec in api/openapi.yaml, at the
+// root of the module. oapi.gen.go is generated from it by `make generate`:
+// the wire types, StrictServerInterface with one typed method per operation,
+// which Server implements, a router, and the spec itself. Every request is
+// checked against the spec before a handler sees it. The wire types are kept
 // apart from training's read models, so renaming a Go field cannot silently
-// break an installed app, and `make generate` turns them into the app's
-// TypeScript types.
+// break an installed app.
 //
 // A request that changes something answers with the screen it leads to, the
 // same one the web form redirects to, so the app can show it without a
@@ -15,76 +18,90 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
+
+	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/getkin/kin-openapi/routers/gorillamux"
+	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 
 	"github.com/kbremont/531-tracker/server/internal/auth"
 	"github.com/kbremont/531-tracker/server/internal/training"
 )
 
 // APIVersion is the version of the API under /api/v1, reported by info. It
-// only changes for a change that breaks an installed app.
+// only changes for a change that breaks an installed app, and it is the
+// spec's info.version.
 const APIVersion = 1
+
+// basePath is where the API is served, the spec's only server.
+const basePath = "/api/v1"
 
 // maxBodyBytes bounds a request body. The largest real one, the settings, is
 // well under a kilobyte.
 const maxBodyBytes = 1 << 20
 
-// Handler serves the API. Each unexported method is one route.
-type Handler struct {
+// Server serves the API. Each exported method is one operation in the spec.
+type Server struct {
 	svc      *training.Service
 	sessions *auth.Sessions
 	log      *slog.Logger
 	version  string
 }
 
+var _ StrictServerInterface = (*Server)(nil)
+
 // New returns the API over a training service. version is the server's build,
 // reported by info.
-func New(svc *training.Service, sessions *auth.Sessions, log *slog.Logger, version string) *Handler {
-	return &Handler{svc: svc, sessions: sessions, log: log, version: version}
+func New(svc *training.Service, sessions *auth.Sessions, log *slog.Logger, version string) *Server {
+	return &Server{svc: svc, sessions: sessions, log: log, version: version}
 }
 
-// Routes returns the API, to be mounted at /api/. Everything but info and
-// login needs a session token, and any other path under /api/ is a JSON 404.
-func (h *Handler) Routes() http.Handler {
-	app := http.NewServeMux()
-	app.HandleFunc("GET /api/v1/dashboard", h.dashboard)
+// Routes returns the API, to be mounted at /api/. The operations the spec
+// marks public, with security: [], need no session, and neither does the
+// spec itself at /api/v1/openapi.json. Anything else under /api/ needs a
+// session token first, so without one even a path that is not a route is a
+// 401. Then the request is checked against the spec, and only one it allows
+// reaches a handler.
+func (s *Server) Routes() http.Handler {
+	spec, err := GetSpec()
+	if err != nil {
+		panic(fmt.Sprintf("api: load the embedded spec: %v", err))
+	}
+	router, err := gorillamux.NewRouter(spec)
+	if err != nil {
+		panic(fmt.Sprintf("api: route the embedded spec: %v", err))
+	}
 
-	app.HandleFunc("POST /api/v1/workouts", h.startWorkout)
-	app.HandleFunc("GET /api/v1/workouts/{id}", h.workout)
-	app.HandleFunc("PUT /api/v1/workouts/{id}/sets/{idx}", h.logSet)
-	app.HandleFunc("DELETE /api/v1/workouts/{id}/sets/{idx}", h.undoSet)
-	app.HandleFunc("POST /api/v1/workouts/{id}/finish", h.finishWorkout)
-	app.HandleFunc("DELETE /api/v1/workouts/{id}", h.abandonWorkout)
-
-	app.HandleFunc("GET /api/v1/history", h.history)
-	app.HandleFunc("GET /api/v1/lifts/{slug}", h.lift)
-	app.HandleFunc("POST /api/v1/lifts/{slug}/estimates", h.addPastEstimate)
-	app.HandleFunc("DELETE /api/v1/lifts/{slug}/estimates/{id}", h.deletePastEstimate)
-
-	app.HandleFunc("GET /api/v1/settings", h.settings)
-	app.HandleFunc("PUT /api/v1/settings", h.saveSettings)
-	app.HandleFunc("POST /api/v1/training-maxes", h.setTrainingMax)
-	app.HandleFunc("POST /api/v1/tm-review", h.acceptReview)
-	app.HandleFunc("POST /api/v1/tm-tests/{id}", h.decideTMTest)
-	app.HandleFunc("POST /api/v1/skip-cycle", h.skipCycle)
-
-	app.HandleFunc("GET /api/v1/setup", h.setup)
-	app.HandleFunc("PUT /api/v1/setup", h.saveSetup)
-	app.HandleFunc("GET /api/v1/setup/position", h.setupPosition)
-	app.HandleFunc("GET /api/v1/setup/history/{cycle}", h.setupHistory)
-	app.HandleFunc("PUT /api/v1/setup/history/{cycle}", h.saveSetupHistory)
-
-	app.HandleFunc("GET /api/v1/backup", h.backup)
-
-	app.HandleFunc("/api/", h.notFound)
+	ops := HandlerWithOptions(NewStrictHandlerWithOptions(s, nil, StrictHTTPServerOptions{
+		RequestErrorHandlerFunc:  s.unreadable,
+		ResponseErrorHandlerFunc: s.fail,
+	}), StdHTTPServerOptions{
+		BaseURL:          basePath,
+		BaseRouter:       http.NewServeMux(),
+		ErrorHandlerFunc: s.unreadable,
+	})
+	validate := nethttpmiddleware.OapiRequestValidatorWithOptions(spec, &nethttpmiddleware.Options{
+		Options: openapi3filter.Options{
+			// The session was checked before the request got here.
+			AuthenticationFunc: openapi3filter.NoopAuthenticationFunc,
+		},
+		ErrorHandlerWithOpts:  s.invalid(router),
+		SilenceServersWarning: true, // the server is a path, with no host to check
+	})
+	api := http.MaxBytesHandler(validate(ops), maxBodyBytes)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/info", h.info)
-	mux.HandleFunc("POST /api/v1/login", h.login)
-	mux.Handle("/api/", h.sessions.RequireAPI(app))
+	for path, item := range spec.Paths.Map() {
+		for method, op := range item.Operations() {
+			if op.Security != nil && len(*op.Security) == 0 {
+				mux.Handle(method+" "+basePath+path, api)
+			}
+		}
+	}
+	mux.HandleFunc("GET "+basePath+"/openapi.json", s.openAPI)
+	mux.Handle("/api/", s.sessions.RequireAPI(api))
 	return noStore(mux)
 }
 
@@ -97,34 +114,35 @@ func noStore(next http.Handler) http.Handler {
 	})
 }
 
+// openAPI serves the spec as JSON, for docs viewers such as Swagger UI or
+// Scalar. It holds nothing private, so it needs no session and any origin
+// may read it.
+func (s *Server) openAPI(w http.ResponseWriter, r *http.Request) {
+	spec, err := GetSpecJSON()
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Write(spec)
+}
+
 // writeJSON answers with v as JSON.
-func (h *Handler) writeJSON(w http.ResponseWriter, r *http.Request, status int, v any) {
+func (s *Server) writeJSON(w http.ResponseWriter, r *http.Request, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-		h.log.ErrorContext(r.Context(), "encode response", "path", r.URL.Path, "error", err)
+		s.log.ErrorContext(r.Context(), "encode response", "path", r.URL.Path, "error", err)
 	}
 }
 
-// errBadJSON is a request body that is not the JSON the route expects.
-var errBadJSON = errors.New("bad request body")
-
-// decode reads a JSON request body into v. Fields it does not know are
-// ignored, so an app newer than the server still works.
-func decode(w http.ResponseWriter, r *http.Request, v any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
-	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
-		return errBadJSON
+// deref reads an optional request field, which is its zero value when left
+// out.
+func deref[T any](p *T) T {
+	if p == nil {
+		var zero T
+		return zero
 	}
-	return nil
-}
-
-// pathID reads a numeric path segment. One that is not a number is a 404,
-// since no such thing can exist.
-func pathID(r *http.Request, name string) (int64, error) {
-	id, err := strconv.ParseInt(r.PathValue(name), 10, 64)
-	if err != nil {
-		return 0, training.ErrNotFound
-	}
-	return id, nil
+	return *p
 }

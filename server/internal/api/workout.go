@@ -1,112 +1,84 @@
 package api
 
 import (
-	"net/http"
-
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"context"
 )
 
-// startWorkout starts the next session, or resumes the one in progress, and
+// StartWorkout starts the next session, or resumes the one in progress, and
 // answers with it. When there is nothing to start, or a training max decision
 // is waiting, it is a 409 and the app fetches the dashboard to show why.
-func (h *Handler) startWorkout(w http.ResponseWriter, r *http.Request) {
-	id, err := h.svc.StartWorkout(r.Context())
+func (s *Server) StartWorkout(ctx context.Context, _ StartWorkoutRequestObject) (StartWorkoutResponseObject, error) {
+	id, err := s.svc.StartWorkout(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	h.sendWorkout(w, r, id)
+	w, err := s.workout(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return StartWorkout200JSONResponse(w), nil
 }
 
-func (h *Handler) workout(w http.ResponseWriter, r *http.Request) {
-	id, err := pathID(r, "id")
+func (s *Server) GetWorkout(ctx context.Context, req GetWorkoutRequestObject) (GetWorkoutResponseObject, error) {
+	w, err := s.workout(ctx, req.ID)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	h.sendWorkout(w, r, id)
+	return GetWorkout200JSONResponse(w), nil
 }
 
-func (h *Handler) sendWorkout(w http.ResponseWriter, r *http.Request, id int64) {
-	workout, err := h.svc.Workout(r.Context(), id)
+func (s *Server) workout(ctx context.Context, id int64) (Workout, error) {
+	w, err := s.svc.Workout(ctx, id)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return Workout{}, err
 	}
-	h.writeJSON(w, r, http.StatusOK, toWorkout(workout))
+	return toWorkout(w), nil
 }
 
-// logSet records the reps done on a set. The session it answers with carries
-// the rest to time before the next set.
-func (h *Handler) logSet(w http.ResponseWriter, r *http.Request) {
-	id, idx, err := workoutAndSet(r)
+// LogSet records the reps done on a set. The session it answers with carries
+// the rest to time before the next set. The spec makes reps required: 0 is a
+// set failed, so a body without it is refused rather than read as 0.
+func (s *Server) LogSet(ctx context.Context, req LogSetRequestObject) (LogSetResponseObject, error) {
+	if err := s.svc.LogSet(ctx, req.ID, req.Idx, req.Body.Reps); err != nil {
+		return nil, err
+	}
+	w, err := s.workout(ctx, req.ID)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	var in LogSetInput
-	if err := decode(w, r, &in); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	// The web form leaves a set unlogged without its reps; so does this.
-	if in.Reps == nil {
-		h.fail(w, r, &training.InputError{Msg: "Enter the reps done."})
-		return
-	}
-	if err := h.svc.LogSet(r.Context(), id, idx, *in.Reps); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	h.sendWorkout(w, r, id)
+	return LogSet200JSONResponse(w), nil
 }
 
-func (h *Handler) undoSet(w http.ResponseWriter, r *http.Request) {
-	id, idx, err := workoutAndSet(r)
+func (s *Server) UndoSet(ctx context.Context, req UndoSetRequestObject) (UndoSetResponseObject, error) {
+	if err := s.svc.UndoSet(ctx, req.ID, req.Idx); err != nil {
+		return nil, err
+	}
+	w, err := s.workout(ctx, req.ID)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	if err := h.svc.UndoSet(r.Context(), id, idx); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	h.sendWorkout(w, r, id)
+	return UndoSet200JSONResponse(w), nil
 }
 
-func (h *Handler) finishWorkout(w http.ResponseWriter, r *http.Request) {
-	id, err := pathID(r, "id")
+func (s *Server) FinishWorkout(ctx context.Context, req FinishWorkoutRequestObject) (FinishWorkoutResponseObject, error) {
+	if err := s.svc.FinishWorkout(ctx, req.ID); err != nil {
+		return nil, err
+	}
+	d, err := s.dashboard(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	if err := h.svc.FinishWorkout(r.Context(), id); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	h.dashboard(w, r)
+	return FinishWorkout200JSONResponse(d), nil
 }
 
-// abandonWorkout removes a session started by mistake.
-func (h *Handler) abandonWorkout(w http.ResponseWriter, r *http.Request) {
-	id, err := pathID(r, "id")
+// AbandonWorkout removes a session started by mistake.
+func (s *Server) AbandonWorkout(ctx context.Context, req AbandonWorkoutRequestObject) (AbandonWorkoutResponseObject, error) {
+	if err := s.svc.AbandonWorkout(ctx, req.ID); err != nil {
+		return nil, err
+	}
+	d, err := s.dashboard(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	if err := h.svc.AbandonWorkout(r.Context(), id); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	h.dashboard(w, r)
-}
-
-func workoutAndSet(r *http.Request) (id, idx int64, err error) {
-	if id, err = pathID(r, "id"); err != nil {
-		return 0, 0, err
-	}
-	if idx, err = pathID(r, "idx"); err != nil {
-		return 0, 0, err
-	}
-	return id, idx, nil
+	return AbandonWorkout200JSONResponse(d), nil
 }

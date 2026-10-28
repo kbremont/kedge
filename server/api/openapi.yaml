@@ -1,0 +1,1571 @@
+openapi: 3.0.3
+info:
+  title: 5/3/1 tracker API
+  version: "1"
+  description: |
+    The JSON API the iOS app talks to. Like the web pages, it only
+    translates: the training rules live on the server, and every answer is
+    a screen with everything already worked out, so the app only has to
+    display it.
+
+    This document is the contract. The server's handlers and the app's types
+    are generated from it, so a change starts here, followed by
+    `make generate` and `make golden`.
+
+    A request that changes something answers with the screen it leads to, the
+    same one the web form redirects to, so the app can show it without a
+    second request. Every answer carries `Cache-Control: no-store`.
+
+    The spec declares shapes: types, required fields and enums. The rules,
+    such as how many reps a set can be logged with, stay on the server, which
+    answers a 400 with a message that can be shown as it is.
+
+    `info.version` is the API's version, which `getInfo` reports as
+    `apiVersion`. It only changes for a change that breaks an installed app.
+servers:
+  - url: /api/v1
+security:
+  - bearer: []
+  - cookie: []
+tags:
+  - name: session
+    description: Which server this is, and signing in.
+  - name: today
+    description: The dashboard and the training max decisions it offers.
+  - name: workouts
+    description: Starting, logging and finishing a session.
+  - name: history
+    description: Completed sessions and each lift's progress.
+  - name: settings
+    description: Settings, training maxes and the backup.
+  - name: setup
+    description: Onboarding. Training maxes first, then the cycle the user is on, then the sessions of it already done.
+
+paths:
+  /info:
+    get:
+      operationId: getInfo
+      tags: [session]
+      summary: Which API and server build this is
+      description: Needs no session, so the app can check it before signing in.
+      security: []
+      responses:
+        "200":
+          description: The API version and the server's build.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Info"
+
+  /login:
+    post:
+      operationId: login
+      tags: [session]
+      summary: Exchange the password for a session token
+      description: |
+        The token is the same one the browser keeps in its cookie, so the two
+        sign in and expire alike. Tokens are not stored on the server, so
+        signing out is forgetting it.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Signed in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [today]
+      summary: The Today screen
+      description: Before training maxes are entered it reports `needsSetup`, where the web redirects to the setup page.
+      responses:
+        "200":
+          description: The Today screen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /workouts:
+    post:
+      operationId: startWorkout
+      tags: [workouts]
+      summary: Start the next session, or resume the one in progress
+      description: |
+        When there is nothing to start, or a training max decision is
+        waiting, it is a 409 and the app fetches the dashboard to show why.
+      responses:
+        "200":
+          description: The session started, or the one in progress.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workout"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /workouts/{id}:
+    parameters:
+      - $ref: "#/components/parameters/WorkoutID"
+    get:
+      operationId: getWorkout
+      tags: [workouts]
+      summary: A session, in progress or completed
+      responses:
+        "200":
+          description: The session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workout"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      operationId: abandonWorkout
+      tags: [workouts]
+      summary: Remove a session started by mistake
+      responses:
+        "200":
+          description: The dashboard, with the session gone.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /workouts/{id}/sets/{idx}:
+    parameters:
+      - $ref: "#/components/parameters/WorkoutID"
+      - $ref: "#/components/parameters/SetIdx"
+    put:
+      operationId: logSet
+      tags: [workouts]
+      summary: Log the reps done on a set
+      description: The session it answers with carries the rest to time before the next set.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogSetInput"
+      responses:
+        "200":
+          description: The session, with the set logged and the rest to time.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workout"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      operationId: undoSet
+      tags: [workouts]
+      summary: Clear a logged set
+      responses:
+        "200":
+          description: The session, with the set cleared.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workout"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /workouts/{id}/finish:
+    parameters:
+      - $ref: "#/components/parameters/WorkoutID"
+    post:
+      operationId: finishWorkout
+      tags: [workouts]
+      summary: Mark a session complete
+      responses:
+        "200":
+          description: The dashboard after the session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /history:
+    get:
+      operationId: getHistory
+      tags: [history]
+      summary: The history list
+      responses:
+        "200":
+          description: Every completed session, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/History"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /lifts/{slug}:
+    parameters:
+      - $ref: "#/components/parameters/LiftSlug"
+    get:
+      operationId: getLift
+      tags: [history]
+      summary: A lift's progress
+      responses:
+        "200":
+          description: The lift screen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lift"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /lifts/{slug}/estimates:
+    parameters:
+      - $ref: "#/components/parameters/LiftSlug"
+    post:
+      operationId: addPastEstimate
+      tags: [history]
+      summary: Add an estimate from before the app
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PastEstimateInput"
+      responses:
+        "200":
+          description: The lift, with the estimate added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lift"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /lifts/{slug}/estimates/{id}:
+    parameters:
+      - $ref: "#/components/parameters/LiftSlug"
+      - name: id
+        in: path
+        required: true
+        description: The estimate's id. One for another lift is left alone.
+        schema:
+          type: integer
+          format: int64
+    delete:
+      operationId: deletePastEstimate
+      tags: [history]
+      summary: Delete an estimate from before the app
+      responses:
+        "200":
+          description: The lift, with the estimate gone.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lift"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: The settings screen
+      responses:
+        "200":
+          description: The settings screen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      operationId: saveSettings
+      tags: [settings]
+      summary: Change the settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsInput"
+      responses:
+        "200":
+          description: The settings as saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /training-maxes:
+    post:
+      operationId: setTrainingMax
+      tags: [settings]
+      summary: Change one lift's training max
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrainingMaxInput"
+      responses:
+        "200":
+          description: The settings, with the new training max.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /tm-review:
+    post:
+      operationId: acceptReview
+      tags: [today]
+      summary: Accept the block review
+      description: Writes the training maxes settled on at the start of a block. A review no longer pending is a 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TMReviewInput"
+      responses:
+        "200":
+          description: The dashboard, on the new training maxes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /tm-tests/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: The TM test session's workout id, as in `TMTestResult.workoutId`.
+        schema:
+          type: integer
+          format: int64
+    post:
+      operationId: decideTMTest
+      tags: [today]
+      summary: Settle a failed TM test
+      description: A decision no longer on offer is a 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TMTestDecision"
+      responses:
+        "200":
+          description: The dashboard, with the decision made.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /skip-cycle:
+    post:
+      operationId: skipCycle
+      tags: [today]
+      summary: Pass on an optional cycle before its first session
+      description: Only on offer while `NextUp.canSkip` is set; otherwise a 409.
+      responses:
+        "200":
+          description: The dashboard, past the skipped cycle.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /setup:
+    get:
+      operationId: getSetup
+      tags: [setup]
+      summary: The first-run screen where training maxes are entered
+      responses:
+        "200":
+          description: Every lift, with its current training max or 0.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Setup"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      operationId: saveSetup
+      tags: [setup]
+      summary: Record the first training maxes
+      description: Answers with the next question, where in the programme the user is.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetupInput"
+      responses:
+        "200":
+          description: 'The next question: where in the programme the user is.'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupPosition"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /setup/position:
+    get:
+      operationId: getSetupPosition
+      tags: [setup]
+      summary: Ask which cycle the user is on
+      description: |
+        Picking a cycle writes nothing, so it has no route: the app goes
+        straight to that cycle's checklist, or to the dashboard to start
+        fresh.
+      responses:
+        "200":
+          description: The cycles a new user can join at.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupPosition"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /setup/history/{cycle}:
+    parameters:
+      - name: cycle
+        in: path
+        required: true
+        description: The cycle's index, as in `SetupCycle.index`.
+        schema:
+          type: integer
+    get:
+      operationId: getSetupHistory
+      tags: [setup]
+      summary: The checklist of sessions already done in a cycle
+      responses:
+        "200":
+          description: The cycle's sessions, by round.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupHistory"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      operationId: saveSetupHistory
+      tags: [setup]
+      summary: Join the block at a cycle, with the sessions of it already done
+      description: Answers with the dashboard, which now picks up after them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetupHistoryInput"
+      responses:
+        "200":
+          description: The dashboard, picking up after the sessions done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /backup:
+    get:
+      operationId: getBackup
+      tags: [settings]
+      summary: Download the database
+      description: A consistent snapshot, safe to take while the server is running, as the web's download is.
+      responses:
+        "200":
+          description: The SQLite database file.
+          headers:
+            Content-Disposition:
+              required: true
+              description: Names the file after today's date.
+              schema:
+                type: string
+                example: attachment; filename="531-2026-10-28.db"
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: 'The token from `login`, sent as `Authorization: Bearer <token>`.'
+    cookie:
+      type: apiKey
+      in: cookie
+      name: s531
+      description: The web's session cookie, which carries the same token.
+
+  parameters:
+    WorkoutID:
+      name: id
+      in: path
+      required: true
+      description: The session's id.
+      schema:
+        type: integer
+        format: int64
+    SetIdx:
+      name: idx
+      in: path
+      required: true
+      description: The set's `idx`.
+      schema:
+        type: integer
+        format: int64
+    LiftSlug:
+      name: slug
+      in: path
+      required: true
+      description: The lift's slug, such as `press`.
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Input the server rejects, or a body that does not match the operation. Nothing was written.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: No session, an expired one, or a wrong password. The app signs in again.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: A workout, lift, estimate or cycle that does not exist, or a path that is not a route.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    MethodNotAllowed:
+      description: A route asked for with a method it does not have. No operation lists it, since it means the request matched none.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: |
+        Training is held on a decision, the decision is no longer on offer,
+        or there is nothing to start. The app fetches the dashboard to show
+        why.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Logged on the server; the message is generic.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    # Lists are never null, and every property is always sent. Only
+    # Dashboard.next and Dashboard.review can be null. Dates are formatted as
+    # the server shows them, in its own time zone.
+
+    Phase:
+      type: string
+      description: The kind of cycle a session belongs to.
+      enum: [leader, tm_test, anchor, deload]
+    Tone:
+      type: string
+      description: Which way a training max is going.
+      enum: [up, hold, down]
+    SetTag:
+      type: string
+      description: The kind of set.
+      enum: [Warmup, Main, BBB, FSL, Supplemental]
+    BBBMode:
+      type: string
+      description: |
+        How a lift's supplemental sets are weighed: the program's default, a
+        percent of the training max, or a fixed weight.
+      enum: [program, percent, weight]
+    TMTestAction:
+      type: string
+      description: Keep the training max a TM test failed at, or lower it.
+      enum: [keep, lower]
+
+    Info:
+      type: object
+      description: |
+        Which API and server build the app is talking to. It needs no
+        session, so the app can check it before signing in.
+      required: [apiVersion, version]
+      properties:
+        apiVersion:
+          type: integer
+          description: Only changes for a change that breaks an installed app.
+        version:
+          type: string
+          description: The server's build.
+
+    ErrorResponse:
+      type: object
+      description: The body of every answer that is not a success. The message can be shown as it is.
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    LoginRequest:
+      type: object
+      description: Signs in with the server's password.
+      required: [password]
+      properties:
+        password:
+          type: string
+
+    LoginResponse:
+      type: object
+      description: |
+        A session token, sent as `Authorization: Bearer <token>`. Tokens are
+        not stored on the server, so signing out is forgetting it.
+      required: [token, expiresAt]
+      properties:
+        token:
+          type: string
+        expiresAt:
+          type: string
+          description: RFC 3339.
+
+    LiftTM:
+      type: object
+      description: One lift and its current training max.
+      required: [slug, name, value]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        value:
+          type: number
+          format: double
+
+    LiftRef:
+      type: object
+      description: Names a lift.
+      required: [slug, name]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+
+    Dashboard:
+      type: object
+      description: The Today screen.
+      required: [needsSetup, unit, programName, next, tms, recent, testResults, review]
+      properties:
+        needsSetup:
+          type: boolean
+          description: |
+            Set until training maxes have been entered, and nothing else is
+            filled in until then. The app goes to setup.
+        unit:
+          type: string
+        programName:
+          type: string
+        next:
+          description: The session to start or resume, or null when there is none.
+          type: object
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/NextUp"
+        tms:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiftTM"
+        recent:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryItem"
+        testResults:
+          type: array
+          description: |
+            The current block's TM test outcomes: the session just finished,
+            and any lift that failed and is still waiting on a decision.
+          items:
+            $ref: "#/components/schemas/TMTestResult"
+        review:
+          description: |
+            Set at the start of each block after the first. Training waits
+            until it is accepted.
+          type: object
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/TMReview"
+
+    NextUp:
+      type: object
+      description: The session the dashboard offers to start, or the one in progress.
+      required:
+        - liftName
+        - liftSlug
+        - cycleLabel
+        - phase
+        - trainingMax
+        - inProgress
+        - workoutId
+        - blockNumber
+        - roundOfBlock
+        - roundsInBlock
+        - blocked
+        - canSkip
+      properties:
+        liftName:
+          type: string
+        liftSlug:
+          type: string
+        cycleLabel:
+          type: string
+        phase:
+          $ref: "#/components/schemas/Phase"
+        trainingMax:
+          type: number
+          format: double
+        inProgress:
+          type: boolean
+          description: |
+            Set when a session has been started but not finished, and
+            `workoutId` is then that session; otherwise it is 0.
+        workoutId:
+          type: integer
+          format: int64
+        blockNumber:
+          type: integer
+        roundOfBlock:
+          type: integer
+        roundsInBlock:
+          type: integer
+        blocked:
+          type: boolean
+          description: |
+            Set while a training max decision is waiting; the session cannot
+            start until it is made.
+        canSkip:
+          type: boolean
+          description: Offers to pass on an optional cycle before its first session.
+
+    TMTestResult:
+      type: object
+      description: |
+        One lift's TM test. A pass is just news; a failure offers to lower the
+        training max, and the anchor waits until it is settled.
+      required:
+        - workoutId
+        - liftName
+        - unit
+        - tested
+        - reps
+        - headline
+        - detail
+        - tone
+        - needsDecision
+        - current
+        - proposed
+      properties:
+        workoutId:
+          type: integer
+          format: int64
+        liftName:
+          type: string
+        unit:
+          type: string
+        tested:
+          type: number
+          format: double
+          description: The training max that was tested.
+        reps:
+          type: integer
+          description: Performed at 100%.
+        headline:
+          type: string
+        detail:
+          type: string
+        tone:
+          $ref: "#/components/schemas/Tone"
+        needsDecision:
+          type: boolean
+          description: |
+            Set for a failed test still waiting on the user, who can lower
+            `current` to `proposed` (or another value), or keep it.
+        current:
+          type: number
+          format: double
+        proposed:
+          type: number
+          format: double
+
+    TMReview:
+      type: object
+      description: |
+        Proposes a training max for every lift at the start of a block.
+        Nothing changes until the user accepts it, edited or not.
+      required: [title, intro, key, unit, rows]
+      properties:
+        title:
+          type: string
+        intro:
+          type: string
+        key:
+          type: string
+          description: Sent back when accepting.
+        unit:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/TMReviewRow"
+
+    TMReviewRow:
+      type: object
+      description: One lift's evidence and proposed training max.
+      required: [slug, name, evidence, verdict, tone, current, proposed]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        evidence:
+          type: string
+          description: For example "PR sets 8, 5, 3 (min 5, 3, 1)".
+        verdict:
+          type: string
+          description: 'For example "Hit every PR set: +5 lb".'
+        tone:
+          $ref: "#/components/schemas/Tone"
+        current:
+          type: number
+          format: double
+        proposed:
+          type: number
+          format: double
+
+    Workout:
+      type: object
+      description: The session screen.
+      required:
+        - id
+        - liftName
+        - cycleLabel
+        - phase
+        - unit
+        - trainingMax
+        - sets
+        - currentIdx
+        - restSeconds
+        - completed
+        - bestE1rm
+      properties:
+        id:
+          type: integer
+          format: int64
+        liftName:
+          type: string
+        cycleLabel:
+          type: string
+        phase:
+          $ref: "#/components/schemas/Phase"
+        unit:
+          type: string
+        trainingMax:
+          type: number
+          format: double
+        sets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Set"
+        currentIdx:
+          type: integer
+          description: -1 once every set is logged.
+        restSeconds:
+          type: integer
+          description: |
+            The rest after the last set logged, by its kind. The app starts
+            its rest timer from it when a set is logged.
+        completed:
+          type: boolean
+          description: Marks a session viewed from history rather than performed.
+        bestE1rm:
+          type: number
+          format: double
+          description: |
+            The best estimated max recorded for this lift, shown against the
+            PR set so there is a number to chase. 0 if there is none.
+
+    Set:
+      type: object
+      description: One row on the session screen.
+      required:
+        - idx
+        - tag
+        - weight
+        - pct
+        - targetReps
+        - maxReps
+        - isAmrap
+        - repTarget
+        - plates
+        - plateLine
+        - unloadable
+        - done
+        - actualReps
+        - asksReps
+        - repChoices
+      properties:
+        idx:
+          type: integer
+        tag:
+          $ref: "#/components/schemas/SetTag"
+        weight:
+          type: number
+          format: double
+        pct:
+          type: number
+          format: double
+          description: Of the training max, as a fraction.
+        targetReps:
+          type: integer
+        maxReps:
+          type: integer
+          description: The top of a rep range such as 3–5, or 0.
+        isAmrap:
+          type: boolean
+        repTarget:
+          type: string
+          description: 'The target as the book writes it: "5", "3+" or "3–5".'
+        plates:
+          type: string
+          description: Per side, such as "45, 25, 5".
+        plateLine:
+          type: string
+          description: 'How to load the bar: "Bar + 45, 25 per side".'
+        unloadable:
+          type: number
+          format: double
+          description: How far short the bar falls when it cannot be loaded exactly, or 0.
+        done:
+          type: boolean
+        actualReps:
+          type: integer
+        asksReps:
+          type: boolean
+          description: |
+            Set for a set whose reps are entered rather than ticked off, with
+            `repChoices` offering them one tap each.
+        repChoices:
+          type: array
+          description: Empty unless `asksReps` is set.
+          items:
+            $ref: "#/components/schemas/RepChoice"
+
+    RepChoice:
+      type: object
+      description: One answer on the rep picker. `target` marks the answers that meet the prescription.
+      required: [reps, target]
+      properties:
+        reps:
+          type: integer
+        target:
+          type: boolean
+
+    History:
+      type: object
+      description: The history list.
+      required: [items, lifts]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/HistoryItem"
+        lifts:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiftRef"
+
+    HistoryItem:
+      type: object
+      description: One completed session.
+      required: [workoutId, liftName, liftSlug, cycleLabel, date, summary]
+      properties:
+        workoutId:
+          type: integer
+          format: int64
+        liftName:
+          type: string
+        liftSlug:
+          type: string
+        cycleLabel:
+          type: string
+        date:
+          type: string
+          description: Such as "Jan 2".
+        summary:
+          type: string
+          description: '"255 x 8" for anchor rounds, otherwise the top set.'
+
+    Lift:
+      type: object
+      description: The per-lift screen.
+      required: [name, slug, unit, currentTm, chart, bestE1rm, tmHistory, pastEstimates, today]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        unit:
+          type: string
+        currentTm:
+          type: number
+          format: double
+        chart:
+          $ref: "#/components/schemas/Chart"
+        bestE1rm:
+          type: number
+          format: double
+        tmHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/TMHistoryItem"
+        pastEstimates:
+          type: array
+          items:
+            $ref: "#/components/schemas/PastEstimate"
+        today:
+          type: string
+          description: The latest date a past estimate can have, as YYYY-MM-DD.
+
+    Chart:
+      type: object
+      description: |
+        The trend of a lift's estimated max, already laid out in a
+        `width` x `height` space with y growing downwards, as in SVG.
+        `points` is empty when there is nothing to plot.
+      required: [width, height, path, points, yMin, yMax]
+      properties:
+        width:
+          type: number
+          format: double
+        height:
+          type: number
+          format: double
+        path:
+          type: string
+          description: An SVG path through the points.
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChartPoint"
+        yMin:
+          type: number
+          format: double
+          description: The estimated max at the bottom of the plot, for the axis label.
+        yMax:
+          type: number
+          format: double
+          description: The estimated max at the top of the plot, for the axis label.
+
+    ChartPoint:
+      type: object
+      description: |
+        One estimate: an AMRAP set logged in the app or, when `past` is set,
+        one entered from before it.
+      required: [x, y, label, past]
+      properties:
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        label:
+          type: string
+        past:
+          type: boolean
+
+    PastEstimate:
+      type: object
+      description: An estimate from before the app, a set of `weight` x `reps` worth `estimate` as a one rep max.
+      required: [id, date, weight, reps, estimate]
+      properties:
+        id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          description: Such as "Mar 3, 2026".
+        weight:
+          type: number
+          format: double
+        reps:
+          type: integer
+        estimate:
+          type: number
+          format: double
+
+    TMHistoryItem:
+      type: object
+      description: One entry from the training max log, newest first.
+      required: [value, date, note]
+      properties:
+        value:
+          type: number
+          format: double
+        date:
+          type: string
+        note:
+          type: string
+
+    Settings:
+      type: object
+      description: The settings screen.
+      required:
+        - unit
+        - rounding
+        - barWeight
+        - plates
+        - warmups
+        - restWarmupSeconds
+        - restMainSeconds
+        - restSuppSeconds
+        - tms
+        - bbb
+      properties:
+        unit:
+          type: string
+        rounding:
+          type: number
+          format: double
+        barWeight:
+          type: number
+          format: double
+        plates:
+          type: array
+          description: Per side, heaviest first.
+          items:
+            type: number
+            format: double
+        warmups:
+          type: boolean
+        restWarmupSeconds:
+          type: integer
+        restMainSeconds:
+          type: integer
+        restSuppSeconds:
+          type: integer
+        tms:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiftTM"
+        bbb:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiftBBB"
+
+    LiftBBB:
+      type: object
+      description: One lift's supplemental override.
+      required: [slug, name, mode, value]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        mode:
+          $ref: "#/components/schemas/BBBMode"
+        value:
+          type: number
+          format: double
+          description: A whole percent when `mode` is percent, otherwise a weight.
+
+    Setup:
+      type: object
+      description: The first-run screen where training maxes are entered.
+      required: [lifts, unit]
+      properties:
+        lifts:
+          type: array
+          description: With the current training max, or 0.
+          items:
+            $ref: "#/components/schemas/LiftTM"
+        unit:
+          type: string
+
+    SetupPosition:
+      type: object
+      description: |
+        Asks a new user which cycle they are on. Starting fresh needs nothing
+        sent: the block already starts at the first cycle.
+      required: [cycles]
+      properties:
+        cycles:
+          type: array
+          items:
+            $ref: "#/components/schemas/SetupCycle"
+
+    SetupCycle:
+      type: object
+      description: One choice on the position screen.
+      required: [index, label, detail]
+      properties:
+        index:
+          type: integer
+        label:
+          type: string
+        detail:
+          type: string
+
+    SetupHistory:
+      type: object
+      description: |
+        The checklist of sessions already done in the chosen cycle. The first
+        one left unticked becomes the next session.
+      required: [cycleIndex, cycleLabel, unit, asksReps, repsLabel, rounds]
+      properties:
+        cycleIndex:
+          type: integer
+        cycleLabel:
+          type: string
+        unit:
+          type: string
+        asksReps:
+          type: boolean
+          description: |
+            Set for anchor and TM test cycles, where the AMRAP set is worth
+            recording; `repsLabel` names that set.
+        repsLabel:
+          type: string
+        rounds:
+          type: array
+          items:
+            $ref: "#/components/schemas/SetupRound"
+
+    SetupRound:
+      type: object
+      description: Groups the sessions of one round.
+      required: [round, days]
+      properties:
+        round:
+          type: integer
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/SetupDay"
+
+    SetupDay:
+      type: object
+      description: |
+        One session on the checklist, with the weight of its top main set so
+        it is recognisable.
+      required: [slug, name, topWeight, prTarget]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        topWeight:
+          type: number
+          format: double
+        prTarget:
+          type: integer
+          description: 0 without a PR set.
+
+    # Request bodies. They require what the app always sends; unknown
+    # properties are ignored, so an app newer than the server still works.
+
+    LogSetInput:
+      type: object
+      description: |
+        Logs the reps done on a set. `reps` is required: 0 is a set failed,
+        so a body without it is refused rather than read as 0.
+      required: [reps]
+      properties:
+        reps:
+          type: integer
+
+    PastEstimateInput:
+      type: object
+      description: Adds an estimate from before the app.
+      required: [date, weight, reps]
+      properties:
+        date:
+          type: string
+          description: YYYY-MM-DD, not after the lift's `today`.
+        weight:
+          type: number
+          format: double
+        reps:
+          type: integer
+
+    SettingsInput:
+      type: object
+      description: |
+        Changes the settings. A number that is not positive keeps what is
+        there now; plates need at least one positive.
+      required:
+        - rounding
+        - barWeight
+        - plates
+        - warmups
+        - restWarmupSeconds
+        - restMainSeconds
+        - restSuppSeconds
+        - bbb
+      properties:
+        rounding:
+          type: number
+          format: double
+        barWeight:
+          type: number
+          format: double
+        plates:
+          type: array
+          items:
+            type: number
+            format: double
+        warmups:
+          type: boolean
+        restWarmupSeconds:
+          type: integer
+        restMainSeconds:
+          type: integer
+        restSuppSeconds:
+          type: integer
+        bbb:
+          type: object
+          description: |
+            Each lift's override by slug. A lift left out, or a value that is
+            not positive, goes back to the program's default.
+          additionalProperties:
+            $ref: "#/components/schemas/BBBInput"
+
+    BBBInput:
+      type: object
+      description: One lift's supplemental override.
+      required: [mode, value]
+      properties:
+        mode:
+          $ref: "#/components/schemas/BBBMode"
+        value:
+          type: number
+          format: double
+
+    TrainingMaxInput:
+      type: object
+      description: Changes one lift's training max from settings.
+      required: [lift, value]
+      properties:
+        lift:
+          type: string
+          description: The lift's slug.
+        value:
+          type: number
+          format: double
+        note:
+          type: string
+
+    TMReviewInput:
+      type: object
+      description: |
+        Accepts the block review with the training maxes the user settled on,
+        by lift slug. Every lift needs a positive value.
+      required: [key, tms]
+      properties:
+        key:
+          type: string
+        tms:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+
+    TMTestDecision:
+      type: object
+      description: Settles a failed TM test, keeping the training max or lowering it to `tm`.
+      required: [action]
+      properties:
+        action:
+          $ref: "#/components/schemas/TMTestAction"
+        tm:
+          type: number
+          format: double
+          description: The training max to lower to. Not needed to keep it.
+
+    SetupInput:
+      type: object
+      description: Records the first training maxes, by lift slug. Every lift needs a positive value.
+      required: [tms]
+      properties:
+        tms:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+
+    SetupHistoryInput:
+      type: object
+      description: Joins the block at a cycle, with the sessions of it already done.
+      required: [done]
+      properties:
+        done:
+          type: array
+          items:
+            $ref: "#/components/schemas/PastSession"
+
+    PastSession:
+      type: object
+      description: A session already done.
+      required: [round, slug]
+      properties:
+        round:
+          type: integer
+        slug:
+          type: string
+        prReps:
+          type: integer
+          description: The reps on its AMRAP set, if asked for. Left out, or 0, records none.

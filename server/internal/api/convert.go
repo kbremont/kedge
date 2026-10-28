@@ -6,8 +6,9 @@ import (
 	"github.com/kbremont/531-tracker/server/internal/training"
 )
 
-// Converters from training's read models to the wire types. Lists are always
-// made, never left nil, so the JSON has [] rather than null.
+// Converters from training's read models to the wire types generated from the
+// spec. Lists are always made, never left nil, so the JSON has [] rather than
+// null, as the spec requires.
 
 func liftTMs(in []training.LiftTM) []LiftTM {
 	out := make([]LiftTM, 0, len(in))
@@ -22,7 +23,7 @@ func toDashboard(d *training.Dashboard) Dashboard {
 		NeedsSetup:  d.NeedsSetup,
 		Unit:        d.Unit,
 		ProgramName: d.ProgramName,
-		TMs:         liftTMs(d.TMs),
+		Tms:         liftTMs(d.TMs),
 		Recent:      historyItems(d.Recent),
 		TestResults: make([]TMTestResult, 0, len(d.TestResults)),
 	}
@@ -31,7 +32,7 @@ func toDashboard(d *training.Dashboard) Dashboard {
 			LiftName:      n.LiftName,
 			LiftSlug:      n.LiftSlug,
 			CycleLabel:    n.CycleLabel,
-			Phase:         n.Phase,
+			Phase:         Phase(n.Phase),
 			TrainingMax:   n.TrainingMax,
 			InProgress:    n.InProgress,
 			WorkoutID:     n.WorkoutID,
@@ -51,7 +52,7 @@ func toDashboard(d *training.Dashboard) Dashboard {
 			Reps:          r.Reps,
 			Headline:      r.Headline,
 			Detail:        r.Detail,
-			Tone:          r.Tone,
+			Tone:          Tone(r.Tone),
 			NeedsDecision: r.NeedsDecision,
 			Current:       r.Current,
 			Proposed:      r.Proposed,
@@ -71,7 +72,7 @@ func toDashboard(d *training.Dashboard) Dashboard {
 				Name:     row.Name,
 				Evidence: row.Evidence,
 				Verdict:  row.Verdict,
-				Tone:     row.Tone,
+				Tone:     Tone(row.Tone),
 				Current:  row.Current,
 				Proposed: row.Proposed,
 			})
@@ -85,7 +86,7 @@ func toWorkout(w *training.Workout) Workout {
 		ID:          w.ID,
 		LiftName:    w.LiftName,
 		CycleLabel:  w.CycleLabel,
-		Phase:       w.Phase,
+		Phase:       Phase(w.Phase),
 		Unit:        w.Unit,
 		TrainingMax: w.TrainingMax,
 		Sets:        make([]Set, 0, len(w.Sets)),
@@ -103,7 +104,7 @@ func toWorkout(w *training.Workout) Workout {
 func toSet(s training.Set) Set {
 	out := Set{
 		Idx:        s.Idx,
-		Tag:        s.Tag,
+		Tag:        SetTag(s.Tag),
 		Weight:     s.Weight,
 		Pct:        s.Pct,
 		TargetReps: s.TargetReps,
@@ -202,13 +203,13 @@ func toSettings(s *training.Settings) Settings {
 		RestWarmupSeconds: s.RestWarmupSeconds,
 		RestMainSeconds:   s.RestMainSeconds,
 		RestSuppSeconds:   s.RestSuppSeconds,
-		TMs:               liftTMs(s.TMs),
+		Tms:               liftTMs(s.TMs),
 		BBB:               make([]LiftBBB, 0, len(s.BBB)),
 	}
 	for _, b := range s.BBB {
 		// A percent is stored as a fraction, and 0.55 * 100 is not quite 55.
 		value := math.Round(b.Value*1e6) / 1e6
-		out.BBB = append(out.BBB, LiftBBB{Slug: b.Slug, Name: b.Name, Mode: b.Mode, Value: value})
+		out.BBB = append(out.BBB, LiftBBB{Slug: b.Slug, Name: b.Name, Mode: BBBMode(b.Mode), Value: value})
 	}
 	return out
 }

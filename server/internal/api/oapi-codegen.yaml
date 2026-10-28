@@ -1,0 +1,18 @@
+# Generates oapi.gen.go from the spec in api/openapi.yaml: the wire types, a
+# typed method per operation (StrictServerInterface), the router, and the
+# spec itself. Run through `make generate` from the repo root.
+package: api
+output: oapi.gen.go
+generate:
+  std-http-server: true
+  strict-server: true
+  models: true
+  embedded-spec: true
+compatibility:
+  always-prefix-enum-values: true
+output-options:
+  # Keep components no operation refers to, such as the 405, in the
+  # embedded spec that /api/v1/openapi.json serves.
+  skip-prune: true
+  name-normalizer: ToCamelCaseWithInitialisms
+  additional-initialisms: [TM, AMRAP, PR, E1RM, BBB]

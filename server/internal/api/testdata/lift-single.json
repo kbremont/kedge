@@ -1,39 +1,39 @@
 {
-  "name": "Overhead Press",
-  "slug": "press",
-  "unit": "lb",
-  "currentTm": 100,
+  "bestE1rm": 115,
   "chart": {
-    "width": 320,
     "height": 160,
     "path": "M 160.0 70.0",
     "points": [
       {
-        "x": 160,
-        "y": 70,
         "label": "115",
-        "past": true
+        "past": true,
+        "x": 160,
+        "y": 70
       }
     ],
-    "yMin": 110,
-    "yMax": 120
+    "width": 320,
+    "yMax": 120,
+    "yMin": 110
   },
-  "bestE1rm": 115,
-  "tmHistory": [
-    {
-      "value": 100,
-      "date": "Jan 6",
-      "note": "initial setup"
-    }
-  ],
+  "currentTm": 100,
+  "name": "Overhead Press",
   "pastEstimates": [
     {
-      "id": 1,
       "date": "Nov 3, 2025",
-      "weight": 115,
+      "estimate": 115,
+      "id": 1,
       "reps": 1,
-      "estimate": 115
+      "weight": 115
     }
   ],
-  "today": "2026-03-16"
+  "slug": "press",
+  "tmHistory": [
+    {
+      "date": "Jan 6",
+      "note": "initial setup",
+      "value": 100
+    }
+  ],
+  "today": "2026-03-16",
+  "unit": "lb"
 }

@@ -1,8 +1,7 @@
 package api
 
 import (
-	"net/http"
-	"strconv"
+	"context"
 
 	"github.com/kbremont/531-tracker/server/internal/training"
 )
@@ -12,81 +11,64 @@ import (
 // route; the app goes straight to that cycle's checklist, or to the
 // dashboard to start fresh.
 
-func (h *Handler) setup(w http.ResponseWriter, r *http.Request) {
-	s, err := h.svc.Setup(r.Context())
+func (s *Server) GetSetup(ctx context.Context, _ GetSetupRequestObject) (GetSetupResponseObject, error) {
+	setup, err := s.svc.Setup(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	h.writeJSON(w, r, http.StatusOK, toSetup(s))
+	return GetSetup200JSONResponse(toSetup(setup)), nil
 }
 
-// saveSetup records the first training maxes and answers with the next
+// SaveSetup records the first training maxes and answers with the next
 // question: where in the programme the user is.
-func (h *Handler) saveSetup(w http.ResponseWriter, r *http.Request) {
-	var in SetupInput
-	if err := decode(w, r, &in); err != nil {
-		h.fail(w, r, err)
-		return
+func (s *Server) SaveSetup(ctx context.Context, req SaveSetupRequestObject) (SaveSetupResponseObject, error) {
+	if err := s.svc.SaveSetup(ctx, req.Body.Tms); err != nil {
+		return nil, err
 	}
-	if err := h.svc.SaveSetup(r.Context(), in.TMs); err != nil {
-		h.fail(w, r, err)
-		return
+	pos, err := s.setupPosition(ctx)
+	if err != nil {
+		return nil, err
 	}
-	h.setupPosition(w, r)
+	return SaveSetup200JSONResponse(pos), nil
 }
 
-func (h *Handler) setupPosition(w http.ResponseWriter, r *http.Request) {
-	pos, err := h.svc.SetupPosition(r.Context())
+func (s *Server) GetSetupPosition(ctx context.Context, _ GetSetupPositionRequestObject) (GetSetupPositionResponseObject, error) {
+	pos, err := s.setupPosition(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	h.writeJSON(w, r, http.StatusOK, toSetupPosition(pos))
+	return GetSetupPosition200JSONResponse(pos), nil
 }
 
-func (h *Handler) setupHistory(w http.ResponseWriter, r *http.Request) {
-	idx, err := pathCycle(r)
+func (s *Server) setupPosition(ctx context.Context) (SetupPosition, error) {
+	pos, err := s.svc.SetupPosition(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return SetupPosition{}, err
 	}
-	hist, err := h.svc.SetupHistory(r.Context(), idx)
-	if err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	h.writeJSON(w, r, http.StatusOK, toSetupHistory(hist))
+	return toSetupPosition(pos), nil
 }
 
-// saveSetupHistory joins the block at a cycle with the sessions already done,
+func (s *Server) GetSetupHistory(ctx context.Context, req GetSetupHistoryRequestObject) (GetSetupHistoryResponseObject, error) {
+	hist, err := s.svc.SetupHistory(ctx, req.Cycle)
+	if err != nil {
+		return nil, err
+	}
+	return GetSetupHistory200JSONResponse(toSetupHistory(hist)), nil
+}
+
+// SaveSetupHistory joins the block at a cycle with the sessions already done,
 // and answers with the dashboard that now picks up after them.
-func (h *Handler) saveSetupHistory(w http.ResponseWriter, r *http.Request) {
-	idx, err := pathCycle(r)
+func (s *Server) SaveSetupHistory(ctx context.Context, req SaveSetupHistoryRequestObject) (SaveSetupHistoryResponseObject, error) {
+	done := make([]training.PastSession, 0, len(req.Body.Done))
+	for _, d := range req.Body.Done {
+		done = append(done, training.PastSession{Round: d.Round, Slug: d.Slug, PRReps: deref(d.PRReps)})
+	}
+	if err := s.svc.SaveSetupHistory(ctx, req.Cycle, done); err != nil {
+		return nil, err
+	}
+	d, err := s.dashboard(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	var in SetupHistoryInput
-	if err := decode(w, r, &in); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	done := make([]training.PastSession, 0, len(in.Done))
-	for _, d := range in.Done {
-		done = append(done, training.PastSession{Round: d.Round, Slug: d.Slug, PRReps: d.PRReps})
-	}
-	if err := h.svc.SaveSetupHistory(r.Context(), idx, done); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	h.dashboard(w, r)
-}
-
-func pathCycle(r *http.Request) (int, error) {
-	idx, err := strconv.Atoi(r.PathValue("cycle"))
-	if err != nil {
-		return 0, training.ErrUnknownCycle
-	}
-	return idx, nil
+	return SaveSetupHistory200JSONResponse(d), nil
 }

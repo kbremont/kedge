@@ -1,44 +1,44 @@
 {
   "needsSetup": false,
-  "unit": "lb",
-  "programName": "5's PRO + BBB / 5-3-1 + FSL",
   "next": {
+    "blockNumber": 1,
+    "blocked": false,
+    "canSkip": false,
+    "cycleLabel": "Leader 1 - Round 1",
+    "inProgress": false,
     "liftName": "Overhead Press",
     "liftSlug": "press",
-    "cycleLabel": "Leader 1 - Round 1",
     "phase": "leader",
-    "trainingMax": 100,
-    "inProgress": false,
-    "workoutId": 0,
-    "blockNumber": 1,
     "roundOfBlock": 1,
     "roundsInBlock": 11,
-    "blocked": false,
-    "canSkip": false
+    "trainingMax": 100,
+    "workoutId": 0
   },
+  "programName": "5's PRO + BBB / 5-3-1 + FSL",
+  "recent": [],
+  "review": null,
+  "testResults": [],
   "tms": [
     {
-      "slug": "press",
       "name": "Overhead Press",
+      "slug": "press",
       "value": 100
     },
     {
-      "slug": "deadlift",
       "name": "Deadlift",
+      "slug": "deadlift",
       "value": 300
     },
     {
-      "slug": "bench",
       "name": "Bench Press",
+      "slug": "bench",
       "value": 200
     },
     {
-      "slug": "squat",
       "name": "Squat",
+      "slug": "squat",
       "value": 250
     }
   ],
-  "recent": [],
-  "testResults": [],
-  "review": null
+  "unit": "lb"
 }

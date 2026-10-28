@@ -28,10 +28,11 @@ Decisions made with the user:
 ├── docs/                     design overview screenshots, App Store listing text and review notes, privacy policy
 │
 ├── server/                   Go module: github.com/kbremont/531-tracker/server
-│   ├── go.mod, go.sum        tool directives: templ, sqlc, tygo, staticcheck
+│   ├── go.mod, go.sum        tool directives: templ, sqlc, oapi-codegen, staticcheck, oasdiff
 │   ├── README.md             the program, running, config, backups, Pi deploy (moved from today's README)
 │   ├── Dockerfile, .dockerignore, docker-compose.yml, .env.example
-│   ├── sqlc.yaml, tygo.yaml
+│   ├── sqlc.yaml
+│   ├── api/openapi.yaml      the API's spec, written by hand: the contract between the halves
 │   ├── cmd/server/main.go    entry point, plus -healthcheck and -seed-demo flags
 │   ├── internal/
 │   │   ├── program/          pure 5/3/1 engine (unchanged)
@@ -40,7 +41,8 @@ Decisions made with the user:
 │   │   │                     estimates, chart, settings, history, backup; read models
 │   │   ├── auth/             NEW: session tokens (HMAC), password check, cookie or Bearer middleware
 │   │   ├── web/              HTML: thin handlers + templ templates + format helpers + embedded static/
-│   │   ├── api/              NEW: JSON v1: handlers, wire types (json tags), error mapping, testdata/*.json
+│   │   ├── api/              NEW: JSON v1: oapi.gen.go (generated from the spec), handlers, error mapping,
+│   │   │                     testdata/*.json
 │   │   ├── demo/             NEW: seeds a realistic demo database
 │   │   └── server/           assembles routes, middleware, /healthz, panic recovery
 │   └── tools/genicons/
@@ -63,8 +65,8 @@ Decisions made with the user:
         ├── components/       ui/ (Button, Card, ListRow, Segmented, Switch, Field, PageHeader)
         │                     workout/ (SetRow, RepPicker, RestTimer), today/ (NextUpCard,
         │                     TMTestResult, BlockReview), lift/ (LiftChart, PastEstimates)
-        ├── api/              client.ts (fetch, Bearer, errors), queries.ts (TanStack Query hooks),
-        │                     types.gen.ts (generated), fixtures/ (generated)
+        ├── api/              client.ts (openapi-fetch, Bearer, errors), queries.ts (openapi-react-query
+        │                     hooks), schema.gen.ts (generated), fixtures/ (generated)
         └── lib/              connection.ts (server URL and token in the keychain), small helpers
 ```
 
@@ -106,9 +108,10 @@ Split `mobile/` out later with `git subtree split` if other people start contrib
   - `jest-expo` + React Native Testing Library, with tests next to the code they cover.
   - Dependencies added with `npx expo install` so versions match the SDK.
 - **Contract between the halves:**
-  - The Go wire types in `internal/api` are the source of truth.
-  - `make generate` runs templ, sqlc, and **tygo** (Go structs → `mobile/src/api/types.gen.ts`), then copies `server/internal/api/testdata/*.json` into `mobile/src/api/fixtures/`.
-  - Generated files are committed and CI checks they're current, the same as templ and sqlc output today.
+  - The OpenAPI 3.0 spec in `server/api/openapi.yaml`, written by hand, is the source of truth: routes, parameters, request bodies, and every answer with its status.
+  - `make generate` runs templ, sqlc, **oapi-codegen** (spec → the server's wire types and a typed method per operation in `internal/api/oapi.gen.go`) and **openapi-typescript** (spec → `mobile/src/api/schema.gen.ts`), then copies `server/internal/api/testdata/*.json` into `mobile/src/api/fixtures/`.
+  - The server checks every request against the spec, and the Go tests check every answer against it, golden responses included.
+  - Generated files are committed and CI checks they're current, the same as templ and sqlc output. CI also runs oasdiff against the base branch and fails on a breaking change unless `info.version` changes with it.
   - Wire types are kept separate from the internal read models, so renaming a Go field can't silently break installed apps. `/api/v1` and the `info` endpoint guard against an app and server on different versions.
 
 ## Phases
@@ -192,7 +195,29 @@ Done in six commits, each with `make check` green. `flow_test`, `pages_test` and
   - `api_test.go` repeats the `flow_test` scenarios through the API: TM test through to the next block, a failed test holding only the anchor, block review proposals, the 7th week deload including skipping it, setup reps.
   - Golden responses for every screen state go in `testdata/` (`go test ./internal/api -update`).
 - **Demo data:** `internal/demo` plus the `-seed-demo` flag fill an empty database with a realistic block.
-- **Generation:** `make generate` writes `mobile/src/api/types.gen.ts` and the fixtures.
+- **Generation:** `make generate` writes `mobile/src/api/types.gen.ts` and the fixtures. *(Since replaced: see 2a.)*
+
+### 2a. Describe the API with OpenAPI ✅ Complete
+
+Phase 2's contract was code-first: Go structs turned into TypeScript by tygo, which covered data shapes but not routes, methods, parameters or status codes. It's now spec-first, in six commits, each with `make check` and `go test -race` green:
+
+1. `server/api/openapi.yaml` describes the API as it shipped, and the test harness checks every answer against it with kin-openapi. All 27 golden responses passed against the hand-written handlers before any code moved.
+2. oapi-codegen (strict server) generates `internal/api/oapi.gen.go`, `types.go` is gone, and nethttp-middleware checks every request against the spec after the session check. The goldens changed only in key order (the generated structs are alphabetical); sorted, each is identical.
+3. openapi-typescript writes `mobile/src/api/schema.gen.ts` in place of tygo's `types.gen.ts`. The root type names are unchanged, every fixture type-checks against them, and `tsc` still shows only the three template errors.
+4. A CI job runs `oasdiff breaking` against the base branch's spec. Renaming a response property made it fail with an ERR; adding one didn't.
+5. `Dashboard.next` and `review` get `type: object` beside `nullable`, which Redocly's linter requires for 3.0.3. `redocly lint` now reports no errors, only three expected warnings (no license, `getInfo` has no 4xx, and the 405 response is unused by design).
+6. These docs.
+
+The same request script ran against `main` and this branch, each on a fresh `-seed-demo` database: every success answered identically, apart from key order. The only differences were the stricter requests below and the validator's wording for a missing or malformed body. Backups still open in `sqlite3` and leave no snapshot behind, the web UI still works through a cookie, and the Docker image answers `/healthz`, `/api/v1/info` and `/api/v1/openapi.json`.
+
+Where the result differs from what was planned, or is worth knowing:
+
+- **Stricter requests:** a body needs `Content-Type: application/json` and the fields the spec marks required. An unknown BBB mode or TM-test action is a 400 rather than the default. A known path with the wrong method is a 405 with `Allow`, where it was a 404. A path segment that doesn't fit its parameter is still a 404.
+- **`api.Handler` is now `api.Server`,** because the generated code declares a `Handler` function in the same package.
+- **Generator settings:** enum constants are prefixed (`PhaseTMTest`, `ToneUp`), `BBB` joins the planned initialisms, and `skip-prune` keeps the 405 response, which no operation lists, in the embedded spec. oapi-codegen capitalizes operation ids as it embeds the spec, so `/api/v1/openapi.json` has `GetDashboard` where the file has `getDashboard`; `TestSpec` allows for exactly that.
+- **TypeScript:** openapi-typescript 7 declares a TypeScript 5 peer; an npm `overrides` entry lets it use the app's TypeScript 6. `--root-types-keep-casing` keeps names such as `LiftTM` and `BBBMode`, which it would otherwise rewrite as `LiftTm`.
+- **CI:** the generate job sets up Node from `mobile/.nvmrc` and runs `npm ci` before `make generate`, and also runs when `mobile/package.json` or its lockfile change (the spec is already under `server/**`). `release.yml`'s generate check now covers `oapi.gen.go`.
+- **The spec is served** at `/api/v1/openapi.json`, without a session and with `Access-Control-Allow-Origin: *`, for docs viewers.
 
 ### 3. Design the screens. **Checkpoint: user approval**
 
@@ -221,9 +246,9 @@ Done in six commits, each with `make check` green. `flow_test`, `pages_test` and
 
 ### 4. Wire up the live API
 
-- **Client:** `api/client.ts` is a typed fetch with the Bearer token. A 401 sends the user to sign in; an old server shows an "update your server" message (checked via `info`).
+- **Client:** `api/client.ts` is `openapi-fetch` over `schema.gen.ts`'s `paths`, so every path, parameter, body and response is checked at compile time, with a middleware that adds the Bearer token. A 401 sends the user to sign in; an old server shows an "update your server" message (checked via `info`).
 - **Connect:** normalize the URL, check `info`, sign in, and keep the URL and token in `expo-secure-store`.
-- **Data:** TanStack Query hooks, with returned screen data written straight into the cache, and a refetch when the app comes to the foreground.
+- **Data:** TanStack Query hooks from `openapi-react-query` over the same client, with returned screen data written straight into the cache, and a refetch when the app comes to the foreground.
 - **Rest timer:**
   - starts when a set is logged, for the `restSeconds` the server returns
   - counts down against the clock, so it stays right if the phone sleeps
@@ -254,7 +279,8 @@ Done in six commits, each with `make check` green. `flow_test`, `pages_test` and
 ### 7. CI and docs
 
 - **`ci.yml`:**
-  - **server job** (on `server/**` changes): gofmt, vet, staticcheck, `go test -race`, and the generate-then-`git diff` check, which now also covers `types.gen.ts` and the fixtures.
+  - **server job** (on `server/**` changes): gofmt, vet, staticcheck, `go test -race`, and the generate-then-`git diff` check, which sets up Node and runs `npm ci` in `mobile/` so it also covers `oapi.gen.go`, `schema.gen.ts` and the fixtures.
+  - **breaking job:** `oasdiff breaking` against the base branch's spec, failing unless `info.version` changes with a break.
   - **mobile job** (on `mobile/**` changes): `npm ci`, `tsc --noEmit`, `expo lint`, `jest`, `npx expo-doctor`, `npx expo export --platform ios`.
   - **image job:** the existing smoke test, with the server as build context.
 - **`release.yml`:** builds the server image only, filtered to `server/**`.
