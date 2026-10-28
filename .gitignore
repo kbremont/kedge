@@ -1,5 +1,5 @@
-/bin/
-/data/
+/server/bin/
+/server/data/
 *.db
 *.db-shm
 *.db-wal

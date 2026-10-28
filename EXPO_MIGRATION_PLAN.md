@@ -130,7 +130,14 @@ Everything below is done, including the user steps. fnm switches to Node 24 in `
 
 Already installed: Xcode 27.1, an iOS 26.4 simulator, CocoaPods.
 
-### 1. Restructure the Go server (no behavior change)
+### 1. Restructure the Go server (no behavior change) ✅ Complete
+
+Done in five commits, one per step, each with `make check` green. A black-box transcript of about 2,200 requests across every route matched the old server byte for byte, apart from one space of whitespace in the onboarding page's markup. Where the result differs from the plan below:
+
+- `estimates_test` stays in `internal/server` next to `flow_test`, because it drives the HTTP routes. `state_test` and `chart_test` moved to `training`. The rep picker and rep target tests moved to `training` too, now that those are methods on `training.Set`.
+- The flow tests' harness reads through `training.Service` and the database instead of the server's private fields. The assertions are unchanged.
+- Templates render `training`'s read models directly. Page-only state (`?rest=1`, `?saved=1`, `?error=1`, setup form errors) lives in small `web` wrappers that embed them. Form field names stay in `web`.
+- The image build no longer runs `go mod download`, which would also fetch the tools' dependencies (over 1 GB). `go build` fetches only what the binary imports, using BuildKit cache mounts.
 
 1. **Move the code.** `git mv` `cmd/ internal/ tools/ go.mod go.sum sqlc.yaml Dockerfile .dockerignore docker-compose.yml .env.example` into `server/`.
    - Change the module path to `github.com/kbremont/531-tracker/server` and rewrite imports.

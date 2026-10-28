@@ -4,20 +4,25 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    # Only server changes produce a new image. Tag pushes ignore path filters.
+    paths:
+      - "server/**"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false   # never cancel a publish mid-flight
+
+defaults:
+  run:
+    working-directory: server
 
 permissions:
   contents: read
   packages: write
   id-token: write
   attestations: write
-
-env:
-  TEMPL_VERSION: v0.3.1020
-  SQLC_VERSION: v1.31.1
 
 jobs:
   test:
@@ -28,9 +33,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
       - run: gofmt -l cmd internal tools | tee /dev/stderr | (! read)
       - run: go vet ./...
+      - run: go tool staticcheck ./...
       - run: go test -race ./...
 
   generate:
@@ -39,10 +46,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
-      - run: go install github.com/a-h/templ/cmd/templ@${{ env.TEMPL_VERSION }}
-      - run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@${{ env.SQLC_VERSION }}
-      - run: templ generate && sqlc generate
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      # Both tools are pinned by the tool block in server/go.mod.
+      - run: go tool templ generate && go tool sqlc generate
       - run: git diff --exit-code
 
   publish:
@@ -69,7 +76,7 @@ jobs:
       - uses: docker/build-push-action@v6
         id: build
         with:
-          context: .
+          context: server
           platforms: linux/arm64,linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
