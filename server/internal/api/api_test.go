@@ -63,7 +63,8 @@ func newHarness(t *testing.T) *harness {
 	}
 }
 
-// request sends body, if any, as JSON. A string body is sent as it is.
+// request sends body, if any, as JSON. A string body is sent as it is. The
+// answer is checked against the spec.
 func (h *harness) request(method, path string, body any, token string) *httptest.ResponseRecorder {
 	h.t.Helper()
 	var r io.Reader
@@ -90,6 +91,7 @@ func (h *harness) request(method, path string, body any, token string) *httptest
 	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 		h.t.Errorf("%s %s: Cache-Control %q, want no-store", method, path, got)
 	}
+	checkAnswer(h.t, req, rec)
 	return rec
 }
 
