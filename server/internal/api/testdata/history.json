@@ -1,0 +1,78 @@
+{
+  "items": [
+    {
+      "workoutId": 7,
+      "liftName": "Bench Press",
+      "liftSlug": "bench",
+      "cycleLabel": "Anchor - Round 1",
+      "date": "Jan 19",
+      "summary": "170 x 5"
+    },
+    {
+      "workoutId": 6,
+      "liftName": "Deadlift",
+      "liftSlug": "deadlift",
+      "cycleLabel": "Anchor - Round 1",
+      "date": "Jan 17",
+      "summary": "255 x 5"
+    },
+    {
+      "workoutId": 5,
+      "liftName": "Overhead Press",
+      "liftSlug": "press",
+      "cycleLabel": "Anchor - Round 1",
+      "date": "Jan 15",
+      "summary": "85 x 5"
+    },
+    {
+      "workoutId": 4,
+      "liftName": "Squat",
+      "liftSlug": "squat",
+      "cycleLabel": "7th Week TM Test",
+      "date": "Jan 13",
+      "summary": "250 x 4"
+    },
+    {
+      "workoutId": 3,
+      "liftName": "Bench Press",
+      "liftSlug": "bench",
+      "cycleLabel": "7th Week TM Test",
+      "date": "Jan 11",
+      "summary": "200 x 5"
+    },
+    {
+      "workoutId": 2,
+      "liftName": "Deadlift",
+      "liftSlug": "deadlift",
+      "cycleLabel": "7th Week TM Test",
+      "date": "Jan 9",
+      "summary": "300 x 4"
+    },
+    {
+      "workoutId": 1,
+      "liftName": "Overhead Press",
+      "liftSlug": "press",
+      "cycleLabel": "7th Week TM Test",
+      "date": "Jan 7",
+      "summary": "100 x 6"
+    }
+  ],
+  "lifts": [
+    {
+      "slug": "press",
+      "name": "Overhead Press"
+    },
+    {
+      "slug": "deadlift",
+      "name": "Deadlift"
+    },
+    {
+      "slug": "bench",
+      "name": "Bench Press"
+    },
+    {
+      "slug": "squat",
+      "name": "Squat"
+    }
+  ]
+}

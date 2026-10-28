@@ -1,0 +1,44 @@
+{
+  "needsSetup": false,
+  "unit": "lb",
+  "programName": "5's PRO + BBB / 5-3-1 + FSL",
+  "next": {
+    "liftName": "Overhead Press",
+    "liftSlug": "press",
+    "cycleLabel": "Leader 1 - Round 1",
+    "phase": "leader",
+    "trainingMax": 100,
+    "inProgress": false,
+    "workoutId": 0,
+    "blockNumber": 1,
+    "roundOfBlock": 1,
+    "roundsInBlock": 11,
+    "blocked": false,
+    "canSkip": false
+  },
+  "tms": [
+    {
+      "slug": "press",
+      "name": "Overhead Press",
+      "value": 100
+    },
+    {
+      "slug": "deadlift",
+      "name": "Deadlift",
+      "value": 300
+    },
+    {
+      "slug": "bench",
+      "name": "Bench Press",
+      "value": 200
+    },
+    {
+      "slug": "squat",
+      "name": "Squat",
+      "value": 250
+    }
+  ],
+  "recent": [],
+  "testResults": [],
+  "review": null
+}
