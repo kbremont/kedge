@@ -140,16 +140,20 @@ make run      # http://localhost:3000, AUTH_PASSWORD=dev, data in server/data
 make demo     # the same, against server/data-demo filled with a demo block
 make check    # fmt, vet, staticcheck, test
 make golden   # rewrite the API's golden responses
-make generate # regenerate templ, sqlc, and the app's API types and fixtures
+make generate # regenerate templ, sqlc, the API server, and the app's API types and fixtures
 ```
 
-Requires Go 1.27. The code generators (templ, sqlc, and tygo) and staticcheck
-are pinned by the `tool` block in `go.mod` and run as `go tool templ`,
-`go tool sqlc` and so on, so nothing needs installing.
+Requires Go 1.27. The code generators (templ, sqlc and oapi-codegen),
+staticcheck and oasdiff are pinned by the `tool` block in `go.mod` and run as
+`go tool templ`, `go tool sqlc` and so on, so nothing needs installing. The
+app's API types come from openapi-typescript, pinned in
+`mobile/package.json`, so `make generate` also needs Node and `npm ci` run
+once in `mobile/`.
 
-Generated files (`*_templ.go`, `internal/db/*.go`, and the app's
-`mobile/src/api/types.gen.ts` and `fixtures/`) are committed, so none of the
-generators is needed to build. CI fails if `make generate` changes anything.
+Generated files (`*_templ.go`, `internal/db/*.go`, `internal/api/oapi.gen.go`,
+and the app's `mobile/src/api/schema.gen.ts` and `fixtures/`) are committed,
+so none of the generators is needed to build. CI fails if `make generate`
+changes anything.
 
 The Go module is `github.com/kbremont/531-tracker/server`, rooted here, so
 `go test ./...` run from this directory covers the whole server and nothing
@@ -164,7 +168,8 @@ internal/db         schema, migrations, sqlc-generated queries
 internal/training   the program applied to the database; returns read models
 internal/auth       session tokens, from a cookie or a Bearer header
 internal/web        HTML: thin handlers, templ templates, embedded CSS and icons
-internal/api        the app's JSON API: wire types, thin handlers, golden responses
+api/openapi.yaml    the JSON API's spec: the contract with the app
+internal/api        the API: server generated from the spec, thin handlers, golden responses
 internal/demo       fills an empty database with a demo block (-seed-demo)
 internal/server     routes, /healthz, panic recovery
 ```
@@ -185,6 +190,22 @@ logic.
 The iOS app talks to `/api/v1`. Every route answers JSON, never a redirect,
 and `Cache-Control: no-store`.
 
+**The spec is the contract.** `api/openapi.yaml` (OpenAPI 3.0) describes
+every route: its path parameters, request body, and each answer it can give,
+with the schemas of all of them. It is written by hand, and both ends are
+generated from it: oapi-codegen writes the server's types and a typed method
+per operation in `internal/api/oapi.gen.go`, and openapi-typescript writes
+the app's `mobile/src/api/schema.gen.ts`. The server checks every request
+against the spec before a handler sees it, and the tests check every answer
+against it, all the golden responses included. The spec declares shapes:
+types, required fields and enums. The rules, such as how many reps a set can
+have, stay in `internal/training`, whose messages reach the app as they are.
+
+To browse it, a running server serves it at `/api/v1/openapi.json`, with no
+session needed, for Swagger UI, Scalar or any other viewer. Or render the
+file: `npx @redocly/cli build-docs api/openapi.yaml` writes a page you can
+open.
+
 **Signing in.** `GET /api/v1/info` needs no session and answers
 `{apiVersion, version}`. `POST /api/v1/login` with `{"password": "…"}`
 answers `{token, expiresAt}` (RFC 3339), or a 401. Send the token as
@@ -193,13 +214,16 @@ cookie, so it lasts 60 days, and changing `AUTH_PASSWORD` invalidates it.
 Nothing is stored on the server, so signing out is the app forgetting the
 token.
 
-**Versioning.** `apiVersion` only goes up for a change that breaks an
-installed app: a field removed, renamed or retyped, or a route changed.
-Adding a field or a route is not breaking, since the app ignores what it does
-not know, and the server ignores request fields it does not know. The app
-checks `info` first and asks for a server update when it is behind.
+**Versioning.** `apiVersion`, the spec's `info.version`, only goes up for a
+change that breaks an installed app: a field removed, renamed or retyped, a
+request field made required, or a route changed. Adding a field or a route is
+not breaking, since the app ignores what it does not know, and the server
+ignores request fields it does not know. The app checks `info` first and asks
+for a server update when it is behind. CI compares the spec with the base
+branch's using oasdiff and fails a pull request with a breaking change,
+unless it also changes `info.version` and `APIVersion`.
 
-**Routes**, all under `/api/v1`:
+**Routes**, all under `/api/v1`, in brief; the spec has the details:
 
 | Route | Body | Answers |
 |---|---|---|
@@ -227,30 +251,35 @@ checks `info` first and asks for a server update when it is behind.
 | `GET backup` | | the database, as `application/octet-stream` |
 
 A change answers with the screen the web form would redirect to, so the app
-never needs a second request. Input is read exactly as the forms read it:
-for example, a settings number that is not positive keeps the current value.
+never needs a second request. A request body is JSON, sent with
+`Content-Type: application/json`, and has the fields the spec marks
+required. Input is otherwise read exactly as the forms read it: for example,
+a settings number that is not positive keeps the current value.
 
 **Errors** are `{"error": "…"}` with a message that can be shown as it is:
 
 | Status | When |
 |---|---|
-| 400 | input training rejects, or a body that is not the JSON the route expects |
+| 400 | input training rejects, or a body that does not match the spec, with the reason |
 | 401 | no session, an expired one, or a wrong password |
 | 404 | a workout, lift, estimate or cycle that does not exist, or an unknown path |
+| 405 | a route asked for with a method it does not have; `Allow` lists the ones it has |
 | 409 | training is held on a decision, or the decision is no longer on offer, or there is nothing to start; fetch the dashboard |
 | 500 | logged on the server; the message is generic |
 
-**The contract with the app.** The wire types in `internal/api/types.go` are
-the source of truth. `internal/api/testdata/*.json` holds a golden response
-for every screen state the app shows. After changing the API:
+**Changing the API.** Start with the spec, then:
 
 ```sh
+make generate  # oapi.gen.go, and schema.gen.ts in mobile/src/api
+               # then implement or adjust the handler; the build says which
 make golden    # rewrite the golden responses; review the diff
-make generate  # types.gen.ts and fixtures/ in mobile/src/api
+make generate  # copy them to mobile/src/api/fixtures
 ```
 
-and commit the result. `go test ./internal/api` fails while a golden response
-is out of date, and CI fails while the app's copies are.
+and commit the result. `internal/api/testdata/*.json` holds a golden response
+for every screen state the app shows. `go test ./internal/api` fails while a
+golden response is out of date or an answer does not match the spec, and CI
+fails while the generated files or the app's copies are out of date.
 
 ### Demo data
 
