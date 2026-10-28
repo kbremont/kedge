@@ -1,0 +1,174 @@
+{
+  "id": 1,
+  "liftName": "Overhead Press",
+  "cycleLabel": "7th Week Deload",
+  "phase": "deload",
+  "unit": "lb",
+  "trainingMax": 100,
+  "sets": [
+    {
+      "idx": 0,
+      "tag": "Warmup",
+      "weight": 45,
+      "pct": 0.4,
+      "targetReps": 5,
+      "maxReps": 0,
+      "isAmrap": false,
+      "repTarget": "5",
+      "plates": "",
+      "plateLine": "Empty bar",
+      "unloadable": 0,
+      "done": true,
+      "actualReps": 5,
+      "asksReps": false,
+      "repChoices": []
+    },
+    {
+      "idx": 1,
+      "tag": "Warmup",
+      "weight": 50,
+      "pct": 0.5,
+      "targetReps": 5,
+      "maxReps": 0,
+      "isAmrap": false,
+      "repTarget": "5",
+      "plates": "2.5",
+      "plateLine": "Bar + 2.5 per side",
+      "unloadable": 0,
+      "done": true,
+      "actualReps": 5,
+      "asksReps": false,
+      "repChoices": []
+    },
+    {
+      "idx": 2,
+      "tag": "Warmup",
+      "weight": 60,
+      "pct": 0.6,
+      "targetReps": 5,
+      "maxReps": 0,
+      "isAmrap": false,
+      "repTarget": "5",
+      "plates": "5, 2.5",
+      "plateLine": "Bar + 5, 2.5 per side",
+      "unloadable": 0,
+      "done": true,
+      "actualReps": 5,
+      "asksReps": false,
+      "repChoices": []
+    },
+    {
+      "idx": 3,
+      "tag": "Main",
+      "weight": 70,
+      "pct": 0.7,
+      "targetReps": 5,
+      "maxReps": 0,
+      "isAmrap": false,
+      "repTarget": "5",
+      "plates": "10, 2.5",
+      "plateLine": "Bar + 10, 2.5 per side",
+      "unloadable": 0,
+      "done": true,
+      "actualReps": 5,
+      "asksReps": false,
+      "repChoices": []
+    },
+    {
+      "idx": 4,
+      "tag": "Main",
+      "weight": 80,
+      "pct": 0.8,
+      "targetReps": 3,
+      "maxReps": 5,
+      "isAmrap": false,
+      "repTarget": "3–5",
+      "plates": "10, 5, 2.5",
+      "plateLine": "Bar + 10, 5, 2.5 per side",
+      "unloadable": 0,
+      "done": false,
+      "actualReps": 0,
+      "asksReps": true,
+      "repChoices": [
+        {
+          "reps": 1,
+          "target": false
+        },
+        {
+          "reps": 2,
+          "target": false
+        },
+        {
+          "reps": 3,
+          "target": true
+        },
+        {
+          "reps": 4,
+          "target": true
+        },
+        {
+          "reps": 5,
+          "target": true
+        },
+        {
+          "reps": 6,
+          "target": false
+        },
+        {
+          "reps": 7,
+          "target": false
+        },
+        {
+          "reps": 8,
+          "target": false
+        },
+        {
+          "reps": 9,
+          "target": false
+        },
+        {
+          "reps": 10,
+          "target": false
+        }
+      ]
+    },
+    {
+      "idx": 5,
+      "tag": "Main",
+      "weight": 90,
+      "pct": 0.9,
+      "targetReps": 1,
+      "maxReps": 0,
+      "isAmrap": false,
+      "repTarget": "1",
+      "plates": "10, 10, 2.5",
+      "plateLine": "Bar + 10, 10, 2.5 per side",
+      "unloadable": 0,
+      "done": false,
+      "actualReps": 0,
+      "asksReps": false,
+      "repChoices": []
+    },
+    {
+      "idx": 6,
+      "tag": "Main",
+      "weight": 100,
+      "pct": 1,
+      "targetReps": 1,
+      "maxReps": 0,
+      "isAmrap": false,
+      "repTarget": "1",
+      "plates": "25, 2.5",
+      "plateLine": "Bar + 25, 2.5 per side",
+      "unloadable": 0,
+      "done": false,
+      "actualReps": 0,
+      "asksReps": false,
+      "repChoices": []
+    }
+  ],
+  "currentIdx": 4,
+  "restSeconds": 90,
+  "completed": false,
+  "bestE1rm": 0
+}

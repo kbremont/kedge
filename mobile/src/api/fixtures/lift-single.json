@@ -1,0 +1,39 @@
+{
+  "name": "Overhead Press",
+  "slug": "press",
+  "unit": "lb",
+  "currentTm": 100,
+  "chart": {
+    "width": 320,
+    "height": 160,
+    "path": "M 160.0 70.0",
+    "points": [
+      {
+        "x": 160,
+        "y": 70,
+        "label": "115",
+        "past": true
+      }
+    ],
+    "yMin": 110,
+    "yMax": 120
+  },
+  "bestE1rm": 115,
+  "tmHistory": [
+    {
+      "value": 100,
+      "date": "Jan 6",
+      "note": "initial setup"
+    }
+  ],
+  "pastEstimates": [
+    {
+      "id": 1,
+      "date": "Nov 3, 2025",
+      "weight": 115,
+      "reps": 1,
+      "estimate": 115
+    }
+  ],
+  "today": "2026-03-16"
+}

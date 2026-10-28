@@ -2,15 +2,27 @@ SERVER  := server
 BINARY  := bin/531
 VERSION := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
-.PHONY: all generate build test run fmt vet lint check icons docker app clean
+.PHONY: all generate golden build test run demo fmt vet lint check icons docker app clean
 
 all: check build
 
-## generate: regenerate templ templates and sqlc queries
-## The tools are pinned in server/go.mod and run with go tool.
+FIXTURES := mobile/src/api/fixtures
+
+## generate: regenerate templ templates, sqlc queries, and the app's API
+## types and fixtures. The tools are pinned in server/go.mod and run with
+## go tool. The fixtures are the golden responses; refresh those with
+## make golden first.
 generate:
 	cd $(SERVER) && go tool templ generate
 	cd $(SERVER) && go tool sqlc generate
+	cd $(SERVER) && go tool tygo generate
+	rm -rf $(FIXTURES)
+	mkdir -p $(FIXTURES)
+	cp $(SERVER)/internal/api/testdata/*.json $(FIXTURES)/
+
+## golden: rewrite the API's golden responses in server/internal/api/testdata
+golden:
+	cd $(SERVER) && go test ./internal/api -update
 
 ## icons: redraw the PWA icons
 icons:

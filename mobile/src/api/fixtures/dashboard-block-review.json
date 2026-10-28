@@ -1,0 +1,152 @@
+{
+  "needsSetup": false,
+  "unit": "lb",
+  "programName": "5's PRO + BBB / 5-3-1 + FSL",
+  "next": {
+    "liftName": "Overhead Press",
+    "liftSlug": "press",
+    "cycleLabel": "Leader 1 - Round 1",
+    "phase": "leader",
+    "trainingMax": 90,
+    "inProgress": false,
+    "workoutId": 0,
+    "blockNumber": 2,
+    "roundOfBlock": 1,
+    "roundsInBlock": 11,
+    "blocked": true,
+    "canSkip": false
+  },
+  "tms": [
+    {
+      "slug": "press",
+      "name": "Overhead Press",
+      "value": 90
+    },
+    {
+      "slug": "deadlift",
+      "name": "Deadlift",
+      "value": 300
+    },
+    {
+      "slug": "bench",
+      "name": "Bench Press",
+      "value": 200
+    },
+    {
+      "slug": "squat",
+      "name": "Squat",
+      "value": 250
+    }
+  ],
+  "recent": [
+    {
+      "workoutId": 16,
+      "liftName": "Squat",
+      "liftSlug": "squat",
+      "cycleLabel": "Anchor - Round 3",
+      "date": "Feb 6",
+      "summary": "240 x 3"
+    },
+    {
+      "workoutId": 15,
+      "liftName": "Bench Press",
+      "liftSlug": "bench",
+      "cycleLabel": "Anchor - Round 3",
+      "date": "Feb 4",
+      "summary": "190 x 3"
+    },
+    {
+      "workoutId": 14,
+      "liftName": "Deadlift",
+      "liftSlug": "deadlift",
+      "cycleLabel": "Anchor - Round 3",
+      "date": "Feb 2",
+      "summary": "285 x 0"
+    },
+    {
+      "workoutId": 13,
+      "liftName": "Overhead Press",
+      "liftSlug": "press",
+      "cycleLabel": "Anchor - Round 3",
+      "date": "Jan 31",
+      "summary": "85 x 3"
+    },
+    {
+      "workoutId": 12,
+      "liftName": "Squat",
+      "liftSlug": "squat",
+      "cycleLabel": "Anchor - Round 2",
+      "date": "Jan 29",
+      "summary": "225 x 5"
+    },
+    {
+      "workoutId": 11,
+      "liftName": "Bench Press",
+      "liftSlug": "bench",
+      "cycleLabel": "Anchor - Round 2",
+      "date": "Jan 27",
+      "summary": "180 x 5"
+    },
+    {
+      "workoutId": 10,
+      "liftName": "Deadlift",
+      "liftSlug": "deadlift",
+      "cycleLabel": "Anchor - Round 2",
+      "date": "Jan 25",
+      "summary": "270 x 5"
+    },
+    {
+      "workoutId": 9,
+      "liftName": "Overhead Press",
+      "liftSlug": "press",
+      "cycleLabel": "Anchor - Round 2",
+      "date": "Jan 23",
+      "summary": "80 x 5"
+    }
+  ],
+  "testResults": [],
+  "review": {
+    "title": "Block 2: new training maxes",
+    "intro": "Recommended from last block's TM test and anchor PR sets. Edit any of them, then accept to start the block.",
+    "key": "b2:c0",
+    "unit": "lb",
+    "rows": [
+      {
+        "slug": "press",
+        "name": "Overhead Press",
+        "evidence": "PR sets 7, 5, 3 (min 5, 3, 1) · TM test 2",
+        "verdict": "Hit every PR set: +5 lb",
+        "tone": "up",
+        "current": 90,
+        "proposed": 95
+      },
+      {
+        "slug": "deadlift",
+        "name": "Deadlift",
+        "evidence": "PR sets 7, 5, 0 (min 5, 3, 1) · TM test 4",
+        "verdict": "Missed a PR set: reset 10%",
+        "tone": "down",
+        "current": 300,
+        "proposed": 270
+      },
+      {
+        "slug": "bench",
+        "name": "Bench Press",
+        "evidence": "PR sets 7, 5, 3 (min 5, 3, 1) · TM test 7",
+        "verdict": "PR sets and TM test: +10 lb",
+        "tone": "up",
+        "current": 200,
+        "proposed": 210
+      },
+      {
+        "slug": "squat",
+        "name": "Squat",
+        "evidence": "PR sets 7, 5, 3 (min 5, 3, 1) · TM test 5",
+        "verdict": "Hit every PR set: +10 lb",
+        "tone": "up",
+        "current": 250,
+        "proposed": 260
+      }
+    ]
+  }
+}

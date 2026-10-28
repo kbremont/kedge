@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "server/**"
+      - "mobile/src/api/**"
+      - "Makefile"
       - ".github/workflows/ci.yml"
   workflow_dispatch:
 
@@ -40,9 +42,13 @@ jobs:
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
-      # Both tools are pinned by the tool block in server/go.mod.
-      - run: go tool templ generate && go tool sqlc generate
-      - run: git diff --exit-code
+      # The generators are pinned by the tool block in server/go.mod. This
+      # covers templ, sqlc, and the app's types.gen.ts and fixtures.
+      - run: make generate
+        working-directory: .
+      # git diff alone would miss a new fixture, which is untracked.
+      - run: git status --porcelain && test -z "$(git status --porcelain)"
+        working-directory: .
 
   image:
     runs-on: ubuntu-latest

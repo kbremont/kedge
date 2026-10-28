@@ -1,0 +1,93 @@
+{
+  "needsSetup": false,
+  "unit": "lb",
+  "programName": "5's PRO + BBB / 5-3-1 + FSL",
+  "next": {
+    "liftName": "Bench Press",
+    "liftSlug": "bench",
+    "cycleLabel": "Leader 1 - Round 2",
+    "phase": "leader",
+    "trainingMax": 200,
+    "inProgress": false,
+    "workoutId": 0,
+    "blockNumber": 1,
+    "roundOfBlock": 2,
+    "roundsInBlock": 11,
+    "blocked": false,
+    "canSkip": false
+  },
+  "tms": [
+    {
+      "slug": "press",
+      "name": "Overhead Press",
+      "value": 100
+    },
+    {
+      "slug": "deadlift",
+      "name": "Deadlift",
+      "value": 300
+    },
+    {
+      "slug": "bench",
+      "name": "Bench Press",
+      "value": 200
+    },
+    {
+      "slug": "squat",
+      "name": "Squat",
+      "value": 250
+    }
+  ],
+  "recent": [
+    {
+      "workoutId": 6,
+      "liftName": "Deadlift",
+      "liftSlug": "deadlift",
+      "cycleLabel": "Leader 1 - Round 2",
+      "date": "Jan 17",
+      "summary": "270 x 5"
+    },
+    {
+      "workoutId": 5,
+      "liftName": "Overhead Press",
+      "liftSlug": "press",
+      "cycleLabel": "Leader 1 - Round 2",
+      "date": "Jan 15",
+      "summary": "90 x 5"
+    },
+    {
+      "workoutId": 4,
+      "liftName": "Squat",
+      "liftSlug": "squat",
+      "cycleLabel": "Leader 1 - Round 1",
+      "date": "Jan 13",
+      "summary": "215 x 5"
+    },
+    {
+      "workoutId": 3,
+      "liftName": "Bench Press",
+      "liftSlug": "bench",
+      "cycleLabel": "Leader 1 - Round 1",
+      "date": "Jan 11",
+      "summary": "170 x 5"
+    },
+    {
+      "workoutId": 2,
+      "liftName": "Deadlift",
+      "liftSlug": "deadlift",
+      "cycleLabel": "Leader 1 - Round 1",
+      "date": "Jan 9",
+      "summary": "255 x 5"
+    },
+    {
+      "workoutId": 1,
+      "liftName": "Overhead Press",
+      "liftSlug": "press",
+      "cycleLabel": "Leader 1 - Round 1",
+      "date": "Jan 7",
+      "summary": "85 x 5"
+    }
+  ],
+  "testResults": [],
+  "review": null
+}

@@ -1,0 +1,21 @@
+{
+  "items": [],
+  "lifts": [
+    {
+      "slug": "press",
+      "name": "Overhead Press"
+    },
+    {
+      "slug": "deadlift",
+      "name": "Deadlift"
+    },
+    {
+      "slug": "bench",
+      "name": "Bench Press"
+    },
+    {
+      "slug": "squat",
+      "name": "Squat"
+    }
+  ]
+}
