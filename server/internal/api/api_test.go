@@ -170,7 +170,7 @@ func (h *harness) session(reps func(w db.Workout, set Set) int) db.Workout {
 		if reps != nil {
 			n = reps(row, set)
 		}
-		send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, set.Idx), LogSetInput{Reps: n})
+		send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, set.Idx), LogSetInput{Reps: new(n)})
 	}
 	send[Dashboard](h, http.MethodPost, fmt.Sprintf("/api/v1/workouts/%d/finish", w.ID), nil)
 	return row
@@ -526,7 +526,7 @@ func TestSeventhWeekDeload(t *testing.T) {
 	}
 	h.fails(http.StatusConflict, http.MethodPost, "/api/v1/skip-cycle", nil)
 	for _, s := range w.Sets {
-		send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, s.Idx), LogSetInput{Reps: s.TargetReps})
+		send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, s.Idx), LogSetInput{Reps: new(s.TargetReps)})
 	}
 	send[Dashboard](h, http.MethodPost, fmt.Sprintf("/api/v1/workouts/%d/finish", w.ID), nil)
 	if d = h.dashboard(); d.Next.CanSkip {
@@ -662,12 +662,24 @@ func TestInputErrors(t *testing.T) {
 
 	h.setup(startingTMs, 2)
 	w := send[Workout](h, http.MethodPost, "/api/v1/workouts", nil)
-	msg = h.fails(http.StatusBadRequest, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/0", w.ID), LogSetInput{Reps: 501})
+	msg = h.fails(http.StatusBadRequest, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/0", w.ID), LogSetInput{Reps: new(501)})
 	if msg != "Reps must be between 0 and 500." {
 		t.Errorf("501 reps: %q", msg)
 	}
 	if w = get[Workout](h, fmt.Sprintf("/api/v1/workouts/%d", w.ID)); w.Sets[0].Done {
 		t.Error("501 reps logged the set")
+	}
+
+	// Reps left out, or sent under the wrong name, are not a failed set: 0
+	// would count as a missed PR.
+	for _, body := range []any{struct{}{}, map[string]int{"rep": 5}, map[string]any{"reps": nil}} {
+		msg = h.fails(http.StatusBadRequest, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/0", w.ID), body)
+		if msg != "Enter the reps done." {
+			t.Errorf("log set with %v: %q", body, msg)
+		}
+	}
+	if w = get[Workout](h, fmt.Sprintf("/api/v1/workouts/%d", w.ID)); w.Sets[0].Done {
+		t.Error("a log without reps logged the set")
 	}
 
 	msg = h.fails(http.StatusBadRequest, http.MethodPost, "/api/v1/lifts/press/estimates", PastEstimateInput{Date: "2026-03-17", Weight: 120, Reps: 1})
@@ -724,7 +736,7 @@ func TestNotFound(t *testing.T) {
 		var body any
 		switch tc.method {
 		case http.MethodPut:
-			body = LogSetInput{Reps: 5}
+			body = LogSetInput{Reps: new(5)}
 		case http.MethodPost:
 			body = PastEstimateInput{Date: "2025-01-01", Weight: 100, Reps: 1}
 		}
@@ -820,7 +832,7 @@ func TestLogSetAnswers(t *testing.T) {
 			t.Fatalf("no %s set in %+v", tc.tag, w.Sets)
 		}
 		idx := w.Sets[i].Idx
-		got := send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, idx), LogSetInput{Reps: 4})
+		got := send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, idx), LogSetInput{Reps: new(4)})
 		set := got.Sets[i]
 		if !set.Done || set.ActualReps != 4 {
 			t.Errorf("%s set after logging: %+v", tc.tag, set)

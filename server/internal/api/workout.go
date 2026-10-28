@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+
+	"github.com/kbremont/531-tracker/server/internal/training"
 )
 
 // startWorkout starts the next session, or resumes the one in progress, and
@@ -47,7 +49,12 @@ func (h *Handler) logSet(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err)
 		return
 	}
-	if err := h.svc.LogSet(r.Context(), id, idx, in.Reps); err != nil {
+	// The web form leaves a set unlogged without its reps; so does this.
+	if in.Reps == nil {
+		h.fail(w, r, &training.InputError{Msg: "Enter the reps done."})
+		return
+	}
+	if err := h.svc.LogSet(r.Context(), id, idx, *in.Reps); err != nil {
 		h.fail(w, r, err)
 		return
 	}

@@ -387,7 +387,8 @@ export interface SetupDay {
   prTarget: number /* int */; // 0 without a PR set
 }
 /**
- * LogSetInput logs the reps done on a set.
+ * LogSetInput logs the reps done on a set. Reps is required: 0 is a set
+ * failed, so a body without it is refused rather than read as 0.
  */
 export interface LogSetInput {
   reps: number /* int */;

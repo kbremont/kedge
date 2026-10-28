@@ -208,7 +208,7 @@ checks `info` first and asks for a server update when it is behind.
 | `GET dashboard` | | `Dashboard`, with `needsSetup` before training maxes are entered |
 | `POST workouts` | | the `Workout` started, or the one in progress |
 | `GET workouts/{id}` | | `Workout` |
-| `PUT workouts/{id}/sets/{idx}` | `{reps}` | `Workout`; `restSeconds` starts the rest timer |
+| `PUT workouts/{id}/sets/{idx}` | `{reps}`, required (0 is a failed set) | `Workout`; `restSeconds` starts the rest timer |
 | `DELETE workouts/{id}/sets/{idx}` | | `Workout` |
 | `POST workouts/{id}/finish` | | `Dashboard` |
 | `DELETE workouts/{id}` | | `Dashboard` |

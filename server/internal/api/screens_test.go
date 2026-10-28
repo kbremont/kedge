@@ -86,7 +86,7 @@ func (h *harness) start(stop func(Set) bool) Workout {
 		if stop != nil && stop(s) {
 			break
 		}
-		w = send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, s.Idx), LogSetInput{Reps: s.TargetReps})
+		w = send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, s.Idx), LogSetInput{Reps: new(s.TargetReps)})
 	}
 	return w
 }

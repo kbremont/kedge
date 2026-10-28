@@ -334,9 +334,10 @@ type SetupDay struct {
 
 // Request bodies.
 
-// LogSetInput logs the reps done on a set.
+// LogSetInput logs the reps done on a set. Reps is required: 0 is a set
+// failed, so a body without it is refused rather than read as 0.
 type LogSetInput struct {
-	Reps int `json:"reps"`
+	Reps *int `json:"reps" tstype:",required"`
 }
 
 // PastEstimateInput adds an estimate from before the app.
