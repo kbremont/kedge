@@ -1,110 +1,116 @@
 package api
 
 import (
+	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"time"
 
 	"github.com/kbremont/531-tracker/server/internal/training"
 )
 
-func (h *Handler) info(w http.ResponseWriter, r *http.Request) {
-	h.writeJSON(w, r, http.StatusOK, Info{APIVersion: APIVersion, Version: h.version})
+// Each method is one operation in the spec. Success is the typed response
+// for its status; an error from training is returned as it is, and fail maps
+// it to a status and a message.
+
+func (s *Server) GetInfo(_ context.Context, _ GetInfoRequestObject) (GetInfoResponseObject, error) {
+	return GetInfo200JSONResponse{APIVersion: APIVersion, Version: s.version}, nil
 }
 
-// login exchanges the password for a session token. It is the same token the
+// Login exchanges the password for a session token. It is the same token the
 // browser keeps in its cookie, so the two sign in and expire alike.
-func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
-	var in LoginRequest
-	if err := decode(w, r, &in); err != nil {
-		h.fail(w, r, err)
-		return
+func (s *Server) Login(_ context.Context, req LoginRequestObject) (LoginResponseObject, error) {
+	if !s.sessions.CheckPassword(req.Body.Password) {
+		return Login401JSONResponse{UnauthorizedJSONResponse{Error: "Incorrect password."}}, nil
 	}
-	if !h.sessions.CheckPassword(in.Password) {
-		h.writeJSON(w, r, http.StatusUnauthorized, ErrorResponse{Error: "Incorrect password."})
-		return
-	}
-	token, expires := h.sessions.Issue()
-	h.writeJSON(w, r, http.StatusOK, LoginResponse{Token: token, ExpiresAt: expires.UTC().Format(time.RFC3339)})
+	token, expires := s.sessions.Issue()
+	return Login200JSONResponse{Token: token, ExpiresAt: expires.UTC().Format(time.RFC3339)}, nil
 }
 
-// dashboard answers the Today screen. Before training maxes are entered it
-// reports needsSetup, where the web redirects to the setup page.
-func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
-	d, err := h.svc.Dashboard(r.Context())
+// GetDashboard answers the Today screen. Before training maxes are entered
+// it reports needsSetup, where the web redirects to the setup page.
+func (s *Server) GetDashboard(ctx context.Context, _ GetDashboardRequestObject) (GetDashboardResponseObject, error) {
+	d, err := s.dashboard(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	h.writeJSON(w, r, http.StatusOK, toDashboard(d))
+	return GetDashboard200JSONResponse(d), nil
 }
 
-func (h *Handler) history(w http.ResponseWriter, r *http.Request) {
-	hist, err := h.svc.History(r.Context())
+// dashboard is the Today screen, which every change that leads back to it
+// answers with.
+func (s *Server) dashboard(ctx context.Context) (Dashboard, error) {
+	d, err := s.svc.Dashboard(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return Dashboard{}, err
 	}
-	h.writeJSON(w, r, http.StatusOK, toHistory(hist))
+	return toDashboard(d), nil
 }
 
-func (h *Handler) lift(w http.ResponseWriter, r *http.Request) {
-	h.sendLift(w, r, r.PathValue("slug"))
-}
-
-func (h *Handler) sendLift(w http.ResponseWriter, r *http.Request, slug string) {
-	l, err := h.svc.Lift(r.Context(), slug)
+func (s *Server) GetHistory(ctx context.Context, _ GetHistoryRequestObject) (GetHistoryResponseObject, error) {
+	hist, err := s.svc.History(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	h.writeJSON(w, r, http.StatusOK, toLift(l))
+	return GetHistory200JSONResponse(toHistory(hist)), nil
 }
 
-func (h *Handler) addPastEstimate(w http.ResponseWriter, r *http.Request) {
-	slug := r.PathValue("slug")
-	var in PastEstimateInput
-	if err := decode(w, r, &in); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	if err := h.svc.AddPastEstimate(r.Context(), slug, in.Date, in.Weight, in.Reps); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	h.sendLift(w, r, slug)
-}
-
-func (h *Handler) deletePastEstimate(w http.ResponseWriter, r *http.Request) {
-	slug := r.PathValue("slug")
-	id, err := pathID(r, "id")
+func (s *Server) GetLift(ctx context.Context, req GetLiftRequestObject) (GetLiftResponseObject, error) {
+	l, err := s.lift(ctx, req.Slug)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	if err := h.svc.DeletePastEstimate(r.Context(), slug, id); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	h.sendLift(w, r, slug)
+	return GetLift200JSONResponse(l), nil
 }
 
-func (h *Handler) settings(w http.ResponseWriter, r *http.Request) {
-	s, err := h.svc.Settings(r.Context())
+func (s *Server) lift(ctx context.Context, slug string) (Lift, error) {
+	l, err := s.svc.Lift(ctx, slug)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return Lift{}, err
 	}
-	h.writeJSON(w, r, http.StatusOK, toSettings(s))
+	return toLift(l), nil
 }
 
-func (h *Handler) saveSettings(w http.ResponseWriter, r *http.Request) {
-	var in SettingsInput
-	if err := decode(w, r, &in); err != nil {
-		h.fail(w, r, err)
-		return
+func (s *Server) AddPastEstimate(ctx context.Context, req AddPastEstimateRequestObject) (AddPastEstimateResponseObject, error) {
+	in := req.Body
+	if err := s.svc.AddPastEstimate(ctx, req.Slug, in.Date, in.Weight, in.Reps); err != nil {
+		return nil, err
 	}
+	l, err := s.lift(ctx, req.Slug)
+	if err != nil {
+		return nil, err
+	}
+	return AddPastEstimate200JSONResponse(l), nil
+}
+
+func (s *Server) DeletePastEstimate(ctx context.Context, req DeletePastEstimateRequestObject) (DeletePastEstimateResponseObject, error) {
+	if err := s.svc.DeletePastEstimate(ctx, req.Slug, req.ID); err != nil {
+		return nil, err
+	}
+	l, err := s.lift(ctx, req.Slug)
+	if err != nil {
+		return nil, err
+	}
+	return DeletePastEstimate200JSONResponse(l), nil
+}
+
+func (s *Server) GetSettings(ctx context.Context, _ GetSettingsRequestObject) (GetSettingsResponseObject, error) {
+	set, err := s.settings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return GetSettings200JSONResponse(set), nil
+}
+
+func (s *Server) settings(ctx context.Context) (Settings, error) {
+	set, err := s.svc.Settings(ctx)
+	if err != nil {
+		return Settings{}, err
+	}
+	return toSettings(set), nil
+}
+
+func (s *Server) SaveSettings(ctx context.Context, req SaveSettingsRequestObject) (SaveSettingsResponseObject, error) {
+	in := req.Body
 	change := training.SettingsInput{
 		Rounding:          in.Rounding,
 		BarWeight:         in.BarWeight,
@@ -116,84 +122,83 @@ func (h *Handler) saveSettings(w http.ResponseWriter, r *http.Request) {
 		BBB:               make(map[string]training.LiftBBB, len(in.BBB)),
 	}
 	for slug, b := range in.BBB {
-		change.BBB[slug] = training.LiftBBB{Mode: b.Mode, Value: b.Value}
+		change.BBB[slug] = training.LiftBBB{Mode: string(b.Mode), Value: b.Value}
 	}
-	if err := h.svc.SaveSettings(r.Context(), change); err != nil {
-		h.fail(w, r, err)
-		return
+	if err := s.svc.SaveSettings(ctx, change); err != nil {
+		return nil, err
 	}
-	h.settings(w, r)
+	set, err := s.settings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return SaveSettings200JSONResponse(set), nil
 }
 
-func (h *Handler) setTrainingMax(w http.ResponseWriter, r *http.Request) {
-	var in TrainingMaxInput
-	if err := decode(w, r, &in); err != nil {
-		h.fail(w, r, err)
-		return
+func (s *Server) SetTrainingMax(ctx context.Context, req SetTrainingMaxRequestObject) (SetTrainingMaxResponseObject, error) {
+	in := req.Body
+	if err := s.svc.SetTrainingMax(ctx, in.Lift, in.Value, deref(in.Note)); err != nil {
+		return nil, err
 	}
-	if err := h.svc.SetTrainingMax(r.Context(), in.Lift, in.Value, in.Note); err != nil {
-		h.fail(w, r, err)
-		return
+	set, err := s.settings(ctx)
+	if err != nil {
+		return nil, err
 	}
-	h.settings(w, r)
+	return SetTrainingMax200JSONResponse(set), nil
 }
 
-// acceptReview writes the training maxes settled on at the start of a block.
+// AcceptReview writes the training maxes settled on at the start of a block.
 // A review no longer pending is a 409.
-func (h *Handler) acceptReview(w http.ResponseWriter, r *http.Request) {
-	var in TMReviewInput
-	if err := decode(w, r, &in); err != nil {
-		h.fail(w, r, err)
-		return
+func (s *Server) AcceptReview(ctx context.Context, req AcceptReviewRequestObject) (AcceptReviewResponseObject, error) {
+	if err := s.svc.AcceptReview(ctx, req.Body.Key, req.Body.Tms); err != nil {
+		return nil, err
 	}
-	if err := h.svc.AcceptReview(r.Context(), in.Key, in.TMs); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	h.dashboard(w, r)
-}
-
-// decideTMTest settles a failed TM test. Any action but keep lowers, as on
-// the web form.
-func (h *Handler) decideTMTest(w http.ResponseWriter, r *http.Request) {
-	id, err := pathID(r, "id")
+	d, err := s.dashboard(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	var in TMTestDecision
-	if err := decode(w, r, &in); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	if err := h.svc.DecideTMTest(r.Context(), id, in.Action == "keep", in.TM); err != nil {
-		h.fail(w, r, err)
-		return
-	}
-	h.dashboard(w, r)
+	return AcceptReview200JSONResponse(d), nil
 }
 
-func (h *Handler) skipCycle(w http.ResponseWriter, r *http.Request) {
-	if err := h.svc.SkipCycle(r.Context()); err != nil {
-		h.fail(w, r, err)
-		return
+// DecideTMTest settles a failed TM test: keep the training max, or lower it.
+func (s *Server) DecideTMTest(ctx context.Context, req DecideTMTestRequestObject) (DecideTMTestResponseObject, error) {
+	in := req.Body
+	if err := s.svc.DecideTMTest(ctx, req.ID, in.Action == TMTestActionKeep, deref(in.TM)); err != nil {
+		return nil, err
 	}
-	h.dashboard(w, r)
+	d, err := s.dashboard(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return DecideTMTest200JSONResponse(d), nil
 }
 
-// backup streams a consistent snapshot of the database, as the web's
+func (s *Server) SkipCycle(ctx context.Context, _ SkipCycleRequestObject) (SkipCycleResponseObject, error) {
+	if err := s.svc.SkipCycle(ctx); err != nil {
+		return nil, err
+	}
+	d, err := s.dashboard(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return SkipCycle200JSONResponse(d), nil
+}
+
+// GetBackup streams a consistent snapshot of the database, as the web's
 // download does.
-func (h *Handler) backup(w http.ResponseWriter, r *http.Request) {
-	backup, err := h.svc.Backup(r.Context())
+func (s *Server) GetBackup(ctx context.Context, _ GetBackupRequestObject) (GetBackupResponseObject, error) {
+	backup, err := s.svc.Backup(ctx)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	defer backup.Close()
-
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", backup.Name))
-	if _, err := io.Copy(w, backup); err != nil {
-		h.log.ErrorContext(r.Context(), "backup stream interrupted", "error", err)
+	resp := GetBackup200ApplicationOctetStreamResponse{
+		// Sending the answer closes the body, which removes the snapshot.
+		Body: backup,
+		Headers: GetBackup200ResponseHeaders{
+			ContentDisposition: fmt.Sprintf("attachment; filename=%q", backup.Name),
+		},
 	}
+	if info, err := backup.Stat(); err == nil {
+		resp.ContentLength = info.Size()
+	}
+	return resp, nil
 }

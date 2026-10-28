@@ -1,75 +1,75 @@
 {
-  "name": "Overhead Press",
-  "slug": "press",
-  "unit": "lb",
-  "currentTm": 105,
+  "bestE1rm": 120,
   "chart": {
-    "width": 320,
     "height": 160,
     "path": "M 10.0 106.0 L 85.0 62.8 L 160.0 34.0 L 235.0 93.2 L 310.0 91.6",
     "points": [
       {
-        "x": 10,
-        "y": 106,
         "label": "105",
-        "past": true
+        "past": true,
+        "x": 10,
+        "y": 106
       },
       {
-        "x": 85,
-        "y": 62.8,
         "label": "114",
-        "past": true
+        "past": true,
+        "x": 85,
+        "y": 62.8
       },
       {
-        "x": 160,
-        "y": 34,
         "label": "120",
-        "past": false
+        "past": false,
+        "x": 160,
+        "y": 34
       },
       {
-        "x": 235,
-        "y": 93.2,
         "label": "107.7",
-        "past": false
+        "past": false,
+        "x": 235,
+        "y": 93.2
       },
       {
-        "x": 310,
-        "y": 91.6,
         "label": "108",
-        "past": false
+        "past": false,
+        "x": 310,
+        "y": 91.6
       }
     ],
-    "yMin": 100,
-    "yMax": 125
+    "width": 320,
+    "yMax": 125,
+    "yMin": 100
   },
-  "bestE1rm": 120,
-  "tmHistory": [
-    {
-      "value": 105,
-      "date": "Jan 10",
-      "note": "felt light"
-    },
-    {
-      "value": 100,
-      "date": "Jan 6",
-      "note": "initial setup"
-    }
-  ],
+  "currentTm": 105,
+  "name": "Overhead Press",
   "pastEstimates": [
     {
-      "id": 1,
       "date": "Feb 10, 2025",
-      "weight": 105,
+      "estimate": 105,
+      "id": 1,
       "reps": 1,
-      "estimate": 105
+      "weight": 105
     },
     {
-      "id": 2,
       "date": "Sep 15, 2025",
-      "weight": 95,
+      "estimate": 114,
+      "id": 2,
       "reps": 6,
-      "estimate": 114
+      "weight": 95
     }
   ],
-  "today": "2026-03-16"
+  "slug": "press",
+  "tmHistory": [
+    {
+      "date": "Jan 10",
+      "note": "felt light",
+      "value": 105
+    },
+    {
+      "date": "Jan 6",
+      "note": "initial setup",
+      "value": 100
+    }
+  ],
+  "today": "2026-03-16",
+  "unit": "lb"
 }

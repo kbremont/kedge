@@ -1,23 +1,23 @@
 {
   "lifts": [
     {
-      "slug": "press",
       "name": "Overhead Press",
+      "slug": "press",
       "value": 0
     },
     {
-      "slug": "deadlift",
       "name": "Deadlift",
+      "slug": "deadlift",
       "value": 0
     },
     {
-      "slug": "bench",
       "name": "Bench Press",
+      "slug": "bench",
       "value": 0
     },
     {
-      "slug": "squat",
       "name": "Squat",
+      "slug": "squat",
       "value": 0
     }
   ],

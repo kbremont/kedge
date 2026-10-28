@@ -1,29 +1,29 @@
 {
   "cycles": [
     {
+      "detail": "3 rounds, 5's PRO + BBB 5x10 @ 50%",
       "index": 0,
-      "label": "Leader 1",
-      "detail": "3 rounds, 5's PRO + BBB 5x10 @ 50%"
+      "label": "Leader 1"
     },
     {
+      "detail": "3 rounds, 5's PRO + BBB 5x10 @ 60%",
       "index": 1,
-      "label": "Leader 2",
-      "detail": "3 rounds, 5's PRO + BBB 5x10 @ 60%"
+      "label": "Leader 2"
     },
     {
+      "detail": "TM test",
       "index": 2,
-      "label": "7th Week TM Test",
-      "detail": "TM test"
+      "label": "7th Week TM Test"
     },
     {
+      "detail": "3 rounds, 5/3/1 with a PR set + FSL 5x5",
       "index": 3,
-      "label": "Anchor",
-      "detail": "3 rounds, 5/3/1 with a PR set + FSL 5x5"
+      "label": "Anchor"
     },
     {
+      "detail": "deload (optional)",
       "index": 4,
-      "label": "7th Week Deload",
-      "detail": "deload (optional)"
+      "label": "7th Week Deload"
     }
   ]
 }

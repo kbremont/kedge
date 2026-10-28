@@ -93,7 +93,11 @@ paths:
       description: Before training maxes are entered it reports `needsSetup`, where the web redirects to the setup page.
       responses:
         "200":
-          $ref: "#/components/responses/Dashboard"
+          description: The Today screen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
@@ -109,7 +113,11 @@ paths:
         waiting, it is a 409 and the app fetches the dashboard to show why.
       responses:
         "200":
-          $ref: "#/components/responses/Workout"
+          description: The session started, or the one in progress.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workout"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "409":
@@ -126,7 +134,11 @@ paths:
       summary: A session, in progress or completed
       responses:
         "200":
-          $ref: "#/components/responses/Workout"
+          description: The session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workout"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -139,7 +151,11 @@ paths:
       summary: Remove a session started by mistake
       responses:
         "200":
-          $ref: "#/components/responses/Dashboard"
+          description: The dashboard, with the session gone.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -164,7 +180,11 @@ paths:
               $ref: "#/components/schemas/LogSetInput"
       responses:
         "200":
-          $ref: "#/components/responses/Workout"
+          description: The session, with the set logged and the rest to time.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workout"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -179,7 +199,11 @@ paths:
       summary: Clear a logged set
       responses:
         "200":
-          $ref: "#/components/responses/Workout"
+          description: The session, with the set cleared.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workout"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -196,7 +220,11 @@ paths:
       summary: Mark a session complete
       responses:
         "200":
-          $ref: "#/components/responses/Dashboard"
+          description: The dashboard after the session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -230,7 +258,11 @@ paths:
       summary: A lift's progress
       responses:
         "200":
-          $ref: "#/components/responses/Lift"
+          description: The lift screen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lift"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -253,7 +285,11 @@ paths:
               $ref: "#/components/schemas/PastEstimateInput"
       responses:
         "200":
-          $ref: "#/components/responses/Lift"
+          description: The lift, with the estimate added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lift"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -279,7 +315,11 @@ paths:
       summary: Delete an estimate from before the app
       responses:
         "200":
-          $ref: "#/components/responses/Lift"
+          description: The lift, with the estimate gone.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lift"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -294,7 +334,11 @@ paths:
       summary: The settings screen
       responses:
         "200":
-          $ref: "#/components/responses/Settings"
+          description: The settings screen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
@@ -311,7 +355,11 @@ paths:
               $ref: "#/components/schemas/SettingsInput"
       responses:
         "200":
-          $ref: "#/components/responses/Settings"
+          description: The settings as saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -332,7 +380,11 @@ paths:
               $ref: "#/components/schemas/TrainingMaxInput"
       responses:
         "200":
-          $ref: "#/components/responses/Settings"
+          description: The settings, with the new training max.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -356,7 +408,11 @@ paths:
               $ref: "#/components/schemas/TMReviewInput"
       responses:
         "200":
-          $ref: "#/components/responses/Dashboard"
+          description: The dashboard, on the new training maxes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -388,7 +444,11 @@ paths:
               $ref: "#/components/schemas/TMTestDecision"
       responses:
         "200":
-          $ref: "#/components/responses/Dashboard"
+          description: The dashboard, with the decision made.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -408,7 +468,11 @@ paths:
       description: Only on offer while `NextUp.canSkip` is set; otherwise a 409.
       responses:
         "200":
-          $ref: "#/components/responses/Dashboard"
+          description: The dashboard, past the skipped cycle.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "409":
@@ -445,7 +509,11 @@ paths:
               $ref: "#/components/schemas/SetupInput"
       responses:
         "200":
-          $ref: "#/components/responses/SetupPosition"
+          description: 'The next question: where in the programme the user is.'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupPosition"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -464,7 +532,11 @@ paths:
         fresh.
       responses:
         "200":
-          $ref: "#/components/responses/SetupPosition"
+          description: The cycles a new user can join at.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupPosition"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
@@ -510,7 +582,11 @@ paths:
               $ref: "#/components/schemas/SetupHistoryInput"
       responses:
         "200":
-          $ref: "#/components/responses/Dashboard"
+          description: The dashboard, picking up after the sessions done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -586,37 +662,6 @@ components:
         type: string
 
   responses:
-    Dashboard:
-      description: The Today screen.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Dashboard"
-    Workout:
-      description: The session screen.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Workout"
-    Lift:
-      description: The lift screen.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Lift"
-    Settings:
-      description: The settings screen.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Settings"
-    SetupPosition:
-      description: The cycles a new user can join at.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/SetupPosition"
-
     BadRequest:
       description: Input the server rejects, or a body that does not match the operation. Nothing was written.
       content:

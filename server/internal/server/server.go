@@ -26,7 +26,7 @@ type Server struct {
 	log      *slog.Logger
 	sessions *auth.Sessions
 	pages    *web.Handler
-	api      *api.Handler
+	api      *api.Server
 }
 
 func New(conn *sql.DB, log *slog.Logger, cfg Config) *Server {

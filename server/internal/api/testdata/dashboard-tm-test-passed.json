@@ -1,67 +1,67 @@
 {
   "needsSetup": false,
-  "unit": "lb",
-  "programName": "5's PRO + BBB / 5-3-1 + FSL",
   "next": {
+    "blockNumber": 1,
+    "blocked": false,
+    "canSkip": false,
+    "cycleLabel": "7th Week TM Test",
+    "inProgress": false,
     "liftName": "Deadlift",
     "liftSlug": "deadlift",
-    "cycleLabel": "7th Week TM Test",
     "phase": "tm_test",
-    "trainingMax": 300,
-    "inProgress": false,
-    "workoutId": 0,
-    "blockNumber": 1,
     "roundOfBlock": 7,
     "roundsInBlock": 11,
-    "blocked": false,
-    "canSkip": false
+    "trainingMax": 300,
+    "workoutId": 0
   },
+  "programName": "5's PRO + BBB / 5-3-1 + FSL",
+  "recent": [
+    {
+      "cycleLabel": "7th Week TM Test",
+      "date": "Jan 7",
+      "liftName": "Overhead Press",
+      "liftSlug": "press",
+      "summary": "100 x 7",
+      "workoutId": 1
+    }
+  ],
+  "review": null,
+  "testResults": [
+    {
+      "current": 100,
+      "detail": "6 or more at 100% means there is room to grow; the bump comes with the next block.",
+      "headline": "Strong set. This TM goes up at the end of the block.",
+      "liftName": "Overhead Press",
+      "needsDecision": false,
+      "proposed": 0,
+      "reps": 7,
+      "tested": 100,
+      "tone": "up",
+      "unit": "lb",
+      "workoutId": 1
+    }
+  ],
   "tms": [
     {
-      "slug": "press",
       "name": "Overhead Press",
+      "slug": "press",
       "value": 100
     },
     {
-      "slug": "deadlift",
       "name": "Deadlift",
+      "slug": "deadlift",
       "value": 300
     },
     {
-      "slug": "bench",
       "name": "Bench Press",
+      "slug": "bench",
       "value": 200
     },
     {
-      "slug": "squat",
       "name": "Squat",
+      "slug": "squat",
       "value": 250
     }
   ],
-  "recent": [
-    {
-      "workoutId": 1,
-      "liftName": "Overhead Press",
-      "liftSlug": "press",
-      "cycleLabel": "7th Week TM Test",
-      "date": "Jan 7",
-      "summary": "100 x 7"
-    }
-  ],
-  "testResults": [
-    {
-      "workoutId": 1,
-      "liftName": "Overhead Press",
-      "unit": "lb",
-      "tested": 100,
-      "reps": 7,
-      "headline": "Strong set. This TM goes up at the end of the block.",
-      "detail": "6 or more at 100% means there is room to grow; the bump comes with the next block.",
-      "tone": "up",
-      "needsDecision": false,
-      "current": 100,
-      "proposed": 0
-    }
-  ],
-  "review": null
+  "unit": "lb"
 }

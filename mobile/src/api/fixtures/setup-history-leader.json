@@ -1,96 +1,96 @@
 {
+  "asksReps": false,
   "cycleIndex": 0,
   "cycleLabel": "Leader 1",
-  "unit": "lb",
-  "asksReps": false,
   "repsLabel": "",
   "rounds": [
     {
-      "round": 1,
       "days": [
         {
-          "slug": "press",
           "name": "Overhead Press",
-          "topWeight": 85,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "press",
+          "topWeight": 85
         },
         {
-          "slug": "deadlift",
           "name": "Deadlift",
-          "topWeight": 255,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "deadlift",
+          "topWeight": 255
         },
         {
-          "slug": "bench",
           "name": "Bench Press",
-          "topWeight": 170,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "bench",
+          "topWeight": 170
         },
         {
-          "slug": "squat",
           "name": "Squat",
-          "topWeight": 215,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "squat",
+          "topWeight": 215
         }
-      ]
+      ],
+      "round": 1
     },
     {
-      "round": 2,
       "days": [
         {
-          "slug": "press",
           "name": "Overhead Press",
-          "topWeight": 90,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "press",
+          "topWeight": 90
         },
         {
-          "slug": "deadlift",
           "name": "Deadlift",
-          "topWeight": 270,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "deadlift",
+          "topWeight": 270
         },
         {
-          "slug": "bench",
           "name": "Bench Press",
-          "topWeight": 180,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "bench",
+          "topWeight": 180
         },
         {
-          "slug": "squat",
           "name": "Squat",
-          "topWeight": 225,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "squat",
+          "topWeight": 225
         }
-      ]
+      ],
+      "round": 2
     },
     {
-      "round": 3,
       "days": [
         {
-          "slug": "press",
           "name": "Overhead Press",
-          "topWeight": 95,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "press",
+          "topWeight": 95
         },
         {
-          "slug": "deadlift",
           "name": "Deadlift",
-          "topWeight": 285,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "deadlift",
+          "topWeight": 285
         },
         {
-          "slug": "bench",
           "name": "Bench Press",
-          "topWeight": 190,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "bench",
+          "topWeight": 190
         },
         {
-          "slug": "squat",
           "name": "Squat",
-          "topWeight": 240,
-          "prTarget": 0
+          "prTarget": 0,
+          "slug": "squat",
+          "topWeight": 240
         }
-      ]
+      ],
+      "round": 3
     }
-  ]
+  ],
+  "unit": "lb"
 }

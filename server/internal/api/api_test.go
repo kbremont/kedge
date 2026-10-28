@@ -151,8 +151,8 @@ func (h *harness) dashboard() Dashboard {
 // in it done yet.
 func (h *harness) setup(tms map[string]float64, cycleIdx int) {
 	h.t.Helper()
-	send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{TMs: tms})
-	send[Dashboard](h, http.MethodPut, fmt.Sprintf("/api/v1/setup/history/%d", cycleIdx), SetupHistoryInput{})
+	send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{Tms: tms})
+	send[Dashboard](h, http.MethodPut, fmt.Sprintf("/api/v1/setup/history/%d", cycleIdx), SetupHistoryInput{Done: []PastSession{}})
 }
 
 var startingTMs = map[string]float64{"press": 100, "deadlift": 300, "bench": 200, "squat": 250}
@@ -172,7 +172,7 @@ func (h *harness) session(reps func(w db.Workout, set Set) int) db.Workout {
 		if reps != nil {
 			n = reps(row, set)
 		}
-		send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, set.Idx), LogSetInput{Reps: new(n)})
+		send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, set.Idx), LogSetInput{Reps: n})
 	}
 	send[Dashboard](h, http.MethodPost, fmt.Sprintf("/api/v1/workouts/%d/finish", w.ID), nil)
 	return row
@@ -191,9 +191,9 @@ func (h *harness) testSession(reps map[string]int) db.Workout {
 }
 
 // decide settles a failed TM test.
-func (h *harness) decide(w db.Workout, action string, tm float64) Dashboard {
+func (h *harness) decide(w db.Workout, action TMTestAction, tm float64) Dashboard {
 	h.t.Helper()
-	return send[Dashboard](h, http.MethodPost, fmt.Sprintf("/api/v1/tm-tests/%d", w.ID), TMTestDecision{Action: action, TM: tm})
+	return send[Dashboard](h, http.MethodPost, fmt.Sprintf("/api/v1/tm-tests/%d", w.ID), TMTestDecision{Action: action, TM: new(tm)})
 }
 
 // startHeld checks that starting a session is refused while a training max
@@ -204,8 +204,8 @@ func (h *harness) startHeld() {
 }
 
 func tmsOf(d Dashboard) map[string]float64 {
-	out := make(map[string]float64, len(d.TMs))
-	for _, tm := range d.TMs {
+	out := make(map[string]float64, len(d.Tms))
+	for _, tm := range d.Tms {
 		out[tm.Slug] = tm.Value
 	}
 	return out
@@ -348,7 +348,7 @@ func TestTMTestThroughToNextBlock(t *testing.T) {
 
 	// Accept, editing squat below what was proposed.
 	want = map[string]float64{"press": 110, "deadlift": 270, "bench": 205, "squat": 230}
-	d = send[Dashboard](h, http.MethodPost, "/api/v1/tm-review", TMReviewInput{Key: d.Review.Key, TMs: want})
+	d = send[Dashboard](h, http.MethodPost, "/api/v1/tm-review", TMReviewInput{Key: d.Review.Key, Tms: want})
 	if d.Review != nil {
 		t.Errorf("review still pending after accepting it: %+v", d.Review)
 	}
@@ -465,7 +465,7 @@ func TestBlockReviewProposals(t *testing.T) {
 
 	// Leaving a lift out accepts nothing.
 	msg := h.fails(http.StatusBadRequest, http.MethodPost, "/api/v1/tm-review",
-		TMReviewInput{Key: d.Review.Key, TMs: map[string]float64{"press": 95, "deadlift": 270, "bench": 210}})
+		TMReviewInput{Key: d.Review.Key, Tms: map[string]float64{"press": 95, "deadlift": 270, "bench": 210}})
 	if msg != "Enter a positive training max for Squat." {
 		t.Errorf("message = %q", msg)
 	}
@@ -473,7 +473,7 @@ func TestBlockReviewProposals(t *testing.T) {
 		t.Error("a rejected review should still be pending")
 	}
 	// Nor does a key for some other review.
-	h.fails(http.StatusConflict, http.MethodPost, "/api/v1/tm-review", TMReviewInput{Key: "b1:c0", TMs: want})
+	h.fails(http.StatusConflict, http.MethodPost, "/api/v1/tm-review", TMReviewInput{Key: "b1:c0", Tms: want})
 }
 
 // TestSeventhWeekDeload runs the optional deload rather than skipping it: the
@@ -528,7 +528,7 @@ func TestSeventhWeekDeload(t *testing.T) {
 	}
 	h.fails(http.StatusConflict, http.MethodPost, "/api/v1/skip-cycle", nil)
 	for _, s := range w.Sets {
-		send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, s.Idx), LogSetInput{Reps: new(s.TargetReps)})
+		send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, s.Idx), LogSetInput{Reps: s.TargetReps})
 	}
 	send[Dashboard](h, http.MethodPost, fmt.Sprintf("/api/v1/workouts/%d/finish", w.ID), nil)
 	if d = h.dashboard(); d.Next.CanSkip {
@@ -555,7 +555,7 @@ func TestSeventhWeekDeload(t *testing.T) {
 // PR set on the anchor, the 100% set on the TM test, and nothing on a leader.
 func TestSetupHistoryRepsLabel(t *testing.T) {
 	h := newHarness(t)
-	send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{TMs: startingTMs})
+	send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{Tms: startingTMs})
 
 	cases := []struct {
 		cycle    int
@@ -578,15 +578,15 @@ func TestSetupHistoryRepsLabel(t *testing.T) {
 // reps for one, and picks up at the third.
 func TestSetupJoinsPartway(t *testing.T) {
 	h := newHarness(t)
-	if d := h.dashboard(); !d.NeedsSetup || d.Next != nil || d.TMs == nil || d.Recent == nil || d.TestResults == nil {
+	if d := h.dashboard(); !d.NeedsSetup || d.Next != nil || d.Tms == nil || d.Recent == nil || d.TestResults == nil {
 		t.Fatalf("a new database should need setup, with empty lists: %+v", d)
 	}
-	pos := send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{TMs: startingTMs})
+	pos := send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{Tms: startingTMs})
 	if len(pos.Cycles) != 5 || pos.Cycles[3].Label != "Anchor" {
 		t.Fatalf("position = %+v", pos)
 	}
 	d := send[Dashboard](h, http.MethodPut, "/api/v1/setup/history/3", SetupHistoryInput{Done: []PastSession{
-		{Round: 1, Slug: "press", PRReps: 9},
+		{Round: 1, Slug: "press", PRReps: new(9)},
 		{Round: 1, Slug: "deadlift"},
 	}})
 	if d.NeedsSetup || d.Next == nil || d.Next.LiftSlug != "bench" || d.Next.CycleLabel != "Anchor - Round 1" {
@@ -654,7 +654,7 @@ func TestAuth(t *testing.T) {
 func TestInputErrors(t *testing.T) {
 	h := newHarness(t)
 
-	msg := h.fails(http.StatusBadRequest, http.MethodPut, "/api/v1/setup", SetupInput{TMs: map[string]float64{"press": 100, "deadlift": 300, "bench": 200}})
+	msg := h.fails(http.StatusBadRequest, http.MethodPut, "/api/v1/setup", SetupInput{Tms: map[string]float64{"press": 100, "deadlift": 300, "bench": 200}})
 	if msg != "Enter a positive training max for Squat." {
 		t.Errorf("setup with squat missing: %q", msg)
 	}
@@ -664,7 +664,7 @@ func TestInputErrors(t *testing.T) {
 
 	h.setup(startingTMs, 2)
 	w := send[Workout](h, http.MethodPost, "/api/v1/workouts", nil)
-	msg = h.fails(http.StatusBadRequest, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/0", w.ID), LogSetInput{Reps: new(501)})
+	msg = h.fails(http.StatusBadRequest, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/0", w.ID), LogSetInput{Reps: 501})
 	if msg != "Reps must be between 0 and 500." {
 		t.Errorf("501 reps: %q", msg)
 	}
@@ -673,12 +673,9 @@ func TestInputErrors(t *testing.T) {
 	}
 
 	// Reps left out, or sent under the wrong name, are not a failed set: 0
-	// would count as a missed PR.
+	// would count as a missed PR. The spec requires them.
 	for _, body := range []any{struct{}{}, map[string]int{"rep": 5}, map[string]any{"reps": nil}} {
-		msg = h.fails(http.StatusBadRequest, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/0", w.ID), body)
-		if msg != "Enter the reps done." {
-			t.Errorf("log set with %v: %q", body, msg)
-		}
+		h.fails(http.StatusBadRequest, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/0", w.ID), body)
 	}
 	if w = get[Workout](h, fmt.Sprintf("/api/v1/workouts/%d", w.ID)); w.Sets[0].Done {
 		t.Error("a log without reps logged the set")
@@ -692,10 +689,16 @@ func TestInputErrors(t *testing.T) {
 		t.Errorf("after a rejected estimate, past estimates %+v and today %q", l.PastEstimates, l.Today)
 	}
 
-	msg = h.fails(http.StatusBadRequest, http.MethodPut, "/api/v1/settings", SettingsInput{Plates: []float64{0, -5}, Rounding: 2.5})
+	msg = h.fails(http.StatusBadRequest, http.MethodPut, "/api/v1/settings", SettingsInput{Plates: []float64{0, -5}, Rounding: 2.5, BBB: map[string]BBBInput{}})
 	if msg != "List at least one plate." {
 		t.Errorf("plates with none positive: %q", msg)
 	}
+	// A BBB mode the spec does not list is refused, not read as the default.
+	h.fails(http.StatusBadRequest, http.MethodPut, "/api/v1/settings", SettingsInput{
+		Plates:   []float64{45, 25},
+		Rounding: 2.5,
+		BBB:      map[string]BBBInput{"press": {Mode: "heavy", Value: 55}},
+	})
 	if s := get[Settings](h, "/api/v1/settings"); s.Rounding != 5 || len(s.Plates) != 6 {
 		t.Errorf("a rejected settings change wrote rounding %v and plates %v", s.Rounding, s.Plates)
 	}
@@ -708,10 +711,12 @@ func TestInputErrors(t *testing.T) {
 	// Lowering a failed test's training max to nothing.
 	send[Dashboard](h, http.MethodDelete, fmt.Sprintf("/api/v1/workouts/%d", w.ID), nil)
 	press := h.testSession(map[string]int{"press": 1})
-	msg = h.fails(http.StatusBadRequest, http.MethodPost, fmt.Sprintf("/api/v1/tm-tests/%d", press.ID), TMTestDecision{Action: "lower", TM: 0})
+	msg = h.fails(http.StatusBadRequest, http.MethodPost, fmt.Sprintf("/api/v1/tm-tests/%d", press.ID), TMTestDecision{Action: "lower", TM: new(0.0)})
 	if msg != "Enter a positive training max." {
 		t.Errorf("lowering to 0: %q", msg)
 	}
+	// Nor is an action that is neither keep nor lower read as lowering.
+	h.fails(http.StatusBadRequest, http.MethodPost, fmt.Sprintf("/api/v1/tm-tests/%d", press.ID), TMTestDecision{Action: "drop", TM: new(90.0)})
 	if d := h.dashboard(); len(d.TestResults) != 1 || !d.TestResults[0].NeedsDecision || tmsOf(d)["press"] != 100 {
 		t.Errorf("a rejected decision changed something: %+v", d.TestResults)
 	}
@@ -733,12 +738,11 @@ func TestNotFound(t *testing.T) {
 		{http.MethodPost, "/api/v1/tm-tests/abc"},
 		{http.MethodGet, "/api/v1/nope"},
 		{http.MethodGet, "/api/v2/dashboard"},
-		{http.MethodPost, "/api/v1/dashboard"},
 	} {
 		var body any
 		switch tc.method {
 		case http.MethodPut:
-			body = LogSetInput{Reps: new(5)}
+			body = LogSetInput{Reps: 5}
 		case http.MethodPost:
 			body = PastEstimateInput{Date: "2025-01-01", Weight: 100, Reps: 1}
 		}
@@ -749,6 +753,16 @@ func TestNotFound(t *testing.T) {
 
 	// An unknown lift's training max is a 404, not a foreign key failure.
 	h.fails(http.StatusNotFound, http.MethodPost, "/api/v1/training-maxes", TrainingMaxInput{Lift: "curl", Value: 100})
+
+	// A route asked for with a method it does not have is a 405, which says
+	// what it does have.
+	rec := h.call(http.MethodPost, "/api/v1/dashboard", nil)
+	if rec.Code != http.StatusMethodNotAllowed || rec.Header().Get("Allow") != "GET" {
+		t.Errorf("POST dashboard: %d allowing %q, want 405 allowing GET", rec.Code, rec.Header().Get("Allow"))
+	}
+	if rec = h.call(http.MethodPatch, "/api/v1/settings", nil); rec.Header().Get("Allow") != "GET, PUT" {
+		t.Errorf("PATCH settings: %d allowing %q, want 405 allowing GET, PUT", rec.Code, rec.Header().Get("Allow"))
+	}
 }
 
 func TestMalformedJSON(t *testing.T) {
@@ -769,8 +783,8 @@ func TestMalformedJSON(t *testing.T) {
 	}
 
 	// Fields the server does not know are ignored, for an app newer than it.
-	if s := send[Settings](h, http.MethodPost, "/api/v1/training-maxes", `{"lift": "press", "value": 105, "note": "", "unit": "kg"}`); s.TMs[0].Value != 105 {
-		t.Errorf("press TM = %v, want 105", s.TMs[0].Value)
+	if s := send[Settings](h, http.MethodPost, "/api/v1/training-maxes", `{"lift": "press", "value": 105, "note": "", "unit": "kg"}`); s.Tms[0].Value != 105 {
+		t.Errorf("press TM = %v, want 105", s.Tms[0].Value)
 	}
 }
 
@@ -805,6 +819,7 @@ func TestLogSetAnswers(t *testing.T) {
 		RestWarmupSeconds: 60,
 		RestMainSeconds:   180,
 		RestSuppSeconds:   120,
+		BBB:               map[string]BBBInput{},
 	})
 
 	w := send[Workout](h, http.MethodPost, "/api/v1/workouts", nil)
@@ -815,14 +830,14 @@ func TestLogSetAnswers(t *testing.T) {
 		t.Errorf("starting again began session %d, want %d resumed", again.ID, w.ID)
 	}
 
-	first := map[string]int{}
+	first := map[SetTag]int{}
 	for i, s := range w.Sets {
 		if _, ok := first[s.Tag]; !ok {
 			first[s.Tag] = i
 		}
 	}
 	for _, tc := range []struct {
-		tag  string
+		tag  SetTag
 		rest int
 	}{
 		{"Warmup", 60},
@@ -834,7 +849,7 @@ func TestLogSetAnswers(t *testing.T) {
 			t.Fatalf("no %s set in %+v", tc.tag, w.Sets)
 		}
 		idx := w.Sets[i].Idx
-		got := send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, idx), LogSetInput{Reps: new(4)})
+		got := send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, idx), LogSetInput{Reps: 4})
 		set := got.Sets[i]
 		if !set.Done || set.ActualReps != 4 {
 			t.Errorf("%s set after logging: %+v", tc.tag, set)
@@ -917,9 +932,9 @@ func TestSettingsRoundTrip(t *testing.T) {
 		t.Errorf("BBB = %v, want %v", got, want)
 	}
 
-	s = send[Settings](h, http.MethodPost, "/api/v1/training-maxes", TrainingMaxInput{Lift: "squat", Value: 255, Note: "felt good"})
-	if s.TMs[3].Slug != "squat" || s.TMs[3].Value != 255 {
-		t.Errorf("TMs = %+v", s.TMs)
+	s = send[Settings](h, http.MethodPost, "/api/v1/training-maxes", TrainingMaxInput{Lift: "squat", Value: 255, Note: new("felt good")})
+	if s.Tms[3].Slug != "squat" || s.Tms[3].Value != 255 {
+		t.Errorf("TMs = %+v", s.Tms)
 	}
 	l := get[Lift](h, "/api/v1/lifts/squat")
 	if len(l.TMHistory) != 2 || l.TMHistory[0].Value != 255 || l.TMHistory[0].Note != "felt good" {

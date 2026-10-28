@@ -8,14 +8,14 @@ all: check build
 
 FIXTURES := mobile/src/api/fixtures
 
-## generate: regenerate templ templates, sqlc queries, and the app's API
-## types and fixtures. The tools are pinned in server/go.mod and run with
-## go tool. The fixtures are the golden responses; refresh those with
-## make golden first.
+## generate: regenerate templ templates, sqlc queries, the API server from
+## its spec in server/api/openapi.yaml, and the app's fixtures. The tools are
+## pinned in server/go.mod and run with go tool. The fixtures are the golden
+## responses; refresh those with make golden first.
 generate:
 	cd $(SERVER) && go tool templ generate
 	cd $(SERVER) && go tool sqlc generate
-	cd $(SERVER) && go tool tygo generate
+	cd $(SERVER)/internal/api && go tool oapi-codegen -config oapi-codegen.yaml ../../api/openapi.yaml
 	rm -rf $(FIXTURES)
 	mkdir -p $(FIXTURES)
 	cp $(SERVER)/internal/api/testdata/*.json $(FIXTURES)/

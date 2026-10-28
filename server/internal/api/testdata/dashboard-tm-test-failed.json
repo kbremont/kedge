@@ -1,91 +1,91 @@
 {
   "needsSetup": false,
-  "unit": "lb",
-  "programName": "5's PRO + BBB / 5-3-1 + FSL",
   "next": {
+    "blockNumber": 1,
+    "blocked": true,
+    "canSkip": false,
+    "cycleLabel": "Anchor - Round 1",
+    "inProgress": false,
     "liftName": "Overhead Press",
     "liftSlug": "press",
-    "cycleLabel": "Anchor - Round 1",
     "phase": "anchor",
-    "trainingMax": 100,
-    "inProgress": false,
-    "workoutId": 0,
-    "blockNumber": 1,
     "roundOfBlock": 8,
     "roundsInBlock": 11,
-    "blocked": true,
-    "canSkip": false
+    "trainingMax": 100,
+    "workoutId": 0
   },
+  "programName": "5's PRO + BBB / 5-3-1 + FSL",
+  "recent": [
+    {
+      "cycleLabel": "7th Week TM Test",
+      "date": "Jan 13",
+      "liftName": "Squat",
+      "liftSlug": "squat",
+      "summary": "250 x 2",
+      "workoutId": 4
+    },
+    {
+      "cycleLabel": "7th Week TM Test",
+      "date": "Jan 11",
+      "liftName": "Bench Press",
+      "liftSlug": "bench",
+      "summary": "200 x 3",
+      "workoutId": 3
+    },
+    {
+      "cycleLabel": "7th Week TM Test",
+      "date": "Jan 9",
+      "liftName": "Deadlift",
+      "liftSlug": "deadlift",
+      "summary": "300 x 4",
+      "workoutId": 2
+    },
+    {
+      "cycleLabel": "7th Week TM Test",
+      "date": "Jan 7",
+      "liftName": "Overhead Press",
+      "liftSlug": "press",
+      "summary": "100 x 5",
+      "workoutId": 1
+    }
+  ],
+  "review": null,
+  "testResults": [
+    {
+      "current": 250,
+      "detail": "Under 3 reps at 100%. Lower it before the anchor, or keep it.",
+      "headline": "Your TM is too high.",
+      "liftName": "Squat",
+      "needsDecision": true,
+      "proposed": 225,
+      "reps": 2,
+      "tested": 250,
+      "tone": "down",
+      "unit": "lb",
+      "workoutId": 4
+    }
+  ],
   "tms": [
     {
-      "slug": "press",
       "name": "Overhead Press",
+      "slug": "press",
       "value": 100
     },
     {
-      "slug": "deadlift",
       "name": "Deadlift",
+      "slug": "deadlift",
       "value": 300
     },
     {
-      "slug": "bench",
       "name": "Bench Press",
+      "slug": "bench",
       "value": 200
     },
     {
-      "slug": "squat",
       "name": "Squat",
+      "slug": "squat",
       "value": 250
     }
   ],
-  "recent": [
-    {
-      "workoutId": 4,
-      "liftName": "Squat",
-      "liftSlug": "squat",
-      "cycleLabel": "7th Week TM Test",
-      "date": "Jan 13",
-      "summary": "250 x 2"
-    },
-    {
-      "workoutId": 3,
-      "liftName": "Bench Press",
-      "liftSlug": "bench",
-      "cycleLabel": "7th Week TM Test",
-      "date": "Jan 11",
-      "summary": "200 x 3"
-    },
-    {
-      "workoutId": 2,
-      "liftName": "Deadlift",
-      "liftSlug": "deadlift",
-      "cycleLabel": "7th Week TM Test",
-      "date": "Jan 9",
-      "summary": "300 x 4"
-    },
-    {
-      "workoutId": 1,
-      "liftName": "Overhead Press",
-      "liftSlug": "press",
-      "cycleLabel": "7th Week TM Test",
-      "date": "Jan 7",
-      "summary": "100 x 5"
-    }
-  ],
-  "testResults": [
-    {
-      "workoutId": 4,
-      "liftName": "Squat",
-      "unit": "lb",
-      "tested": 250,
-      "reps": 2,
-      "headline": "Your TM is too high.",
-      "detail": "Under 3 reps at 100%. Lower it before the anchor, or keep it.",
-      "tone": "down",
-      "needsDecision": true,
-      "current": 250,
-      "proposed": 225
-    }
-  ],
-  "review": null
+  "unit": "lb"
 }

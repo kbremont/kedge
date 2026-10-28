@@ -1,7 +1,31 @@
 {
-  "unit": "lb",
-  "rounding": 5,
   "barWeight": 45,
+  "bbb": [
+    {
+      "mode": "program",
+      "name": "Overhead Press",
+      "slug": "press",
+      "value": 0
+    },
+    {
+      "mode": "weight",
+      "name": "Deadlift",
+      "slug": "deadlift",
+      "value": 185
+    },
+    {
+      "mode": "program",
+      "name": "Bench Press",
+      "slug": "bench",
+      "value": 0
+    },
+    {
+      "mode": "percent",
+      "name": "Squat",
+      "slug": "squat",
+      "value": 55
+    }
+  ],
   "plates": [
     45,
     35,
@@ -10,56 +34,32 @@
     5,
     2.5
   ],
-  "warmups": true,
-  "restWarmupSeconds": 60,
   "restMainSeconds": 180,
   "restSuppSeconds": 90,
+  "restWarmupSeconds": 60,
+  "rounding": 5,
   "tms": [
     {
-      "slug": "press",
       "name": "Overhead Press",
+      "slug": "press",
       "value": 100
     },
     {
-      "slug": "deadlift",
       "name": "Deadlift",
+      "slug": "deadlift",
       "value": 300
     },
     {
-      "slug": "bench",
       "name": "Bench Press",
+      "slug": "bench",
       "value": 200
     },
     {
-      "slug": "squat",
       "name": "Squat",
+      "slug": "squat",
       "value": 250
     }
   ],
-  "bbb": [
-    {
-      "slug": "press",
-      "name": "Overhead Press",
-      "mode": "program",
-      "value": 0
-    },
-    {
-      "slug": "deadlift",
-      "name": "Deadlift",
-      "mode": "weight",
-      "value": 185
-    },
-    {
-      "slug": "bench",
-      "name": "Bench Press",
-      "mode": "program",
-      "value": 0
-    },
-    {
-      "slug": "squat",
-      "name": "Squat",
-      "mode": "percent",
-      "value": 55
-    }
-  ]
+  "unit": "lb",
+  "warmups": true
 }
