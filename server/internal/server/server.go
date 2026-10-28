@@ -13,6 +13,7 @@ import (
 	"github.com/a-h/templ"
 
 	"github.com/kbremont/531-tracker/server/internal/assets"
+	"github.com/kbremont/531-tracker/server/internal/auth"
 	"github.com/kbremont/531-tracker/server/internal/db"
 	"github.com/kbremont/531-tracker/server/internal/views"
 )
@@ -27,8 +28,7 @@ type Server struct {
 	conn     *sql.DB
 	q        *db.Queries
 	log      *slog.Logger
-	secret   []byte
-	password string
+	sessions *auth.Sessions
 }
 
 func New(conn *sql.DB, log *slog.Logger, cfg Config) *Server {
@@ -37,8 +37,7 @@ func New(conn *sql.DB, log *slog.Logger, cfg Config) *Server {
 		conn:     conn,
 		q:        db.New(conn),
 		log:      log,
-		secret:   sessionSecret(cfg.Password),
-		password: cfg.Password,
+		sessions: auth.New(cfg.Password),
 	}
 }
 
@@ -89,7 +88,7 @@ func (s *Server) Handler() http.Handler {
 	app.HandleFunc("POST /skip-cycle", s.handleSkipCycle)
 	app.HandleFunc("GET /backup", s.handleBackup)
 
-	mux.Handle("/", s.requireAuth(app))
+	mux.Handle("/", s.sessions.RequirePage(app))
 	return s.recoverPanic(mux)
 }
 

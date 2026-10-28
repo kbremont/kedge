@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kbremont/531-tracker/server/internal/auth"
 	"github.com/kbremont/531-tracker/server/internal/db"
 )
 
@@ -43,7 +44,7 @@ func newHarness(t *testing.T) *harness {
 		t:      t,
 		s:      s,
 		h:      s.Handler(),
-		cookie: &http.Cookie{Name: sessionCookie, Value: s.signSession(time.Now().Add(time.Hour))},
+		cookie: &http.Cookie{Name: auth.CookieName, Value: s.sessions.Sign(time.Now().Add(time.Hour))},
 	}
 }
 
