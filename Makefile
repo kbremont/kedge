@@ -52,6 +52,11 @@ check: fmt vet lint test
 run: generate
 	cd $(SERVER) && AUTH_PASSWORD=$${AUTH_PASSWORD:-dev} DATA_DIR=./data ADDR=:3000 go run ./cmd/server
 
+## demo: start the server against server/data-demo, filled with a realistic
+## demo block the first time
+demo: generate
+	cd $(SERVER) && AUTH_PASSWORD=$${AUTH_PASSWORD:-dev} DATA_DIR=./data-demo ADDR=:3000 go run ./cmd/server -seed-demo
+
 ## docker: build a linux/arm64 image for the Pi
 docker:
 	docker buildx build --platform linux/arm64 \
