@@ -61,6 +61,37 @@ jobs:
       - run: git status --porcelain && test -z "$(git status --porcelain)"
         working-directory: .
 
+  # An installed app is not updated along with the server, so a change to the
+  # API must not break it. oasdiff compares the spec with the base branch's
+  # and fails on a breaking change, unless the PR also changes info.version
+  # (and APIVersion with it), which is how a deliberate break is
+  # acknowledged: the app checks the version through info.
+  breaking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: oasdiff breaking
+        env:
+          BASE: ${{ github.base_ref || 'main' }}
+        run: |
+          git fetch --depth=1 origin "$BASE"
+          base="$RUNNER_TEMP/base-openapi.yaml"
+          if ! git show FETCH_HEAD:server/api/openapi.yaml > "$base" 2>/dev/null; then
+            echo "$BASE has no spec yet, so there is nothing to break."
+            exit 0
+          fi
+          version=$(go tool oasdiff diff "$base" api/openapi.yaml --format json | jq -c '.info.version // empty')
+          if [ -n "$version" ]; then
+            echo "info.version changed ($version), so breaking changes are acknowledged:"
+            go tool oasdiff breaking "$base" api/openapi.yaml
+            exit 0
+          fi
+          go tool oasdiff breaking "$base" api/openapi.yaml --fail-on ERR
+
   image:
     runs-on: ubuntu-latest
     steps:
