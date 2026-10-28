@@ -113,9 +113,11 @@ Split `mobile/` out later with `git subtree split` if other people start contrib
 
 ## Phases
 
-Commit after each step on `kbremont/ldek5`. Each restructure step must leave `make check` green, and tests may only change by import path or the package they moved to. I'd suggest three PRs (restructure, API, app), opened only when the user asks.
+Each restructure step must leave `make check` green, and tests may only change by import path or the package they moved to. I'd suggest three PRs (restructure, API, app), opened only when the user asks.
 
-### 0. Setup
+### 0. Setup ✅ Complete
+
+Everything below is done, including the user steps. fnm switches to Node 24 in `mobile/`, and the Expo MCP server is connected.
 
 - **Agent steps:**
   - Run `npx create-expo-app@latest mobile` (SDK 58), then `npx expo install expo-dev-client`.
