@@ -137,16 +137,19 @@ From the repo root:
 
 ```sh
 make run      # http://localhost:3000, AUTH_PASSWORD=dev, data in server/data
+make demo     # the same, against server/data-demo filled with a demo block
 make check    # fmt, vet, staticcheck, test
-make generate # regenerate templ and sqlc output
+make golden   # rewrite the API's golden responses
+make generate # regenerate templ, sqlc, and the app's API types and fixtures
 ```
 
 Requires Go 1.27. The code generators (templ, sqlc, and tygo) and staticcheck
 are pinned by the `tool` block in `go.mod` and run as `go tool templ`,
 `go tool sqlc` and so on, so nothing needs installing.
 
-Generated files (`*_templ.go`, `internal/db/*.go`) are committed, so none of
-the generators is needed to build.
+Generated files (`*_templ.go`, `internal/db/*.go`, and the app's
+`mobile/src/api/types.gen.ts` and `fixtures/`) are committed, so none of the
+generators is needed to build. CI fails if `make generate` changes anything.
 
 The Go module is `github.com/kbremont/531-tracker/server`, rooted here, so
 `go test ./...` run from this directory covers the whole server and nothing
@@ -161,6 +164,8 @@ internal/db         schema, migrations, sqlc-generated queries
 internal/training   the program applied to the database; returns read models
 internal/auth       session tokens, from a cookie or a Bearer header
 internal/web        HTML: thin handlers, templ templates, embedded CSS and icons
+internal/api        the app's JSON API: wire types, thin handlers, golden responses
+internal/demo       fills an empty database with a demo block (-seed-demo)
 internal/server     routes, /healthz, panic recovery
 ```
 
@@ -171,8 +176,90 @@ first place to look when something prescribes the wrong number.
 `internal/training` is where the rules meet the database: where you are in the
 block, starting and logging sessions, the training max decisions, onboarding.
 Its methods return one read model per screen with everything worked out, so
-the handlers in `internal/web` only parse forms and render, and an API can
-serve the same screens without repeating any of the logic.
+the handlers in `internal/web` only parse forms and render, and
+`internal/api` serves the same screens as JSON without repeating any of the
+logic.
+
+### The JSON API
+
+The iOS app talks to `/api/v1`. Every route answers JSON, never a redirect,
+and `Cache-Control: no-store`.
+
+**Signing in.** `GET /api/v1/info` needs no session and answers
+`{apiVersion, version}`. `POST /api/v1/login` with `{"password": "…"}`
+answers `{token, expiresAt}` (RFC 3339), or a 401. Send the token as
+`Authorization: Bearer <token>`. It is the same token as the browser's
+cookie, so it lasts 60 days, and changing `AUTH_PASSWORD` invalidates it.
+Nothing is stored on the server, so signing out is the app forgetting the
+token.
+
+**Versioning.** `apiVersion` only goes up for a change that breaks an
+installed app: a field removed, renamed or retyped, or a route changed.
+Adding a field or a route is not breaking, since the app ignores what it does
+not know, and the server ignores request fields it does not know. The app
+checks `info` first and asks for a server update when it is behind.
+
+**Routes**, all under `/api/v1`:
+
+| Route | Body | Answers |
+|---|---|---|
+| `GET info` *(public)* | | `Info` |
+| `POST login` *(public)* | `{password}` | `{token, expiresAt}` |
+| `GET dashboard` | | `Dashboard`, with `needsSetup` before training maxes are entered |
+| `POST workouts` | | the `Workout` started, or the one in progress |
+| `GET workouts/{id}` | | `Workout` |
+| `PUT workouts/{id}/sets/{idx}` | `{reps}` | `Workout`; `restSeconds` starts the rest timer |
+| `DELETE workouts/{id}/sets/{idx}` | | `Workout` |
+| `POST workouts/{id}/finish` | | `Dashboard` |
+| `DELETE workouts/{id}` | | `Dashboard` |
+| `GET history` | | `History` |
+| `GET lifts/{slug}` | | `Lift` |
+| `POST lifts/{slug}/estimates` | `{date, weight, reps}` | `Lift` |
+| `DELETE lifts/{slug}/estimates/{id}` | | `Lift` |
+| `GET settings`, `PUT settings` | `SettingsInput` | `Settings` |
+| `POST training-maxes` | `{lift, value, note}` | `Settings` |
+| `POST tm-review` | `{key, tms: {slug: value}}` | `Dashboard` |
+| `POST tm-tests/{id}` | `{action: "keep" \| "lower", tm}` | `Dashboard` |
+| `POST skip-cycle` | | `Dashboard` |
+| `GET setup`, `PUT setup` | `{tms: {slug: value}}` | `Setup`; the PUT answers `SetupPosition` |
+| `GET setup/position` | | `SetupPosition` |
+| `GET setup/history/{cycle}`, `PUT` | `{done: [{round, slug, prReps}]}` | `SetupHistory`; the PUT answers `Dashboard` |
+| `GET backup` | | the database, as `application/octet-stream` |
+
+A change answers with the screen the web form would redirect to, so the app
+never needs a second request. Input is read exactly as the forms read it:
+for example, a settings number that is not positive keeps the current value.
+
+**Errors** are `{"error": "…"}` with a message that can be shown as it is:
+
+| Status | When |
+|---|---|
+| 400 | input training rejects, or a body that is not the JSON the route expects |
+| 401 | no session, an expired one, or a wrong password |
+| 404 | a workout, lift, estimate or cycle that does not exist, or an unknown path |
+| 409 | training is held on a decision, or the decision is no longer on offer, or there is nothing to start; fetch the dashboard |
+| 500 | logged on the server; the message is generic |
+
+**The contract with the app.** The wire types in `internal/api/types.go` are
+the source of truth. `internal/api/testdata/*.json` holds a golden response
+for every screen state the app shows. After changing the API:
+
+```sh
+make golden    # rewrite the golden responses; review the diff
+make generate  # types.gen.ts and fixtures/ in mobile/src/api
+```
+
+and commit the result. `go test ./internal/api` fails while a golden response
+is out of date, and CI fails while the app's copies are.
+
+### Demo data
+
+`-seed-demo` fills an empty database with a demo lifter's block before
+serving: both leaders, a passed TM test, part of the anchor, and past
+estimates, dated over the weeks up to yesterday. A database with training
+maxes is left alone, so the flag is safe to leave on. `make demo` runs it
+against `server/data-demo`; the public demo server for App Review runs the
+image with `server -seed-demo` and its own volume and password.
 
 ### Deploying to the Pi
 

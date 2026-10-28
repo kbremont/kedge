@@ -156,7 +156,26 @@ Done in five commits, one per step, each with `make check` green. A black-box tr
    - `pages_test` and `workout_test` move along.
    - `internal/server` keeps only route wiring, `/healthz` and panic recovery, plus `flow_test.go` driving the whole HTTP stack.
 
-### 2. JSON API v1 (`internal/api`)
+### 2. JSON API v1 (`internal/api`) ✅ Complete
+
+Done in six commits, each with `make check` green. `flow_test`, `pages_test` and `workout_test` are unchanged. A smoke test against the demo database covered info, sign-in, a session (log, undo, finish), a rejected estimate, a backup that opens in `sqlite3`, and the web UI through a cookie. On every lift page, the web and the API showed the same numbers. Where the result differs from the plan below:
+
+- **Small changes in `training`:**
+  - `training.Service` has a clock (`WithClock`) for `Lift.Today`, past estimate validation and the backup's filename.
+  - `ChartWidth`/`ChartHeight` are exported.
+  - `SetTrainingMax` returns `ErrNotFound` for an unknown lift. The web still answers it with a 500.
+- **Extra TS unions:** besides tone, BBB mode, set tag and TM-test action, `phase` is a union too (`"leader" | "tm_test" | "anchor" | "deload"`). The unions are written with `//tygo:emit` on the struct and `tstype` on the field.
+- **History lifts:** `history.lifts` is `{slug, name}[]` (`LiftRef`), not training maxes with a meaningless 0.
+- **Cleaned-up numbers:** chart points are rounded to a tenth, as the web draws them and as the path is written. A BBB percent read back from its stored fraction is cleaned of float noise (55, not 55.00000000000001). Other numbers, such as `bestE1rm`, are sent unrounded, and the app formats them as the web's `FmtWeight` does.
+- **Unknown paths:** without a token, an unknown `/api/` path gets a 401, because the session check comes first. With a token it gets a 404, and so does a known path with the wrong method.
+- **Extra tests:**
+  - onboarding partway into the anchor
+  - adding and deleting a past estimate
+  - a settings round trip covering each BBB mode
+  - a failed TM test that's already settled, and a stale review key, both 409
+  - `TestScreens`, which also fails on a `testdata/` file that no screen writes (`-update` removes it)
+- **Demo data:** the demo also sets warmups and rest times. It runs six anchor sessions, so bench's Anchor round 2 is next. `.dockerignore` skips `data-demo/`.
+- **Type checking:** `release.yml`'s generate job still checks templ and sqlc only; the PR CI job covers tygo and the fixtures. `npx tsc --noEmit` over the whole app still fails on three errors that were already in the Expo template (`*.module.css` and `global.css` declarations, and a ref type in `app-tabs.web.tsx`). `types.gen.ts` type-checks, and every fixture was checked against its type, with string unions widened, which is all JSON imports infer. Phase 3 should add a `.d.ts` for the CSS imports before the mobile CI job lands.
 
 - **Endpoints:**
   - `GET info` is public and returns `{apiVersion, version}`; `POST login {password}` returns `{token, expiresAt}`.
