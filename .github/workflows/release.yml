@@ -48,8 +48,12 @@ jobs:
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
-      # Both tools are pinned by the tool block in server/go.mod.
+      # The tools are pinned by the tool block in server/go.mod. The app's
+      # generated files are checked by ci.yml, since the image does not use
+      # them.
       - run: go tool templ generate && go tool sqlc generate
+      - run: go tool oapi-codegen -config oapi-codegen.yaml ../../api/openapi.yaml
+        working-directory: server/internal/api
       - run: git diff --exit-code
 
   publish:

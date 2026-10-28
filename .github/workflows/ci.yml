@@ -5,6 +5,8 @@ on:
     paths:
       - "server/**"
       - "mobile/src/api/**"
+      - "mobile/package.json"
+      - "mobile/package-lock.json"
       - "Makefile"
       - ".github/workflows/ci.yml"
   workflow_dispatch:
@@ -42,8 +44,17 @@ jobs:
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
-      # The generators are pinned by the tool block in server/go.mod. This
-      # covers templ, sqlc, and the app's types.gen.ts and fixtures.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: mobile/.nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+        working-directory: mobile
+      # The generators are pinned by the tool block in server/go.mod and, for
+      # openapi-typescript, by mobile/package.json. This covers templ, sqlc,
+      # the API server from its spec, and the app's schema.gen.ts and
+      # fixtures.
       - run: make generate
         working-directory: .
       # git diff alone would miss a new fixture, which is untracked.
