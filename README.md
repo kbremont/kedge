@@ -19,7 +19,7 @@ The root `Makefile` drives both halves:
 
 ```sh
 make run      # the server at http://localhost:3000, AUTH_PASSWORD=dev
-make check    # server: fmt, vet, test
+make check    # server: fmt, vet, staticcheck, test
 make generate # server: regenerate templ and sqlc output
 make app      # the Expo dev server
 ```

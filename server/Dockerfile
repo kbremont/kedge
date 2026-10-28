@@ -7,9 +7,10 @@ FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 
 WORKDIR /src
 
-COPY go.mod go.sum ./
-RUN go mod download
-
+# No separate go mod download step: go.mod also pins the dev tools (sqlc and
+# friends), whose dependencies run to over a gigabyte. go build fetches only
+# the modules the binary imports, and the cache mounts keep them, and the
+# build cache, between local builds.
 COPY . .
 
 ARG VERSION=dev
@@ -17,7 +18,9 @@ ARG TARGETOS
 ARG TARGETARCH
 # CGO stays off: modernc.org/sqlite is pure Go, which is what makes a static
 # binary and a painless cross-compile to arm64 possible.
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
         -trimpath \
         -ldflags "-s -w -X main.version=${VERSION}" \
         -o /out/server ./cmd/server

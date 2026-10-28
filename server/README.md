@@ -137,20 +137,16 @@ From the repo root:
 
 ```sh
 make run      # http://localhost:3000, AUTH_PASSWORD=dev, data in server/data
-make check    # fmt, vet, test
+make check    # fmt, vet, staticcheck, test
 make generate # regenerate templ and sqlc output
 ```
 
-Requires Go 1.27, plus [templ](https://templ.guide) and
-[sqlc](https://sqlc.dev) if you are changing templates or queries:
+Requires Go 1.27. The code generators (templ, sqlc, and tygo) and staticcheck
+are pinned by the `tool` block in `go.mod` and run as `go tool templ`,
+`go tool sqlc` and so on, so nothing needs installing.
 
-```sh
-go install github.com/a-h/templ/cmd/templ@latest
-go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
-```
-
-Generated files (`*_templ.go`, `internal/db/*.go`) are committed, so neither
-tool is needed to build.
+Generated files (`*_templ.go`, `internal/db/*.go`) are committed, so none of
+the generators is needed to build.
 
 The Go module is `github.com/kbremont/531-tracker/server`, rooted here, so
 `go test ./...` run from this directory covers the whole server and nothing

@@ -24,10 +24,6 @@ permissions:
   id-token: write
   attestations: write
 
-env:
-  TEMPL_VERSION: v0.3.1020
-  SQLC_VERSION: v1.31.1
-
 jobs:
   test:
     # Direct pushes to main can reach here without any PR run, so don't
@@ -41,6 +37,7 @@ jobs:
           cache-dependency-path: server/go.sum
       - run: gofmt -l cmd internal tools | tee /dev/stderr | (! read)
       - run: go vet ./...
+      - run: go tool staticcheck ./...
       - run: go test -race ./...
 
   generate:
@@ -51,9 +48,8 @@ jobs:
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
-      - run: go install github.com/a-h/templ/cmd/templ@${{ env.TEMPL_VERSION }}
-      - run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@${{ env.SQLC_VERSION }}
-      - run: templ generate && sqlc generate
+      # Both tools are pinned by the tool block in server/go.mod.
+      - run: go tool templ generate && go tool sqlc generate
       - run: git diff --exit-code
 
   publish:

@@ -2,14 +2,15 @@ SERVER  := server
 BINARY  := bin/531
 VERSION := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
-.PHONY: all generate build test run fmt vet check icons docker app clean
+.PHONY: all generate build test run fmt vet lint check icons docker app clean
 
 all: check build
 
 ## generate: regenerate templ templates and sqlc queries
+## The tools are pinned in server/go.mod and run with go tool.
 generate:
-	cd $(SERVER) && templ generate
-	cd $(SERVER) && sqlc generate
+	cd $(SERVER) && go tool templ generate
+	cd $(SERVER) && go tool sqlc generate
 
 ## icons: redraw the PWA icons
 icons:
@@ -29,8 +30,11 @@ fmt:
 vet:
 	cd $(SERVER) && go vet ./...
 
-## check: fmt, vet and test
-check: fmt vet test
+lint:
+	cd $(SERVER) && go tool staticcheck ./...
+
+## check: fmt, vet, staticcheck and test
+check: fmt vet lint test
 
 ## run: start the server locally against server/data
 run: generate
