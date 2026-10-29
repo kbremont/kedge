@@ -2,22 +2,22 @@
 version: 1
 slug: "mobile-src-app-tabs-today-index-tsx"
 primary_target: "mobile/src/app/(tabs)/(today)/index.tsx"
-related_targets: ["mobile/src/app/workout/[id].tsx","mobile/src/app/lift/[slug].tsx"]
+related_targets: ["mobile/src/app/workout/[id].tsx","mobile/src/app/lift/[slug]/index.tsx","mobile/src/app/(tabs)/(history)/history.tsx","mobile/src/app/(tabs)/(settings)/settings.tsx","mobile/src/app/connect.tsx","mobile/src/app/setup/index.tsx"]
 ---
 
 # iOS app: working screens
 
 **Mode:** Operate. The lifter completes a session at the bar and settles training max decisions away from it.
 
-**Scope:** the app's screens, starting with Today, the session screen and the lift page; connect, setup, history and settings follow in the same world.
+**Scope:** the app's screens: Today, the session and the lift page first, then connect, setup, history and settings in the same world, with every state in the dev gallery.
 
 **Audience and task:** the owner first, other self-hosters second (PRODUCT.md). At the bar: read weight, plates and reps, lift, log, rest. Away from it: history, the estimated-max chart, settings, decisions.
 
 **Constraints:** native iOS structure (tab bar, stack, large titles, SF Symbols, system controls); the server computes every number; light and dark appearances both ship.
 
-**Memorable moment:** the session as a stat table, the current set opening out of it at 88pt with its plates and log button.
+**Memorable moment:** the session as a stat table, the current set opening out of it at 88pt with its plates and log button. History reads as a career table: rounds as lines, the four lifts as columns.
 
-**Unresolved:** app name and icon; Dynamic Type ceiling for the 88pt set weight.
+**Unresolved:** Dynamic Type ceiling for the 88pt set weight. (Decided: the app is named Kedge, and its icon is the loaded sleeve, a bar sleeve with one plate per lift ink.)
 
 ## Direction contract
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-28T23:19:23+00:00",
-  "title": "Design System: 531 Tracker",
+  "generatedAt": "2026-10-29T01:46:03+00:00",
+  "title": "Design System: Kedge",
   "extensions": {
     "colorMeta": {
       "chipboard": {
@@ -419,6 +419,10 @@
         "displayName": "Display Band",
         "purpose": "Lift name in a full lift band."
       },
+      "title": {
+        "displayName": "Title",
+        "purpose": "A sheet's title and the ink band's title."
+      },
       "headline": {
         "displayName": "Headline",
         "purpose": "Section headings over the 3pt ink rule."
@@ -427,13 +431,17 @@
         "displayName": "Stat Value",
         "purpose": "Values in a stat row."
       },
+      "number-field": {
+        "displayName": "Number Field",
+        "purpose": "Numbers typed into a field; Per side plates."
+      },
       "number": {
         "displayName": "Number",
-        "purpose": "Numbers in table rows, rep choices, PR targets."
+        "purpose": "Numbers in table rows, rep choices, PR targets; career cells at 20pt."
       },
       "number-small": {
         "displayName": "Number Small",
-        "purpose": "Percentages and dates in a row."
+        "purpose": "Percentages and dates in a row; a career-table cell's date at 14pt with proportional digits, since it reads as one word rather than down a column."
       },
       "band-slim": {
         "displayName": "Band Slim",
@@ -449,11 +457,19 @@
       },
       "body-name": {
         "displayName": "Body Name",
-        "purpose": "Set and session names, prose dates, sheet links."
+        "purpose": "Set and session names, prose dates, setting labels, sheet links, text actions."
+      },
+      "body-intro": {
+        "displayName": "Body Intro",
+        "purpose": "The soft paragraph that opens a section, a form or an empty panel."
+      },
+      "body-notice": {
+        "displayName": "Body Notice",
+        "purpose": "A Notice; a verdict line in the block review."
       },
       "body-sub": {
         "displayName": "Body Sub",
-        "purpose": "Cycle lines, notes, legends, the Logged line."
+        "purpose": "Cycle lines, notes, legends, the Logged line, evidence, setting subs, server values."
       }
     },
     "fonts": [
@@ -476,18 +492,24 @@
     "dynamicType": {
       "displayScaleCap": 1.3,
       "stackRowsAboveFontScale": 1.5,
-      "purpose": "Condensed text caps at 1.3x; SF body scales fully; tables stack label over numbers above 1.5x."
+      "toneMarkMaxScale": 2,
+      "purpose": "Condensed text caps at 1.3x; SF body scales fully. Above 1.5x, sets, past estimates, training maxes and settings put the label over the numbers or control, History becomes per-round lists, and numbers on a stacked line drop the cap. The tone mark grows with its text up to 2x."
     },
     "rules": [
       {
         "name": "hairline",
         "value": "2 × StyleSheet.hairlineWidth",
-        "purpose": "Between stat rows, columns and table rows."
+        "purpose": "Between stat rows, columns, table rows and career-table columns; field borders."
       },
       {
         "name": "heading-rule",
         "value": "3pt solid ink",
-        "purpose": "Under section headings and over totals lines."
+        "purpose": "Under section headings, over totals lines, under the career table's heads, under the masthead, over single-choice and checklist lists."
+      },
+      {
+        "name": "outline",
+        "value": "2pt",
+        "purpose": "The secondary button in ink, a rep choice in rule or line, a refused field in danger."
       }
     ],
     "shadows": [],
@@ -496,6 +518,16 @@
         "name": "press",
         "value": "opacity 0.8",
         "purpose": "Pressed state for buttons and tappable rows; no scale."
+      },
+      {
+        "name": "disabled",
+        "value": "opacity 0.35",
+        "purpose": "A button waiting on a valid input or a change."
+      },
+      {
+        "name": "cell-press",
+        "value": "background stock",
+        "purpose": "A pressed career-table cell takes the stock colour."
       },
       {
         "name": "rest-drain",
@@ -570,7 +602,94 @@
           "line": "squat-green-line-dark"
         }
       }
-    }
+    },
+    "signals": {
+      "danger": {
+        "symbol": "exclamationmark.triangle.fill",
+        "fieldOutline": "2pt danger",
+        "covers": [
+          "destructive actions",
+          "plates short",
+          "error messages",
+          "refused fields"
+        ]
+      },
+      "confirm": {
+        "symbol": "checkmark.circle.fill",
+        "color": "ink"
+      },
+      "tone": {
+        "up": "arrow.up",
+        "hold": "equal",
+        "down": "arrow.down",
+        "stamp": "ink fill, ground arrow, 1pt corner, 22pt or 18pt"
+      }
+    },
+    "nativeTint": {
+      "swiftUI": {
+        "controls": [
+          "DatePicker",
+          "Stepper",
+          "Picker (segmented)"
+        ],
+        "seedColor": "ink",
+        "colorScheme": "current appearance"
+      },
+      "switch": {
+        "trackOn": "button",
+        "trackOff": "rule",
+        "thumbOn": "onButton"
+      },
+      "stepper": {
+        "step": "15s",
+        "min": "15s",
+        "max": "600s"
+      }
+    },
+    "inkBand": {
+      "light": {
+        "band": "navy-ink",
+        "onBand": "chipboard-stock"
+      },
+      "dark": {
+        "band": "chipboard-ink",
+        "onBand": "night-navy"
+      },
+      "purpose": "The one band not in a lift's colour, for content about every lift."
+    },
+    "brand": {
+      "name": "Kedge",
+      "status": "chosen",
+      "source": "mobile/src/lib/brand.ts",
+      "mark": {
+        "component": "mobile/src/components/plate-mark.tsx",
+        "plates": [
+          "deadlift",
+          "bench",
+          "press",
+          "squat"
+        ],
+        "hardware": "ink",
+        "viewBox": "0 0 100 100"
+      },
+      "icon": {
+        "light": "mobile/assets/icon/icon-light.svg",
+        "dark": "mobile/assets/icon/icon-dark.svg",
+        "size": 1024,
+        "groundLight": "chipboard",
+        "groundDark": "night-navy",
+        "status": "chosen",
+        "bundle": "mobile/assets/kedge.icon",
+        "layers": [
+          "bar (ink)",
+          "deadlift",
+          "bench",
+          "press",
+          "squat"
+        ]
+      }
+    },
+    "liftInkNote": "The press band takes navy ink as on-band in both appearances."
   },
   "components": [
     {
@@ -593,7 +712,7 @@
       "name": "Number Field",
       "kind": "input",
       "refersTo": "input-number",
-      "description": "Weight or reps entry in a sheet, labelled above.",
+      "description": "Weight or reps entry, labelled above: stock on the ground, condensed 800 at 26pt.",
       "html": "<label class=\"ds-field\"><span class=\"ds-field-l\">WEIGHT, LB</span><input class=\"ds-input\" value=\"215\" inputmode=\"decimal\"></label>",
       "css": ".ds-field{display:block;background:#C9C3B7;padding:12px}.ds-field-l{display:block;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.8px;color:#454B63}.ds-input{box-sizing:border-box;width:100%;height:52px;margin-top:4px;padding:0 12px;border:1px solid rgba(27,34,64,.26);border-radius:6px;background:#D8D3C9;color:#1B2240;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:26px;font-variant-numeric:tabular-nums}.ds-input:focus-visible{outline:2px solid #1B2240;outline-offset:1px}"
     },
@@ -644,28 +763,107 @@
       "description": "One tap per plausible rep count; counts that meet the target print in the lift's line colour.",
       "html": "<div class=\"ds-rp\"><button class=\"ds-rep\">1</button><button class=\"ds-rep\">2</button><button class=\"ds-rep ds-tg\">3</button><button class=\"ds-rep ds-tg\">4</button><button class=\"ds-rep ds-tg\">5</button></div>",
       "css": ".ds-rp{display:flex;gap:8px;background:#D8D3C9;padding:16px}.ds-rep{flex:1;height:52px;border:2px solid rgba(27,34,64,.26);border-radius:6px;background:#C9C3B7;color:#1B2240;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:24px;font-variant-numeric:tabular-nums;cursor:pointer}.ds-tg{border-color:#2B5FA8;color:#2B5FA8}.ds-rep:hover{border-color:#1B2240}.ds-rep:active{background:#2B5FA8;color:#fff;border-color:#2B5FA8}.ds-rep:focus-visible{outline:3px solid #1B2240;outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "The second of two choices: a 2pt ink outline on a transparent fill. Disabled buttons drop to 0.35 opacity.",
+      "html": "<div class=\"ds-sb\"><button class=\"ds-btn2-p\" disabled>LOWER TO 0 LB</button><button class=\"ds-btn2\">KEEP 205 LB</button></div>",
+      "css": ".ds-sb{display:flex;flex-direction:column;gap:8px;background:#D8D3C9;padding:12px;border-radius:6px}.ds-btn2,.ds-btn2-p{width:100%;height:54px;border-radius:6px;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:22px;letter-spacing:0.6px;cursor:pointer;transition:opacity .1s}.ds-btn2{background:transparent;border:2px solid #1B2240;color:#1B2240}.ds-btn2-p{border:0;background:#1B2240;color:#D8D3C9}.ds-btn2-p:disabled{opacity:.35;cursor:default}.ds-btn2:hover{opacity:.9}.ds-btn2:active{opacity:.8}.ds-btn2:focus-visible{outline:3px solid #1B2240;outline-offset:2px}"
+    },
+    {
+      "name": "Text Actions",
+      "kind": "button",
+      "refersTo": "text-action",
+      "description": "SF 600 16pt, centred, 44pt tall: ink for an alternative, soft ink for Cancel, danger for a destructive action.",
+      "html": "<div class=\"ds-ta\"><button class=\"ds-tx\">Skip it and start the next block</button><button class=\"ds-tx ds-tx-m\">Cancel</button><button class=\"ds-tx ds-tx-d\">Discard this session</button></div>",
+      "css": ".ds-ta{display:flex;flex-direction:column;background:#C9C3B7;padding:8px 16px}.ds-tx{min-height:44px;border:0;background:none;font-family:-apple-system,system-ui,sans-serif;font-size:16px;font-weight:600;color:#1B2240;cursor:pointer}.ds-tx-m{color:#454B63}.ds-tx-d{color:#8A2A17}.ds-tx:active{opacity:.8}.ds-tx:focus-visible{outline:2px solid #1B2240;outline-offset:2px}"
+    },
+    {
+      "name": "Field and Notice",
+      "kind": "input",
+      "refersTo": "input-number-on-panel",
+      "description": "A field on a stock panel takes the ground; a refused field takes a 2pt danger outline beside the error Notice. A confirmation Notice is ink.",
+      "html": "<div class=\"ds-fn\"><span class=\"ds-fl\">WEIGHT, LB</span><input class=\"ds-fi ds-bad\" value=\"0\" inputmode=\"decimal\"><div class=\"ds-nt ds-nt-e\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 2.5 1.5 21h21L12 2.5zm-1.1 6.5h2.2l-.3 6.5h-1.6l-.3-6.5zm1.1 8.2a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6z\"/></svg><span>Weight must be more than 0.</span></div><div class=\"ds-nt\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"currentColor\"/><path d=\"M7 12.5l3.2 3.2L17 9\" stroke=\"#C9C3B7\" stroke-width=\"2.4\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span>Saved. The next session uses these settings.</span></div></div>",
+      "css": ".ds-fn{background:#D8D3C9;padding:14px;border-radius:6px}.ds-fl{display:block;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.8px;color:#454B63}.ds-fi{box-sizing:border-box;width:100%;height:52px;margin-top:4px;padding:0 12px;border:1px solid rgba(27,34,64,.26);border-radius:6px;background:#C9C3B7;color:#1B2240;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:26px;font-variant-numeric:tabular-nums}.ds-fi:focus-visible{outline:2px solid #1B2240;outline-offset:1px}.ds-bad{border:2px solid #8A2A17}.ds-nt{display:flex;align-items:flex-start;gap:8px;padding:10px 0 0;font-family:-apple-system,system-ui,sans-serif;font-size:15px;font-weight:600;line-height:20px;color:#1B2240}.ds-nt svg{flex:none;margin-top:1px}.ds-nt-e{color:#8A2A17}"
+    },
+    {
+      "name": "TM Test Result",
+      "kind": "card",
+      "refersTo": "tone-mark",
+      "description": "Slim lift band, then the ink tone mark beside the server's headline and its detail. Verdicts are never coloured.",
+      "html": "<div class=\"ds-tt\"><div class=\"ds-tt-b\"><span>DEADLIFT TM TEST</span><span>365 × 5</span></div><div class=\"ds-tt-r\"><div class=\"ds-tt-v\"><span class=\"ds-tone\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#C9C3B7\" stroke-width=\"3.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 20V5M5.5 11.5 12 5l6.5 6.5\"/></svg></span><span class=\"ds-tt-h\">Passed. The training max goes up next block.</span></div><div class=\"ds-tt-d\">5 clean reps at 100% of the training max.</div></div></div>",
+      "css": ".ds-tt{background:#D8D3C9;border-radius:6px;overflow:hidden;color:#1B2240}.ds-tt-b{display:flex;justify-content:space-between;background:#C2412A;color:#fff;padding:9px 14px;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:20px;letter-spacing:0.6px}.ds-tt-r{padding:12px 14px 14px}.ds-tt-v{display:flex;align-items:flex-start;gap:10px}.ds-tone{flex:none;display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:1px;background:#1B2240}.ds-tt-h{font-family:-apple-system,system-ui,sans-serif;font-size:16px;font-weight:600;line-height:22px}.ds-tt-d{margin:4px 0 0 32px;font-family:-apple-system,system-ui,sans-serif;font-size:13px;line-height:18px;color:#454B63}"
+    },
+    {
+      "name": "Block Review",
+      "kind": "card",
+      "refersTo": "ink-band",
+      "description": "Headed by the ink band because it covers every lift: a Lift / Now / New table of editable fields, a verdict line and evidence per lift.",
+      "html": "<div class=\"ds-rv\"><div class=\"ds-ib\"><div class=\"ds-ib-t\">BLOCK 2 TRAINING MAXES</div><div class=\"ds-ib-s\">Check each lift before the block starts.</div></div><div class=\"ds-rv-h\"><span style=\"flex:1\">LIFT</span><span class=\"ds-rv-n\">NOW</span><span class=\"ds-rv-w\">NEW, LB</span></div><div class=\"ds-rv-r\"><div class=\"ds-rv-t\"><span class=\"ds-rv-c\" style=\"background:#2B5FA8\"></span><span class=\"ds-rv-nm\">Bench Press</span><span class=\"ds-rv-n ds-rv-now\">205</span><input class=\"ds-rv-f\" value=\"210\"></div><div class=\"ds-rv-v\"><span class=\"ds-tone2\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#C9C3B7\" stroke-width=\"3.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 20V5M5.5 11.5 12 5l6.5 6.5\"/></svg></span><span>Up 5 lb</span></div><div class=\"ds-rv-e\">PR sets beat the target in all three cycles.</div></div><div class=\"ds-rv-r\"><div class=\"ds-rv-t\"><span class=\"ds-rv-c\" style=\"background:#2E7A48\"></span><span class=\"ds-rv-nm\">Squat</span><span class=\"ds-rv-n ds-rv-now\">275</span><input class=\"ds-rv-f\" value=\"275\"></div><div class=\"ds-rv-v\"><span class=\"ds-tone2\"><svg width=\"11\" height=\"11\" viewBox=\"0 0 24 24\" stroke=\"#C9C3B7\" stroke-width=\"3.6\" stroke-linecap=\"round\"><path d=\"M5 8.5h14M5 15.5h14\"/></svg></span><span>Hold</span></div><div class=\"ds-rv-e\">The 5s week missed its target by one rep.</div></div><button class=\"ds-rv-b\">ACCEPT TRAINING MAXES</button></div>",
+      "css": ".ds-rv{background:#D8D3C9;border-radius:6px;overflow:hidden;color:#1B2240}.ds-ib{background:#1B2240;color:#D8D3C9;padding:14px 16px}.ds-ib-t{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:900;font-size:30px;line-height:32px;letter-spacing:0.4px}.ds-ib-s{margin-top:6px;font-family:-apple-system,system-ui,sans-serif;font-size:15px;font-weight:600;line-height:20px;opacity:.9}.ds-rv-h{display:flex;padding:10px 14px 4px;border-bottom:1px solid rgba(27,34,64,.26);font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.8px;color:#454B63}.ds-rv-n{width:56px;text-align:right}.ds-rv-w{width:96px;margin-left:12px;text-align:right}.ds-rv-r{padding:12px 14px;border-bottom:1px solid rgba(27,34,64,.26)}.ds-rv-t{display:flex;align-items:center;gap:7px}.ds-rv-c{width:10px;height:10px;border-radius:1px}.ds-rv-nm{flex:1;font-family:-apple-system,system-ui,sans-serif;font-size:16px;font-weight:600}.ds-rv-now{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:24px;color:#454B63;font-variant-numeric:tabular-nums}.ds-rv-f{box-sizing:border-box;width:96px;height:48px;margin-left:12px;padding:0 12px;border:1px solid rgba(27,34,64,.26);border-radius:6px;background:#C9C3B7;color:#1B2240;text-align:right;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:24px;font-variant-numeric:tabular-nums}.ds-rv-f:focus-visible{outline:2px solid #1B2240}.ds-rv-v{display:flex;align-items:center;gap:10px;margin-top:8px;font-family:-apple-system,system-ui,sans-serif;font-size:15px;font-weight:600;line-height:18px}.ds-tone2{flex:none;display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:1px;background:#1B2240}.ds-rv-e{margin:4px 0 0 28px;font-family:-apple-system,system-ui,sans-serif;font-size:13px;color:#454B63}.ds-rv-b{display:block;width:calc(100% - 24px);margin:12px;height:54px;border:0;border-radius:6px;background:#1B2240;color:#D8D3C9;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:22px;letter-spacing:0.6px;cursor:pointer}.ds-rv-b:active{opacity:.8}.ds-rv-b:focus-visible{outline:3px solid #1B2240;outline-offset:2px}"
+    },
+    {
+      "name": "Career Table",
+      "kind": "custom",
+      "refersTo": "career-cell",
+      "description": "History as a card back: rounds as lines, four lift columns under pinned heads with each lift's band bar, a 3pt ink rule under the heads.",
+      "html": "<div class=\"ds-ct\"><div class=\"ds-ct-hd\"><div class=\"ds-ct-rc ds-ct-l\">ROUND</div><div class=\"ds-ct-h\"><div class=\"ds-ct-bar\" style=\"background:#D9A21B\"></div><div class=\"ds-ct-hl\"><span>PRESS</span><svg width=\"10\" height=\"10\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#454B63\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 4l8 8-8 8\"/></svg></div></div><div class=\"ds-ct-h\"><div class=\"ds-ct-bar\" style=\"background:#C2412A\"></div><div class=\"ds-ct-hl\"><span>DEAD</span><svg width=\"10\" height=\"10\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#454B63\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 4l8 8-8 8\"/></svg></div></div><div class=\"ds-ct-h\"><div class=\"ds-ct-bar\" style=\"background:#2B5FA8\"></div><div class=\"ds-ct-hl\"><span>BENCH</span><svg width=\"10\" height=\"10\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#454B63\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 4l8 8-8 8\"/></svg></div></div><div class=\"ds-ct-h\"><div class=\"ds-ct-bar\" style=\"background:#2E7A48\"></div><div class=\"ds-ct-hl\"><span>SQUAT</span><svg width=\"10\" height=\"10\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#454B63\" stroke-width=\"3.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M9 4l8 8-8 8\"/></svg></div></div></div><div class=\"ds-ct-ln\"><div class=\"ds-ct-rc\"><div class=\"ds-ct-cy\">ANCHOR</div><div class=\"ds-ct-rn\">2</div></div><button class=\"ds-ct-c\"><span class=\"ds-ct-n\">115 × 8</span><span class=\"ds-ct-d\">Oct 20</span></button><button class=\"ds-ct-c\"><span class=\"ds-ct-n\">365 × 6</span><span class=\"ds-ct-d\">Oct 21</span></button><button class=\"ds-ct-c\"><span class=\"ds-ct-n\">205 × 7</span><span class=\"ds-ct-d\">Oct 23</span></button><button class=\"ds-ct-c\"><span class=\"ds-ct-n\">275 × 9</span><span class=\"ds-ct-d\">Oct 24</span></button></div><div class=\"ds-ct-ln\"><div class=\"ds-ct-rc\"><div class=\"ds-ct-cy\">ANCHOR</div><div class=\"ds-ct-rn\">1</div></div><button class=\"ds-ct-c\"><span class=\"ds-ct-n\">110 × 7</span><span class=\"ds-ct-d\">Oct 13</span></button><button class=\"ds-ct-c\"><span class=\"ds-ct-n\">355 × 5</span><span class=\"ds-ct-d\">Oct 14</span></button><button class=\"ds-ct-c\"><span class=\"ds-ct-n\">200 × 6</span><span class=\"ds-ct-d\">Oct 16</span></button><button class=\"ds-ct-c\"><span class=\"ds-ct-n\">270 × 8</span><span class=\"ds-ct-d\">Oct 17</span></button></div></div>",
+      "css": ".ds-ct{background:#C9C3B7;padding:0 16px 12px;color:#1B2240}.ds-ct-hd{display:flex;align-items:flex-end;padding-top:6px;border-bottom:3px solid #1B2240}.ds-ct-rc{width:62px;flex:none;padding:8px 0}.ds-ct-l,.ds-ct-hl,.ds-ct-cy{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.8px;color:#454B63}.ds-ct-l{padding-bottom:6px}.ds-ct-h{flex:1;padding:0 6px 6px 8px;border-left:2px solid transparent}.ds-ct-bar{height:5px;border-radius:1px;margin-bottom:7px}.ds-ct-hl{display:flex;align-items:center;justify-content:space-between}.ds-ct-ln{display:flex;border-bottom:1px solid rgba(27,34,64,.26)}.ds-ct-cy{font-size:13px;letter-spacing:0.6px}.ds-ct-rn{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:22px;line-height:24px}.ds-ct-c{flex:1;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:9px 7px;border:0;border-left:1px solid rgba(27,34,64,.26);background:transparent;color:inherit;cursor:pointer}.ds-ct-c:hover,.ds-ct-c:active{background:#D8D3C9}.ds-ct-c:focus-visible{outline:2px solid #1B2240;outline-offset:-2px}.ds-ct-n{font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}.ds-ct-d{margin-top:1px;font-family:-apple-system,system-ui,sans-serif;font-size:12px;color:#454B63}"
+    },
+    {
+      "name": "Setting Rows",
+      "kind": "custom",
+      "refersTo": "setting-row",
+      "description": "Ruled settings lines, label left and control right: a field with a soft unit, a stepper beside its clock, a switch in the button colours (approximated here).",
+      "html": "<div class=\"ds-st\"><div class=\"ds-st-r\"><div class=\"ds-st-t\"><div class=\"ds-st-n\">Bar</div></div><input class=\"ds-st-f\" value=\"45\"><span class=\"ds-st-u\">lb</span></div><div class=\"ds-st-r\"><div class=\"ds-st-t\"><div class=\"ds-st-n\">After main sets</div></div><span class=\"ds-st-k\">3:00</span><span class=\"ds-st-sp\"><button aria-label=\"Less\">−</button><button aria-label=\"More\">+</button></span></div><div class=\"ds-st-r\"><div class=\"ds-st-t\"><div class=\"ds-st-n\">Warmup sets</div><div class=\"ds-st-s\">40, 50 and 60% × 5 before the main sets</div></div><button class=\"ds-st-sw\" role=\"switch\" aria-checked=\"true\"><span></span></button></div></div>",
+      "css": ".ds-st{background:#C9C3B7;padding:0 16px;color:#1B2240}.ds-st-r{display:flex;align-items:center;gap:8px;min-height:64px;padding:10px 0;border-bottom:1px solid rgba(27,34,64,.26)}.ds-st-t{flex:1;margin-right:4px}.ds-st-n{font-family:-apple-system,system-ui,sans-serif;font-size:16px;font-weight:600}.ds-st-s{margin-top:2px;font-family:-apple-system,system-ui,sans-serif;font-size:13px;color:#454B63}.ds-st-f{box-sizing:border-box;width:84px;height:46px;padding:0 12px;border:1px solid rgba(27,34,64,.26);border-radius:6px;background:#D8D3C9;color:#1B2240;text-align:right;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:24px}.ds-st-f:focus-visible{outline:2px solid #1B2240}.ds-st-u{width:20px;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:600;font-size:17px;color:#454B63}.ds-st-k{min-width:48px;text-align:right;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:800;font-size:24px;font-variant-numeric:tabular-nums}.ds-st-sp{display:flex;border-radius:8px;background:rgba(27,34,64,.1)}.ds-st-sp button{width:46px;height:32px;border:0;background:none;color:#1B2240;font-size:20px;cursor:pointer}.ds-st-sp button:first-child{border-right:1px solid rgba(27,34,64,.26)}.ds-st-sp button:focus-visible{outline:2px solid #1B2240}.ds-st-sw{position:relative;width:51px;height:31px;border:0;border-radius:16px;background:#1B2240;cursor:pointer}.ds-st-sw span{position:absolute;top:2px;right:2px;width:27px;height:27px;border-radius:50%;background:#D8D3C9}.ds-st-sw:focus-visible{outline:2px solid #1B2240;outline-offset:2px}"
+    },
+    {
+      "name": "Plate Mark Masthead",
+      "kind": "custom",
+      "refersTo": "plate-mark",
+      "description": "The mark (a bar sleeve, one plate per lift ink) over the name and tagline and a 3pt ink rule. The app icon is the same mark.",
+      "html": "<div class=\"ds-mh\"><svg width=\"76\" height=\"76\" viewBox=\"0 0 100 100\" aria-hidden=\"true\"><rect x=\"4\" y=\"46\" width=\"26\" height=\"8\" rx=\"1\" fill=\"#1B2240\"/><rect x=\"28\" y=\"37\" width=\"8\" height=\"26\" rx=\"1.5\" fill=\"#1B2240\"/><rect x=\"38\" y=\"12\" width=\"10\" height=\"76\" rx=\"1.5\" fill=\"#C2412A\"/><rect x=\"50\" y=\"18\" width=\"10\" height=\"64\" rx=\"1.5\" fill=\"#2B5FA8\"/><rect x=\"62\" y=\"24\" width=\"10\" height=\"52\" rx=\"1.5\" fill=\"#D9A21B\"/><rect x=\"74\" y=\"30\" width=\"10\" height=\"40\" rx=\"1.5\" fill=\"#2E7A48\"/><rect x=\"84\" y=\"44\" width=\"12\" height=\"12\" rx=\"1\" fill=\"#1B2240\"/></svg><div class=\"ds-mh-n\">KEDGE</div><div class=\"ds-mh-t\">5/3/1, kept on your own server.</div></div>",
+      "css": ".ds-mh{background:#C9C3B7;padding:20px 20px 14px;border-bottom:3px solid #1B2240}.ds-mh-n{margin-top:14px;font-family:'Sofia Sans Extra Condensed','Arial Narrow',sans-serif;font-weight:900;font-size:64px;line-height:64px;letter-spacing:0.4px;color:#1B2240}.ds-mh-t{margin-top:2px;font-family:-apple-system,system-ui,sans-serif;font-size:17px;font-weight:600;color:#454B63}"
     }
   ],
   "narrative": {
     "northStar": "Career Line",
-    "overview": "**Creative North Star: \"Career Line\"**\n\nEvery screen is the back of a sports card. The page is uncoated chipboard printed in one navy ink; a lift's identity arrives as a solid band of spot colour, the way a team colour heads a player's card; and every number sits in a ruled stat line, read across like a season's row. The lifter's history becomes a career, the best estimate becomes the totals line under the seasons, and the next set is the one stat printed large.\n\nThe system is dense and typographic rather than decorative. Condensed black caps carry headings and every figure; SF carries sentences and controls. There is no imagery, no gradient, no shadow and no glow: hierarchy comes from type size, ink weight, the heavy rule under a heading, and the one spot colour per lift. Dark appearance reverses the stock, not the idea: navy card, chipboard ink, the same lift inks.\n\nThe world sits inside native iOS structure. The tab bar, stack navigation, large titles, sheets, alerts, date pickers and SF Symbols are the system's own; the card back is printed on the content, not on the chrome.",
+    "overview": "**Creative North Star: \"Career Line\"**\n\nEvery screen is the back of a sports card. The page is uncoated chipboard printed in one navy ink; a lift's identity arrives as a solid band of spot colour, the way a team colour heads a player's card; and every number sits in a ruled stat line, read across like a season's row. The lifter's history becomes a career, the best estimate becomes the totals line under the seasons, and the next set is the one stat printed large.\n\nThe system is dense and typographic rather than decorative. Condensed black caps carry headings and every figure; SF carries sentences and controls. There is no imagery, no gradient, no shadow and no glow: hierarchy comes from type size, ink weight, the heavy rule under a heading, and the one spot colour per lift. Dark appearance reverses the stock, not the idea: navy card, chipboard ink, the same lift inks.\n\nThe world sits inside native iOS structure. The tab bar, stack navigation, large titles, sheets, alerts and prompts, swipe actions, date pickers, steppers, segmented pickers, switches and SF Symbols are the system's own, tinted from the inks; the card back is printed on the content, not on the chrome.",
     "keyCharacteristics": [
       "Chipboard ground and navy ink in light; night navy ground and chipboard ink in dark.",
       "One spot colour per lift (press gold, deadlift brick, bench blue, squat green), used everywhere that lift appears and nowhere else.",
       "Sofia Sans Extra Condensed for headings and all numerals, tabular; SF for body text.",
       "Hairline-ruled stat rows; a 3pt ink rule under every section heading and over every totals line.",
       "Flat print: panels are a lighter stock, never lifted by shadow.",
-      "Display numerals follow Dynamic Type to a 1.3x cap; body text scales fully."
+      "Display numerals follow Dynamic Type to a 1.3x cap; body text scales fully; above 1.5x, rows stack and their numbers scale fully."
     ],
     "rules": [
       {
         "name": "The One Ink Per Lift Rule",
-        "body": "A lift's spot colour marks that lift and nothing else: its band, its chip, its chart line, its rest bar, its PR target. No spot ink is ever a generic accent, link colour or state colour, and no screen borrows another lift's ink.",
+        "body": "A lift's spot colour marks that lift and nothing else: its band, its chip, its plate in the mark, its chart line, its rest bar, its PR set. No spot ink is ever a generic accent, link colour, verdict or state colour, and no screen borrows another lift's ink.",
         "section": "colors"
       },
       {
         "name": "The Band, On-Band, Line Rule",
         "body": "Fills use `band`, text on a fill uses `onBand`, and anything drawn on the ground or stock uses `line`. Never set a lift's band colour as text or a stroke on the ground.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink Band Rule",
+        "body": "Content about every lift at once (the block review) is headed by the ink band: the button colours as a band. It is the one band not in a lift's colour, and it is never used for a single lift.",
+        "section": "colors"
+      },
+      {
+        "name": "The Uncoloured Verdict Rule",
+        "body": "A verdict on a training max (up, hold, down) is the ink tone mark plus the server's own words. It is never green, red or a lift's ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The Danger Signal Rule",
+        "body": "Danger is never colour alone. It arrives as a word (Discard, Delete), as the `exclamationmark.triangle.fill` symbol (plates short, an error message), or as a 2pt outline on a field beside the message that says why.",
         "section": "colors"
       },
       {
@@ -675,7 +873,7 @@
       },
       {
         "name": "The Display Cap Rule",
-        "body": "Text in the condensed face carries `maxFontSizeMultiplier` 1.3 so bands and the set weight stay on one line; SF body text scales fully. Above a 1.5x font scale, tables stack each row's label over its numbers and drop the cap on those numbers.",
+        "body": "Text in the condensed face carries `maxFontSizeMultiplier` 1.3 so bands and the set weight stay on one line; SF body text scales fully. Above a 1.5x font scale, rows stack instead of shrinking: a set, a past estimate, a training max or a setting puts its label over its numbers or control, and History turns its four columns into per-round lists. Numbers on a stacked line drop the cap. The tone mark grows with the text beside it up to 2x.",
         "section": "typography"
       },
       {
@@ -690,15 +888,20 @@
       }
     ],
     "dos": [
-      "Do print every number in Sofia Sans Extra Condensed with tabular numerals and cap its Dynamic Type growth at 1.3x.",
+      "Do print every number in Sofia Sans Extra Condensed with tabular numerals and cap its Dynamic Type growth at 1.3x, except numbers on a line stacked above a 1.5x font scale.",
       "Do take lift colour from the lift's ink set (`band`, `onBand`, `line`) and use it everywhere that lift appears.",
+      "Do head content about every lift with the ink band, and content about one lift with that lift's band.",
+      "Do print a verdict as the ink tone mark beside the server's own words.",
+      "Do mark danger with a word, the `exclamationmark.triangle.fill` symbol or a 2pt outline beside its message.",
       "Do put a 3pt ink rule under every section heading and over every totals line, and hairline rules between rows.",
       "Do separate surfaces only by the stock step: ground for the page, stock for panels.",
-      "Do keep native iOS chrome native: tabs, stack headers, large titles, form sheets, alerts, date pickers and SF Symbols.",
-      "Do stack a row's label over its numbers above a 1.5x font scale instead of shrinking or truncating."
+      "Do keep native iOS chrome native: tabs, stack headers, large titles, form sheets, alerts and prompts, swipe actions, date pickers, steppers, segmented pickers, switches and SF Symbols.",
+      "Do tint native controls from the inks: seed SwiftUI controls with the ink colour and the appearance; give a Switch the button and on-button colours.",
+      "Do stack a row's label over its numbers or control above a 1.5x font scale instead of shrinking or truncating."
     ],
     "donts": [
-      "Don't use a lift's spot ink as a generic accent, link, selection or status colour.",
+      "Don't use a lift's spot ink as a generic accent, link, selection, verdict or status colour.",
+      "Don't colour a verdict green or red.",
       "Don't add shadows, blur, gradients or glows to content; emphasis is ink and type.",
       "Don't wrap individual stats in their own cards; they belong in ruled rows and stat lines.",
       "Don't set a header background on a large-title tab root; it hides the large title on iOS 26.",

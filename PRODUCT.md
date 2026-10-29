@@ -74,12 +74,11 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 - **Lifts:** press, deadlift, bench and squat.
 
 **Undecided:**
-- The app's name and its 1024px icon. Both get decided in the screen design phase.
 - The visual design. See Brand Commitments.
 
 ## Brand Commitments
 
-- An original app name, with "5/3/1" in the subtitle and description and a note that the app is not affiliated with Jim Wendler. The name isn't chosen yet, and the PWA's "5/3/1" title is not the app name.
+- The app is called **Kedge**, with "5/3/1" in the subtitle and description and a note that the app is not affiliated with Jim Wendler. A kedge is a small anchor a ship drops ahead and hauls itself up to, the way the program moves a lifter forward. The PWA's "5/3/1" title is not the app name.
 - App Store category: Health & Fitness.
 - No visual commitments. The migration plan's look notes (dark only, an amber accent, Geist, lucide icons, the football-survivor palette) were a starting idea, not decisions. The design phase decides the look.
 
@@ -88,8 +87,8 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 - **Screen fixtures:** `mobile/src/api/fixtures/*.json` has a golden API response for every screen state the app shows, generated from the server's tests.
 - **Demo data:** `make demo` runs the server against a database seeded with a realistic block. It covers both leaders, a passed TM test, part of the anchor, and past estimates.
 - **The legacy web UI** at `make run` (`server/internal/web`) works as a reference for behavior and copy, not for the look.
-- **Assets:** the PWA icons in `server/internal/web/static/` belong to the legacy web UI. The images in `mobile/assets/` are Expo template placeholders.
-- **Not available:** no app name, app icon, App Store screenshots, testimonials, user counts or reviews. Don't invent any.
+- **Assets:** the PWA icons in `server/internal/web/static/` belong to the legacy web UI. The app icon is `mobile/assets/kedge.icon` (with 1024px renders in `mobile/assets/icon/`); the rest of `mobile/assets/images/` (splash, Android icons) are Expo template placeholders.
+- **Not available:** no App Store screenshots, testimonials, user counts or reviews. Don't invent any.
 
 ## Product Principles
 

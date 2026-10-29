@@ -1,0 +1,124 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "solid": "srgb:0.78824,0.76471,0.71765,1.00000"
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "solid": "srgb:0.07059,0.09020,0.16078,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Loaded sleeve",
+      "layers": [
+        {
+          "name": "Bar",
+          "image-name": "bar.svg",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.10588,0.13333,0.25098,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.89412,0.87059,0.82353,1.00000"
+              }
+            }
+          ],
+          "glass": false
+        },
+        {
+          "name": "Deadlift",
+          "image-name": "deadlift.svg",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.76078,0.25490,0.16471,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.76078,0.29020,0.20000,1.00000"
+              }
+            }
+          ],
+          "glass": false
+        },
+        {
+          "name": "Bench",
+          "image-name": "bench.svg",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.16863,0.37255,0.65882,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.24706,0.44706,0.74118,1.00000"
+              }
+            }
+          ],
+          "glass": false
+        },
+        {
+          "name": "Press",
+          "image-name": "press.svg",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.85098,0.63529,0.10588,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.85098,0.63529,0.10588,1.00000"
+              }
+            }
+          ],
+          "glass": false
+        },
+        {
+          "name": "Squat",
+          "image-name": "squat.svg",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.18039,0.47843,0.28235,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.20000,0.51765,0.30980,1.00000"
+              }
+            }
+          ],
+          "glass": false
+        }
+      ],
+      "shadow": {
+        "kind": "none",
+        "opacity": 0.5
+      },
+      "specular": false,
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}
