@@ -32,7 +32,6 @@ import {
 } from 'react-native';
 
 import type { Tone } from '@/api/schema.gen';
-import { useOverrides } from '@/gallery/store';
 import { displayScaleCap, font, liftInk, radius, space, usePalette, type Palette } from '@/theme';
 
 const hairline = StyleSheet.hairlineWidth * 2;
@@ -208,17 +207,6 @@ export function Page({
 }) {
   const { s } = useCardStyles();
   const own = useRef<ComponentRef<typeof ScrollView>>(null);
-  // Gallery only: open a state partway down, to show what sits below the fold.
-  const { scrollY } = useOverrides().o;
-  useEffect(() => {
-    if (scrollY === undefined) return;
-    const id = setTimeout(() => {
-      if (scrollY === 'end') own.current?.scrollToEnd({ animated: false });
-      else own.current?.scrollTo({ y: scrollY, animated: false });
-    }, 350);
-    return () => clearTimeout(id);
-  }, [scrollY]);
-
   // With automaticallyAdjustKeyboardInsets, RN's ScrollView re-applies its
   // offset at every keyboard change in the app (in _keyboardWillChangeFrame),
   // clamped to its own contentInset. That leaves out the insets automatic
