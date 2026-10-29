@@ -1,18 +1,24 @@
 // The Career Line building blocks: every screen is stock, ink, ruled stat
 // lines and a band in the lift's colour.
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { useMemo, type ComponentRef, type ReactNode, type Ref } from 'react';
+import { useEffect, useMemo, useRef, type ComponentRef, type ReactNode, type Ref } from 'react';
 import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
+  useWindowDimensions,
   View,
+  type ScrollViewProps,
   type StyleProp,
+  type TextInputProps,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
 
+import type { Tone } from '@/api/schema.gen';
+import { useOverrides } from '@/gallery/store';
 import { displayScaleCap, font, liftInk, radius, space, usePalette, type Palette } from '@/theme';
 
 const hairline = StyleSheet.hairlineWidth * 2;
@@ -65,7 +71,18 @@ function makeStyles(p: Palette) {
       flexDirection: 'row',
       gap: 8,
     },
+    buttonSecondary: { backgroundColor: 'transparent', borderWidth: 2, borderColor: p.ink },
     pressed: { opacity: 0.8 },
+    disabled: { opacity: 0.35 },
+    textAction: {
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      paddingVertical: 10,
+    },
+    textActionText: { fontSize: 16, fontWeight: '600', color: p.ink },
     buttonText: {
       fontFamily: font.heavy,
       fontSize: 22,
@@ -138,6 +155,20 @@ function makeStyles(p: Palette) {
       color: p.ink,
     },
     totalsValue: { fontFamily: font.black, fontSize: 30, color: p.ink, fontVariant: ['tabular-nums'] },
+    field: {
+      height: 52,
+      borderRadius: radius.panel,
+      borderWidth: hairline,
+      borderColor: p.rule,
+      paddingHorizontal: 12,
+      color: p.ink,
+    },
+    fieldNumber: { fontFamily: font.heavy, fontSize: 26, fontVariant: ['tabular-nums'] },
+    fieldText: { fontSize: 17 },
+    notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 10 },
+    noticeText: { flex: 1, fontSize: 15, fontWeight: '600', color: p.ink, lineHeight: 20 },
+    tone: { width: 22, height: 22, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center' },
+    intro: { fontSize: 15, lineHeight: 21, color: p.ink2 },
   });
 }
 
@@ -149,17 +180,36 @@ export function useCardStyles() {
 export function Page({
   children,
   ref,
-}: {
+  ...props
+}: ScrollViewProps & {
   children: ReactNode;
   ref?: Ref<ComponentRef<typeof ScrollView>>;
 }) {
   const { s } = useCardStyles();
+  const own = useRef<ComponentRef<typeof ScrollView>>(null);
+  // Gallery only: open a state partway down, to show what sits below the fold.
+  const { scrollY } = useOverrides().o;
+  useEffect(() => {
+    if (scrollY === undefined) return;
+    const id = setTimeout(() => {
+      if (scrollY === 'end') own.current?.scrollToEnd({ animated: false });
+      else own.current?.scrollTo({ y: scrollY, animated: false });
+    }, 350);
+    return () => clearTimeout(id);
+  }, [scrollY]);
   return (
     <ScrollView
-      ref={ref}
+      ref={(node) => {
+        own.current = node;
+        if (typeof ref === 'function') ref(node);
+        else if (ref) ref.current = node;
+      }}
       style={s.page}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={s.pageContent}>
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
+      contentContainerStyle={s.pageContent}
+      {...props}>
       {children}
     </ScrollView>
   );
@@ -258,23 +308,67 @@ export function Button({
   label,
   icon,
   onPress,
+  secondary,
+  disabled,
   style,
 }: {
   label: string;
   icon?: SFSymbol;
   onPress?: () => void;
+  // Printed as an ink outline instead of a solid: the second of two choices.
+  secondary?: boolean;
+  disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const { p, s } = useCardStyles();
+  const color = secondary ? p.ink : p.onButton;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        s.button,
+        secondary && s.buttonSecondary,
+        pressed && s.pressed,
+        disabled && s.disabled,
+        style,
+      ]}>
+      {icon ? <SymbolView name={icon} tintColor={color} size={18} weight="bold" /> : null}
+      <Text style={[s.buttonText, { color }]} maxFontSizeMultiplier={displayScaleCap}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+// A text action in SF, centred, with a 44pt target: ink for an alternative,
+// soft ink for Cancel, danger for a destructive one.
+export function TextAction({
+  label,
+  icon,
+  danger,
+  muted,
+  onPress,
+  style,
+}: {
+  label: string;
+  icon?: SFSymbol;
+  danger?: boolean;
+  muted?: boolean;
+  onPress?: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { p, s } = useCardStyles();
+  const color = danger ? p.danger : muted ? p.ink2 : p.ink;
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [s.button, pressed && s.pressed, style]}>
-      {icon ? <SymbolView name={icon} tintColor={p.onButton} size={18} weight="bold" /> : null}
-      <Text style={s.buttonText} maxFontSizeMultiplier={displayScaleCap}>
-        {label}
-      </Text>
+      style={({ pressed }) => [s.textAction, pressed && s.pressed, style]}>
+      {icon ? <SymbolView name={icon} tintColor={color} size={16} weight="semibold" /> : null}
+      <Text style={[s.textActionText, { color }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -342,4 +436,93 @@ export function Totals({ label, value }: { label: string; value: string }) {
       </Text>
     </View>
   );
+}
+
+// A field printed on the card: stock on the ground, ground on a stock panel.
+// Numbers are set in the condensed face; text such as an address in SF.
+// A field the server refused is outlined in danger, beside the message that
+// says why.
+export function Field({
+  text,
+  onPanel,
+  invalid,
+  style,
+  ...props
+}: TextInputProps & { text?: boolean; onPanel?: boolean; invalid?: boolean }) {
+  const { p, s } = useCardStyles();
+  return (
+    <TextInput
+      placeholderTextColor={p.ink2}
+      selectionColor={p.ink}
+      maxFontSizeMultiplier={text ? undefined : displayScaleCap}
+      {...props}
+      style={[
+        s.field,
+        text ? s.fieldText : s.fieldNumber,
+        { backgroundColor: onPanel ? p.ground : p.stock },
+        style,
+        invalid && { borderColor: p.danger, borderWidth: 2 },
+      ]}
+    />
+  );
+}
+
+// A line of news under or over a form: an error in danger, a confirmation in
+// ink. Each carries its symbol, so colour is never the only signal.
+export function Notice({
+  error,
+  icon,
+  children,
+  style,
+}: {
+  error?: boolean;
+  icon?: SFSymbol;
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { p, s } = useCardStyles();
+  const color = error ? p.danger : p.ink;
+  return (
+    <View
+      style={[s.notice, style]}
+      accessibilityRole={error ? 'alert' : undefined}
+      accessibilityLiveRegion="polite">
+      <SymbolView
+        name={icon ?? (error ? 'exclamationmark.triangle.fill' : 'checkmark.circle.fill')}
+        tintColor={color}
+        size={18}
+        style={{ marginTop: 1 }}
+      />
+      <Text style={[s.noticeText, { color }]}>{children}</Text>
+    </View>
+  );
+}
+
+const toneSymbol: Record<Tone, SFSymbol> = { up: 'arrow.up', hold: 'equal', down: 'arrow.down' };
+const toneWord: Record<Tone, string> = { up: 'Up', hold: 'Hold', down: 'Down' };
+
+// Which way a training max is going: a square ink stamp with an arrow, read
+// beside the verdict's own words. It grows with their text and sits centred
+// on their first line, whose height (at the default text size) is `line`.
+export function ToneMark({ tone, size = 22, line = size }: { tone: Tone; size?: number; line?: number }) {
+  const { p, s } = useCardStyles();
+  const { fontScale } = useWindowDimensions();
+  const box = size * Math.min(fontScale, 2);
+  return (
+    <View
+      style={[
+        s.tone,
+        { backgroundColor: p.ink, width: box, height: box, marginTop: Math.max(0, (line * fontScale - box) / 2) },
+      ]}
+      accessible
+      accessibilityLabel={toneWord[tone]}>
+      <SymbolView name={toneSymbol[tone]} tintColor={p.ground} size={box * 0.62} weight="heavy" />
+    </View>
+  );
+}
+
+// An SF paragraph in soft ink that opens a section or a form.
+export function Intro({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
+  const { s } = useCardStyles();
+  return <Text style={[s.intro, style]}>{children}</Text>;
 }

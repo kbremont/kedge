@@ -13,18 +13,30 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 
-import type { Set } from '@/api/schema.gen';
-import { Button, Label, Page, RestBar, useCardStyles } from '@/components/card-back';
-import { cycleText, fmtClock, fmtPct, fmtWeight, plateList, useRestClock } from '@/lib/format';
+import type { Set, Workout } from '@/api/schema.gen';
+import { Button, Label, Notice, Page, RestBar, Totals, useCardStyles } from '@/components/card-back';
+import { useOverrides } from '@/gallery/store';
+import { cycleText, fmtClock, fmtPct, fmtWeight, plateList, times, useRestClock } from '@/lib/format';
 import { sample } from '@/sample';
+import { useWorkout } from '@/sample/use-screen';
 import { displayScaleCap, font, liftInk, radius } from '@/theme';
 
-const slug = 'bench';
-
 export default function WorkoutScreen() {
+  const { id, back } = useLocalSearchParams<{ id: string; back?: string }>();
+  const { version } = useOverrides();
+  const w = useWorkout(id);
+  return (
+    <>
+      <Stack.Screen options={{ title: w.liftName, headerBackTitle: back ?? 'Today' }} />
+      <Session key={version} w={w} />
+    </>
+  );
+}
+
+function Session({ w }: { w: Workout }) {
   const { p, s } = useCardStyles();
+  const slug = w.liftSlug;
   const ink = liftInk(p, slug);
-  const w = sample.workout;
   const { fontScale, height: windowHeight } = useWindowDimensions();
   // At accessibility text sizes each set stacks its label over its numbers,
   // so labels never outgrow the figures they name.
@@ -43,7 +55,10 @@ export default function WorkoutScreen() {
   });
   const [lastLogged, setLastLogged] = useState(() => sets.findLast((x) => x.done)?.idx ?? null);
   const { left, restart } = useRestClock(w.restSeconds, sample.restStartedAgo);
-  const current = sets.find((x) => !x.done);
+  const current = w.completed ? undefined : sets.find((x) => !x.done);
+  // A session opened from history: every set as it was lifted, and the PR
+  // set's result as the bottom line.
+  const pr = w.completed ? sets.find((x) => x.isAmrap && x.done) : undefined;
   const undoable = sets.find((x) => x.idx === lastLogged && x.done);
 
   const log = (set: Set, reps: number) => {
@@ -82,7 +97,6 @@ export default function WorkoutScreen() {
 
   return (
     <Page ref={scroll}>
-      <Stack.Screen options={{ title: w.liftName }} />
       <View style={[local.band, { backgroundColor: ink.band }]}>
         <View style={local.bandTop}>
           <Text style={[local.bandText, { color: ink.onBand }]} maxFontSizeMultiplier={displayScaleCap}>
@@ -159,12 +173,13 @@ export default function WorkoutScreen() {
                   </Text>
                 </View>
                 {set.unloadable > 0 ? (
-                  <Text style={[local.short, { color: p.danger }]}>
-                    {fmtWeight(set.unloadable)} {w.unit} short with your plates
-                  </Text>
+                  <Notice error style={local.short}>
+                    {fmtWeight(set.unloadable)} {w.unit} short: your plates can’t load {fmtWeight(set.weight)}{' '}
+                    {w.unit} exactly.
+                  </Notice>
                 ) : null}
                 {set.asksReps ? (
-                  <RepPicker set={set} bestE1rm={w.bestE1rm} unit={w.unit} onPick={(r) => log(set, r)} />
+                  <RepPicker set={set} slug={slug} bestE1rm={w.bestE1rm} unit={w.unit} onPick={(r) => log(set, r)} />
                 ) : (
                   <Button
                     icon="checkmark"
@@ -177,10 +192,24 @@ export default function WorkoutScreen() {
             </View>
           );
         }
-        return <SetRow key={set.idx} set={set} stacked={stacked} bestE1rm={w.bestE1rm} unit={w.unit} />;
+        return (
+          <SetRow
+            key={set.idx}
+            set={set}
+            slug={slug}
+            stacked={stacked}
+            completed={w.completed}
+            bestE1rm={w.bestE1rm}
+            unit={w.unit}
+          />
+        );
       })}
 
-      {current ? (
+      {w.completed ? (
+        pr ? (
+          <Totals label="PR set" value={`${fmtWeight(pr.weight)} × ${pr.actualReps}`} />
+        ) : null
+      ) : current ? (
         <Pressable accessibilityRole="button" style={local.discard} onPress={discard}>
           <Text style={[local.discardText, { color: p.danger }]}>Discard this session</Text>
         </Pressable>
@@ -195,22 +224,49 @@ export default function WorkoutScreen() {
 
 function SetRow({
   set,
+  slug,
   stacked,
+  completed,
   bestE1rm,
   unit,
 }: {
   set: Set;
+  slug: string;
   stacked: boolean;
+  completed: boolean;
   bestE1rm: number;
   unit: string;
 }) {
   const { p, s } = useCardStyles();
   const ink = liftInk(p, slug);
-  const muted = set.done && s.muted;
+  // In a session the done sets step back; from history every set reads alike.
+  const muted = set.done && !completed && s.muted;
   // Stacked rows give the numbers their own line, so they scale fully and
   // stay heavier than the label above them.
   const cap = stacked ? undefined : displayScaleCap;
-  const reps = set.done ? (
+  const short =
+    set.unloadable > 0 ? (
+      <SymbolView
+        name="exclamationmark.triangle.fill"
+        tintColor={p.danger}
+        size={13}
+        accessibilityLabel={`${fmtWeight(set.unloadable)} ${unit} short`}
+      />
+    ) : null;
+  const reps = completed && set.isAmrap ? (
+    // The PR set's result, printed reversed out of the lift's colour.
+    <View style={local.repsCell}>
+      <View style={[local.prChip, { backgroundColor: ink.band }]}>
+        <Text style={[s.num, { color: ink.onBand }]} maxFontSizeMultiplier={cap}>
+          {set.actualReps}
+        </Text>
+      </View>
+    </View>
+  ) : completed ? (
+    <Text style={s.num} maxFontSizeMultiplier={cap}>
+      {set.actualReps}
+    </Text>
+  ) : set.done ? (
     <View style={local.repsCell}>
       <SymbolView name="checkmark" tintColor={p.ink2} size={13} weight="bold" />
       <Text style={[s.num, s.muted]} maxFontSizeMultiplier={cap}>
@@ -240,9 +296,12 @@ function SetRow({
             {set.tag} · {fmtPct(set.pct)}
           </Text>
           <View style={local.stackedNums}>
-            <Text style={[s.num, muted]} maxFontSizeMultiplier={cap}>
-              {fmtWeight(set.weight)} {unit}
-            </Text>
+            <View style={local.weightCell}>
+              {short}
+              <Text style={[s.num, muted]} maxFontSizeMultiplier={cap}>
+                {fmtWeight(set.weight)} {unit}
+              </Text>
+            </View>
             {reps}
           </View>
         </>
@@ -252,9 +311,12 @@ function SetRow({
           <Text style={[s.numSmall, local.cPct, muted]} maxFontSizeMultiplier={displayScaleCap}>
             {fmtPct(set.pct)}
           </Text>
-          <Text style={[s.num, local.cLb, muted]} maxFontSizeMultiplier={displayScaleCap}>
-            {fmtWeight(set.weight)}
-          </Text>
+          <View style={[local.cLb, local.weightCell]}>
+            {short}
+            <Text style={[s.num, muted]} maxFontSizeMultiplier={displayScaleCap}>
+              {fmtWeight(set.weight)}
+            </Text>
+          </View>
           <View style={local.cRepsBox}>{reps}</View>
         </View>
       )}
@@ -262,6 +324,8 @@ function SetRow({
         <Text style={[s.sub, local.prNote]}>
           PR set · best estimated max {fmtWeight(bestE1rm)} {unit}
         </Text>
+      ) : completed && set.isAmrap ? (
+        <Text style={[s.sub, local.prNote]}>PR set · target {times(set.repTarget)}</Text>
       ) : null}
     </View>
   );
@@ -271,11 +335,13 @@ function SetRow({
 // the prescription are printed in the lift's colour.
 function RepPicker({
   set,
+  slug,
   bestE1rm,
   unit,
   onPick,
 }: {
   set: Set;
+  slug: string;
   bestE1rm: number;
   unit: string;
   onPick: (reps: number) => void;
@@ -337,6 +403,7 @@ const local = StyleSheet.create({
   cSet: { flex: 1 },
   cPct: { width: 56, textAlign: 'right' },
   cLb: { width: 76, textAlign: 'right' },
+  weightCell: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 5 },
   cReps: { width: 76, textAlign: 'right' },
   cRepsBox: { width: 76, alignItems: 'flex-end' },
   setRow: { paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth * 2 },
@@ -377,7 +444,7 @@ const local = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth * 2,
   },
   plateText: { fontFamily: font.heavy, fontSize: 26, fontVariant: ['tabular-nums'] },
-  short: { fontSize: 15, fontWeight: '600', marginHorizontal: 16, marginTop: 6 },
+  short: { marginHorizontal: 16, paddingBottom: 0 },
   log: { margin: 12 },
   picker: { padding: 16, paddingTop: 14 },
   repGrid: { gap: 8, marginTop: 10 },

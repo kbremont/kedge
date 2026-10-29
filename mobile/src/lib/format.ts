@@ -20,6 +20,31 @@ export function cycleText(label: string): string {
   return label.replace(' - ', ' · ');
 }
 
+// The cycle and the round of a label such as "Anchor - Round 2", apart. A
+// one-round cycle such as "7th Week TM Test" has no round.
+export function cycleParts(label: string): { cycle: string; round: string } {
+  const [cycle, round = ''] = label.split(' - ');
+  return { cycle, round: round.replace('Round ', '') };
+}
+
+// The program writes sets as "5x10"; the screens set a real multiplication
+// sign.
+export function timesIn(text: string): string {
+  return text.replace(/(\d)x(\d)/g, '$1×$2');
+}
+
+// Column heads and short labels: the lift's everyday name.
+const short: Record<string, string> = {
+  press: 'Press',
+  deadlift: 'Deadlift',
+  bench: 'Bench',
+  squat: 'Squat',
+};
+
+export function shortName(slug: string, name: string): string {
+  return short[slug] ?? name;
+}
+
 export function fmtClock(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;

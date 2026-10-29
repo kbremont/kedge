@@ -88,12 +88,18 @@ export function LiftChart({ chart, slug }: { chart: Chart; slug: string }) {
         ))}
       </Svg>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginLeft: padLeft }}>
-        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: line }} />
-        <Text style={s.sub}>PR sets</Text>
-        <View
-          style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: line, marginLeft: 10 }}
-        />
-        <Text style={s.sub}>Past estimates</Text>
+        {chart.points.some((pt) => !pt.past) ? (
+          <>
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: line, marginRight: 0 }} />
+            <Text style={[s.sub, { marginRight: 10 }]}>PR sets</Text>
+          </>
+        ) : null}
+        {chart.points.some((pt) => pt.past) ? (
+          <>
+            <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: line }} />
+            <Text style={s.sub}>Past estimates</Text>
+          </>
+        ) : null}
       </View>
     </View>
   );

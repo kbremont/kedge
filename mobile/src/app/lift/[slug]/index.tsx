@@ -1,9 +1,13 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
+import type { PastEstimate } from '@/api/schema.gen';
 import {
   Heading,
+  Intro,
   Page,
   Panel,
   Stat,
@@ -13,32 +17,54 @@ import {
   useCardStyles,
 } from '@/components/card-back';
 import { LiftChart } from '@/components/lift-chart';
+import { useOverrides } from '@/gallery/store';
 import { fmtWeight } from '@/lib/format';
-import { sample } from '@/sample';
+import { useLift } from '@/sample/use-screen';
 import { displayScaleCap, liftInk } from '@/theme';
 
 export default function LiftScreen() {
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { slug, back } = useLocalSearchParams<{ slug: string; back?: string }>();
+  const { version } = useOverrides();
+  const l = useLift(slug);
+  return (
+    <>
+      <Stack.Screen options={{ title: l.name, headerBackTitle: back ?? 'Today' }} />
+      <LiftPage key={version} l={l} />
+    </>
+  );
+}
+
+function LiftPage({ l }: { l: ReturnType<typeof useLift> }) {
   const { p, s } = useCardStyles();
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale > 1.5;
-  const l = sample.lifts[slug] ?? sample.lifts.bench;
-  const best = fmtWeight(l.bestE1rm);
+  // Sample only: DELETE /lifts/{slug}/estimates/{id} answers with the lift.
+  const [deleted, setDeleted] = useState<number[]>([]);
+  const estimates = l.pastEstimates.filter((e) => !deleted.includes(e.id));
+  const best = l.bestE1rm > 0 ? fmtWeight(l.bestE1rm) : '—';
   return (
     <Page>
-      <Stack.Screen options={{ title: l.name }} />
       <Panel>
         <View style={[local.bar, { backgroundColor: liftInk(p, l.slug).band }]} />
         <StatRow>
           <Stat label="Training max" value={fmtWeight(l.currentTm)} unit={l.unit} />
-          <Stat label="Best est. max" value={best} unit={l.unit} last />
+          <Stat label="Best est. max" value={best} unit={l.bestE1rm > 0 ? l.unit : undefined} last />
         </StatRow>
       </Panel>
 
       <Heading title="Estimated max" />
-      <Panel style={local.chart}>
-        <LiftChart chart={l.chart} slug={l.slug} />
-      </Panel>
+      {l.chart.points.length > 0 ? (
+        <Panel style={local.chart}>
+          <LiftChart chart={l.chart} slug={l.slug} />
+        </Panel>
+      ) : (
+        <Panel style={[local.chart, local.chartEmpty]}>
+          <Intro>
+            Not enough data yet. The TM test and the anchor’s PR sets add points as you train, and you can add
+            estimates from before the app below.
+          </Intro>
+        </Panel>
+      )}
 
       <Heading
         title="Past estimates"
@@ -52,7 +78,11 @@ export default function LiftScreen() {
           </Pressable>
         }
       />
-      {stacked ? null : (
+      {estimates.length === 0 ? (
+        <View style={s.row}>
+          <Text style={[s.name, s.muted]}>None yet.</Text>
+        </View>
+      ) : stacked ? null : (
         <TableHead
           columns={[
             { label: 'Date', style: { flex: 1 } },
@@ -61,31 +91,35 @@ export default function LiftScreen() {
           ]}
         />
       )}
-      {[...l.pastEstimates].reverse().map((e) => {
+      {[...estimates].reverse().map((e) => {
         const set = `${fmtWeight(e.weight)} × ${e.reps}`;
         const est = fmtWeight(e.estimate);
-        return stacked ? (
-          <View key={e.id} style={[local.stackedRow, { borderBottomColor: p.rule }]}>
-            <Text style={s.name}>{e.date}</Text>
-            {/* Numbers get their own line here, so they scale fully. */}
-            <View style={local.stackedNums}>
-              <Text style={s.num}>{set}</Text>
-              <Text style={s.num}>{est}</Text>
-            </View>
-          </View>
-        ) : (
-          <View key={e.id} style={s.row}>
-            <Text style={[s.name, { flex: 1 }]}>{e.date}</Text>
-            <Text style={[s.num, local.cSet]} maxFontSizeMultiplier={displayScaleCap}>
-              {set}
-            </Text>
-            <Text style={[s.num, local.cEst]} maxFontSizeMultiplier={displayScaleCap}>
-              {est}
-            </Text>
-          </View>
+        return (
+          <SwipeToDelete key={e.id} e={e} unit={l.unit} onDelete={() => setDeleted((x) => [...x, e.id])}>
+            {stacked ? (
+              <View style={[local.stackedRow, { borderBottomColor: p.rule }]}>
+                <Text style={s.name}>{e.date}</Text>
+                {/* Numbers get their own line here, so they scale fully. */}
+                <View style={local.stackedNums}>
+                  <Text style={s.num}>{set}</Text>
+                  <Text style={s.num}>{est}</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={s.row}>
+                <Text style={[s.name, { flex: 1 }]}>{e.date}</Text>
+                <Text style={[s.num, local.cSet]} maxFontSizeMultiplier={displayScaleCap}>
+                  {set}
+                </Text>
+                <Text style={[s.num, local.cEst]} maxFontSizeMultiplier={displayScaleCap}>
+                  {est}
+                </Text>
+              </View>
+            )}
+          </SwipeToDelete>
         );
       })}
-      <Totals label="Best, all sources" value={best} />
+      {l.bestE1rm > 0 ? <Totals label="Best, all sources" value={best} /> : null}
 
       <Heading title="Training max" />
       {l.tmHistory.map((t) => (
@@ -103,9 +137,52 @@ export default function LiftScreen() {
   );
 }
 
+// A past estimate swipes left to a Delete printed in danger, as iOS lists do.
+function SwipeToDelete({
+  e,
+  unit,
+  onDelete,
+  children,
+}: {
+  e: PastEstimate;
+  unit: string;
+  onDelete: () => void;
+  children: ReactNode;
+}) {
+  const { p } = useCardStyles();
+  return (
+    <Swipeable
+      friction={1.5}
+      rightThreshold={40}
+      overshootRight={false}
+      renderRightActions={() => (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Delete the estimate of ${e.date}`}
+          onPress={onDelete}
+          style={({ pressed }) => [local.delete, { backgroundColor: p.danger }, pressed && { opacity: 0.8 }]}>
+          <SymbolView name="trash" tintColor={p.ground} size={18} weight="semibold" />
+          <Text style={[local.deleteText, { color: p.ground }]}>Delete</Text>
+        </Pressable>
+      )}>
+      <View
+        style={{ backgroundColor: p.ground }}
+        accessible
+        accessibilityLabel={`${e.date}, ${fmtWeight(e.weight)} × ${e.reps}, estimated max ${fmtWeight(e.estimate)} ${unit}`}
+        accessibilityActions={[{ name: 'delete', label: 'Delete' }]}
+        onAccessibilityAction={(ev) => ev.nativeEvent.actionName === 'delete' && onDelete()}>
+        {children}
+      </View>
+    </Swipeable>
+  );
+}
+
 const local = StyleSheet.create({
   bar: { height: 6 },
   chart: { padding: 12, marginTop: 12 },
+  chartEmpty: { padding: 16 },
+  delete: { width: 96, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  deleteText: { fontSize: 13, fontWeight: '600' },
   cSet: { width: 92, textAlign: 'right' },
   cEst: { width: 88, textAlign: 'right' },
   stackedRow: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth * 2 },

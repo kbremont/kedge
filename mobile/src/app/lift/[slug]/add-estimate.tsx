@@ -1,11 +1,13 @@
 import { DatePicker, Host } from '@expo/ui/swift-ui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+import { StyleSheet, Text, useColorScheme, View } from 'react-native';
 
-import { Button, Label, useCardStyles } from '@/components/card-back';
-import { sample } from '@/sample';
-import { font, liftInk, radius } from '@/theme';
+import inputError from '@/api/fixtures/error-input.json';
+import { Button, Field, Label, Notice, TextAction, useCardStyles } from '@/components/card-back';
+import { useOverrides } from '@/gallery/store';
+import { useLift } from '@/sample/use-screen';
+import { font, liftInk } from '@/theme';
 
 // A past estimate: a date, a weight, and reps, which default to 1 for an
 // estimated max. The server converts it as it does a logged set.
@@ -13,13 +15,23 @@ export default function AddEstimateSheet() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { p, s } = useCardStyles();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const l = sample.lifts[slug] ?? sample.lifts.bench;
+  const { o } = useOverrides();
+  const l = useLift(slug);
   const today = new Date(`${l.today}T12:00:00`);
   const [date, setDate] = useState(today);
-  const [weight, setWeight] = useState('');
+  const [weight, setWeight] = useState(o.estimateError ? '0' : '');
   const [reps, setReps] = useState('1');
+  // The server's message for an estimate it refused, shown as it is; the
+  // sheet stays open so it can be fixed.
+  const [error, setError] = useState(o.estimateError ?? '');
 
-  const field = [local.input, { backgroundColor: p.stock, color: p.ink, borderColor: p.rule }];
+  // Sample only: POST /lifts/{slug}/estimates, which answers a bad entry with
+  // a 400 and this message.
+  const add = () => {
+    if (Number(weight) > 0 && Number(reps) >= 1) router.back();
+    else setError(inputError.error);
+  };
+
   return (
     <View style={[local.sheet, { backgroundColor: p.ground }]}>
       <View style={[local.bar, { backgroundColor: liftInk(p, l.slug).band }]} />
@@ -38,31 +50,35 @@ export default function AddEstimateSheet() {
       <View style={local.pair}>
         <View style={{ flex: 1 }}>
           <Label>Weight, {l.unit}</Label>
-          <TextInput
-            style={field}
+          <Field
+            style={local.input}
             value={weight}
             onChangeText={setWeight}
             keyboardType="decimal-pad"
             accessibilityLabel={`Weight in ${l.unit}`}
+            invalid={error !== '' && !(Number(weight) > 0)}
           />
         </View>
         <View style={{ width: 110 }}>
           <Label>Reps</Label>
-          <TextInput
-            style={field}
+          <Field
+            style={local.input}
             value={reps}
             onChangeText={setReps}
             keyboardType="number-pad"
             accessibilityLabel="Reps"
+            invalid={error !== '' && !(Number(reps) >= 1)}
           />
         </View>
       </View>
 
-      {/* Sample only: POST /lifts/{slug}/estimates once the API is wired. */}
-      <Button label="Add estimate" style={local.save} onPress={() => router.back()} />
-      <Pressable accessibilityRole="button" style={local.cancel} onPress={() => router.back()}>
-        <Text style={[s.name, s.muted]}>Cancel</Text>
-      </Pressable>
+      {error ? (
+        <Notice error style={local.error}>
+          {error}
+        </Notice>
+      ) : null}
+      <Button label="Add estimate" style={error ? local.saveAfterError : local.save} onPress={add} />
+      <TextAction muted label="Cancel" onPress={() => router.back()} style={local.cancel} />
     </View>
   );
 }
@@ -80,16 +96,9 @@ const local = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth * 2,
   },
   pair: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  input: {
-    height: 52,
-    marginTop: 4,
-    borderRadius: radius.panel,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    paddingHorizontal: 12,
-    fontFamily: font.heavy,
-    fontSize: 26,
-    fontVariant: ['tabular-nums'],
-  },
+  input: { marginTop: 4 },
+  error: { marginTop: 12, paddingBottom: 0 },
   save: { marginTop: 22 },
-  cancel: { alignItems: 'center', paddingVertical: 14 },
+  saveAfterError: { marginTop: 12 },
+  cancel: { marginTop: 4 },
 });
