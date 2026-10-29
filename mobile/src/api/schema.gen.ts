@@ -545,6 +545,7 @@ export interface components {
             /** Format: int64 */
             workoutId: number;
             liftName: string;
+            liftSlug: string;
             unit: string;
             /**
              * Format: double
@@ -597,6 +598,7 @@ export interface components {
             /** Format: int64 */
             id: number;
             liftName: string;
+            liftSlug: string;
             cycleLabel: string;
             phase: components["schemas"]["Phase"];
             unit: string;

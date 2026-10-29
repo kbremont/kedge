@@ -32,6 +32,7 @@
       "detail": "6 or more at 100% means there is room to grow; the bump comes with the next block.",
       "headline": "Strong set. This TM goes up at the end of the block.",
       "liftName": "Overhead Press",
+      "liftSlug": "press",
       "needsDecision": false,
       "proposed": 0,
       "reps": 7,

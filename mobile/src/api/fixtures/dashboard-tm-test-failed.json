@@ -56,6 +56,7 @@
       "detail": "Under 3 reps at 100%. Lower it before the anchor, or keep it.",
       "headline": "Your TM is too high.",
       "liftName": "Squat",
+      "liftSlug": "squat",
       "needsDecision": true,
       "proposed": 225,
       "reps": 2,

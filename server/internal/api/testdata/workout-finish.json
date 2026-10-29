@@ -5,6 +5,7 @@
   "cycleLabel": "Leader 1 - Round 1",
   "id": 1,
   "liftName": "Overhead Press",
+  "liftSlug": "press",
   "phase": "leader",
   "restSeconds": 90,
   "sets": [
