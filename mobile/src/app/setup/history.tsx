@@ -1,35 +1,88 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Fragment, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Fragment, useRef, useState } from 'react';
+import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { SetupHistory } from '@/api/schema.gen';
-import { Button, Field, Heading, Intro, Label, LiftChip, Page, useCardStyles } from '@/components/card-back';
-import { useOverrides } from '@/gallery/store';
+import { useSaveSetupHistory, useSetupHistory } from '@/api/queries';
+import type { PastSession, SetupHistory } from '@/api/schema.gen';
+import {
+  Button,
+  Field,
+  Heading,
+  Intro,
+  Label,
+  LiftChip,
+  LoadState,
+  Notice,
+  Page,
+  useCardStyles,
+} from '@/components/card-back';
 import { fmtWeight } from '@/lib/format';
-import { useSetupHistory } from '@/sample/use-screen';
 
 // First run, step three: the sessions of the chosen cycle already done. The
 // first one left unticked is where the app picks up.
 export default function SetupHistoryScreen() {
-  const { cycle } = useLocalSearchParams<{ cycle: string }>();
-  const { version, o } = useOverrides();
-  const h = useSetupHistory(Number(cycle));
+  // The cache keys a checklist by the API's cycle number, not the route's
+  // string.
+  const cycle = Number(useLocalSearchParams<{ cycle: string }>().cycle);
+  const history = useSetupHistory(cycle);
   return (
     <>
-      <Stack.Screen options={{ title: h.cycleLabel }} />
-      <Checklist key={version} h={h} tickedAtStart={o.ticked ?? {}} />
+      <Stack.Screen options={{ title: history.data?.cycleLabel ?? '' }} />
+      <LoadState query={history}>{(h) => <Checklist h={h} />}</LoadState>
     </>
   );
 }
 
-function Checklist({ h, tickedAtStart }: { h: SetupHistory; tickedAtStart: Record<string, string> }) {
+function Checklist({ h }: { h: SetupHistory }) {
   const { p, s } = useCardStyles();
+  const save = useSaveSetupHistory(h.cycleIndex);
+  const busy = save.isPending;
   // Done sessions by "round-slug", with the reps of their AMRAP set when the
   // cycle asks for them.
-  const [done, setDone] = useState<Record<string, string>>(tickedAtStart);
+  const [done, setDone] = useState<Record<string, string>>({});
+  // A refusal stands until the lifter changes what they entered.
+  const edit = (change: (was: Record<string, string>) => Record<string, string>) => {
+    setDone(change);
+    if (save.isError) save.reset();
+  };
   const toggle = (key: string) =>
-    setDone(({ [key]: was, ...rest }) => (was === undefined ? { ...rest, [key]: '' } : rest));
+    edit(({ [key]: was, ...rest }) => (was === undefined ? { ...rest, [key]: '' } : rest));
+  // A second tap can land before the button redraws disabled, and mustn't
+  // save twice.
+  const sending = useRef(false);
+
+  // The ticked sessions in the checklist's order. Reps go only where the
+  // cycle asks for them, and only as a count: a field left blank records
+  // the set's target, as the placeholder says.
+  const sessions = (): PastSession[] =>
+    h.rounds.flatMap((rd) =>
+      rd.days.flatMap((d) => {
+        const reps = done[`${rd.round}-${d.slug}`];
+        if (reps === undefined) return [];
+        const n = Number(reps);
+        return h.asksReps && Number.isInteger(n) && n > 0
+          ? [{ round: rd.round, slug: d.slug, prReps: n }]
+          : [{ round: rd.round, slug: d.slug }];
+      }),
+    );
+
+  const saveAndStart = () => {
+    if (sending.current) return;
+    sending.current = true;
+    // Today opens on success, and the keyboard mustn't still be leaving
+    // over it.
+    Keyboard.dismiss();
+    save.mutate(
+      { done: sessions() },
+      {
+        onSuccess: () => router.dismissTo('/'),
+        onSettled: () => {
+          sending.current = false;
+        },
+      },
+    );
+  };
 
   return (
     <Page>
@@ -49,6 +102,7 @@ function Checklist({ h, tickedAtStart }: { h: SetupHistory; tickedAtStart: Recor
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: ticked }}
                   accessibilityLabel={`${d.name}, round ${rd.round}, top set ${fmtWeight(d.topWeight)} ${h.unit}`}
+                  disabled={busy}
                   onPress={() => toggle(key)}
                   style={({ pressed }) => [local.tick, pressed && s.pressed]}>
                   <SymbolView
@@ -71,7 +125,8 @@ function Checklist({ h, tickedAtStart }: { h: SetupHistory; tickedAtStart: Recor
                     <Label style={local.repsLabel}>{h.repsLabel}</Label>
                     <Field
                       value={done[key]}
-                      onChangeText={(v) => setDone((x) => ({ ...x, [key]: v }))}
+                      onChangeText={(v) => edit((x) => ({ ...x, [key]: v }))}
+                      editable={!busy}
                       placeholder={String(d.prTarget)}
                       keyboardType="number-pad"
                       accessibilityLabel={`${d.name}, round ${rd.round}, ${h.repsLabel}`}
@@ -84,8 +139,12 @@ function Checklist({ h, tickedAtStart }: { h: SetupHistory; tickedAtStart: Recor
           })}
         </Fragment>
       ))}
-      {/* Sample only: POST /setup/history with the ticked sessions. */}
-      <Button label="Save and start" style={local.save} onPress={() => router.dismissTo('/')} />
+      {save.error ? (
+        <Notice error style={local.error}>
+          {save.error.message}
+        </Notice>
+      ) : null}
+      <Button label="Save and start" disabled={busy} style={local.save} onPress={saveAndStart} />
     </Page>
   );
 }
@@ -98,5 +157,6 @@ const local = StyleSheet.create({
   reps: { alignItems: 'flex-end' },
   repsLabel: { fontSize: 12, marginBottom: 3 },
   repsField: { width: 76, height: 44, fontSize: 24, textAlign: 'right' },
+  error: { marginTop: 8, paddingBottom: 0 },
   save: { marginTop: 24 },
 });
