@@ -25,7 +25,11 @@ import { displayScaleCap, font } from '@/theme';
 
 export default function SettingsScreen() {
   const settings = useSettings();
-  return <LoadState query={settings}>{(s) => <SettingsForm settings={s} />}</LoadState>;
+  return (
+    <LoadState query={settings} keep={<Server />}>
+      {(s) => <SettingsForm settings={s} />}
+    </LoadState>
+  );
 }
 
 // What the Save button sends: everything but the training maxes, which save
@@ -112,10 +116,6 @@ function SettingsForm({ settings }: { settings: Settings }) {
   const { p, s } = useCardStyles();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const stacked = useWindowDimensions().fontScale > 1.5;
-  const { url } = useConnection();
-  // The server's build and API version: a dash until they're in, and if they
-  // can't be fetched.
-  const info = useInfo().data;
   const unit = settings.unit;
 
   // The settings the form was loaded from, and the lifter's edits to them. A
@@ -215,14 +215,6 @@ function SettingsForm({ settings }: { settings: Settings }) {
     );
   };
   const problem = refused?.message ?? save.error?.message;
-
-  // The gate closes onto Connect, with the address kept, and the provider
-  // forgets every screen of this session.
-  const confirmSignOut = () =>
-    Alert.alert('Sign out?', 'You’ll need the server’s password to connect again.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => void signOut() },
-    ]);
 
   const rest: { key: 'restWarmupSeconds' | 'restMainSeconds' | 'restSuppSeconds'; label: string; sub?: string }[] =
     [
@@ -382,6 +374,30 @@ function SettingsForm({ settings }: { settings: Settings }) {
         />
       )}
 
+      <Server />
+    </Page>
+  );
+}
+
+// The server the app is signed in to, and the way out of it. It needs
+// nothing from the settings read, so it shows even when that read fails.
+function Server() {
+  const { s } = useCardStyles();
+  const { url } = useConnection();
+  // The server's build and API version: a dash until they're in, and if they
+  // can't be fetched.
+  const info = useInfo().data;
+
+  // The gate closes onto Connect, with the address kept, and the provider
+  // forgets every screen of this session.
+  const confirmSignOut = () =>
+    Alert.alert('Sign out?', 'You’ll need the server’s password to connect again.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: () => void signOut() },
+    ]);
+
+  return (
+    <>
       <Heading title="Server" />
       <Row label="Address">
         <Text style={[s.sub, local.value]} numberOfLines={1} ellipsizeMode="middle">
@@ -401,7 +417,7 @@ function SettingsForm({ settings }: { settings: Settings }) {
       />
 
       <Text style={[s.sub, local.footer]}>Not affiliated with Jim Wendler.</Text>
-    </Page>
+    </>
   );
 }
 

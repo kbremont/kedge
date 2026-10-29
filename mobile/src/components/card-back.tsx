@@ -635,7 +635,18 @@ type Loadable<D> = {
 // a moment. A failed first load says why and offers to ask again. Once there
 // is data it stays on screen, even when a refetch fails: the query then
 // reports an error with its data still set, so data is checked first.
-export function LoadState<D>({ query, children }: { query: Loadable<D>; children: (data: D) => ReactNode }) {
+export function LoadState<D>({
+  query,
+  keep,
+  children,
+}: {
+  query: Loadable<D>;
+  // The part of the screen that doesn't need this read, shown under a failed
+  // first load too: Settings keeps its server and Sign out there, so a lifter
+  // can still leave a server that can't be reached.
+  keep?: ReactNode;
+  children: (data: D) => ReactNode;
+}) {
   const { p, s } = useCardStyles();
   // Asking again clears the query's error until the answer comes, so the
   // last one stays on screen meanwhile, over a button that says it's trying.
@@ -665,6 +676,7 @@ export function LoadState<D>({ query, children }: { query: Loadable<D>; children
             onPress={() => void query.refetch()}
           />
         </Panel>
+        {keep}
       </Page>
     );
   }

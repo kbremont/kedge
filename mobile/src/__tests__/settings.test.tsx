@@ -7,7 +7,7 @@ import settingsFixture from '@/api/fixtures/settings.json';
 import { keys, makeQueryClient } from '@/api/queries';
 import type { BBBMode, Settings, SettingsInput, TrainingMaxInput } from '@/api/schema.gen';
 import SettingsScreen from '@/app/(tabs)/(settings)/settings';
-import { fakeServer, json, renderApp, type Routes } from '@/test-utils';
+import { fakeServer, json, renderApp, testUrl, type Routes } from '@/test-utils';
 
 // Settings against a stand-in server: the form sent as numbers, the form
 // reloaded from what the server saved and never from under an edit, and the
@@ -342,5 +342,15 @@ describe('first load', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByLabelText('Bar weight, lb')).toHaveDisplayValue('45');
     expect(screen.queryByText(failure)).not.toBeOnTheScreen();
+  });
+
+  test('a server that can’t be reached still shows its address and Sign out', async () => {
+    await renderApp(routes, {
+      server: fakeServer({ 'GET /settings': json({ error: 'Something went wrong. Check the server log.' }, 500) }),
+    });
+
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeOnTheScreen();
+    expect(screen.getByText(testUrl)).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeOnTheScreen();
   });
 });
