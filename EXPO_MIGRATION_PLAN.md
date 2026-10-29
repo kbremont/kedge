@@ -54,8 +54,8 @@ Decisions made with the user:
     ├── package.json, package-lock.json, .nvmrc (24), tsconfig.json (strict, "@/*" → src/*)
     ├── app.config.ts, eas.json, eslint.config.js
     ├── AGENTS.md             from the template: points agents at the SDK-matched docs
-    ├── assets/               kedge.icon (the app icon, Icon Composer), icon/ (its 1024 renders), splash, fonts/ (Sofia Sans
-    │                         Extra Condensed, with its OFL licence)
+    ├── assets/               kedge.icon (the app icon, Icon Composer), icon/ (its 1024 renders), splash/ (the
+    │                         splash screen's mark), fonts/ (Sofia Sans Extra Condensed, with its OFL licence)
     ├── scripts/              shoot.mjs (simulator screenshots of every gallery state), contact-sheet.swift
     └── src/
         ├── app/              Expo Router screens
@@ -190,7 +190,7 @@ Done in six commits, each with `make check` green. `flow_test`, `pages_test` and
   - a failed TM test that's already settled, and a stale review key, both 409
   - `TestScreens`, which also fails on a `testdata/` file that no screen writes (`-update` removes it)
 - **Demo data:** the demo also sets warmups and rest times. It runs six anchor sessions, so bench's Anchor round 2 is next. `.dockerignore` skips `data-demo/`.
-- **Type checking:** `release.yml`'s generate job still checks templ and sqlc only; the PR CI job covers tygo and the fixtures. `npx tsc --noEmit` over the whole app still fails on three errors that were already in the Expo template (`*.module.css` and `global.css` declarations, and a ref type in `app-tabs.web.tsx`). `types.gen.ts` type-checks, and every fixture was checked against its type, with string unions widened, which is all JSON imports infer. Phase 3 should add a `.d.ts` for the CSS imports before the mobile CI job lands.
+- **Type checking:** `release.yml`'s generate job still checks templ and sqlc only; the PR CI job covers tygo and the fixtures. `npx tsc --noEmit` over the whole app still fails on three errors that were already in the Expo template (`*.module.css` and `global.css` declarations, and a ref type in `app-tabs.web.tsx`). `types.gen.ts` type-checks, and every fixture was checked against its type, with string unions widened, which is all JSON imports infer. Phase 3 should add a `.d.ts` for the CSS imports before the mobile CI job lands. *(No longer needed: Phase 3 removed the template files that imported CSS, and `tsc` now reports no errors.)*
 
 - **Endpoints:**
   - `GET info` is public and returns `{apiVersion, version}`; `POST login {password}` returns `{token, expiresAt}`.
@@ -231,9 +231,9 @@ Where the result differs from what was planned, or is worth knowing:
 - **CI:** the generate job sets up Node from `mobile/.nvmrc` and runs `npm ci` before `make generate`, and also runs when `mobile/package.json` or its lockfile change (the spec is already under `server/**`). `release.yml`'s generate check now covers `oapi.gen.go`.
 - **The spec is served** at `/api/v1/openapi.json`, without a session and with `Access-Control-Allow-Origin: *`, for docs viewers.
 
-### 3. Design the screens. **Checkpoint: user approval** 🚧 Designed, waiting on approval
+### 3. Design the screens. **Checkpoint: user approval** ✅ Complete
 
-Every state in the table below is designed and built on the Career Line look, the app is named Kedge, its icon is chosen and wired in, and the contact sheets are in `docs/mockups/`. What's left is the approval checkpoint. The visual design bullets further down are the original plan and no longer apply.
+Every state in the table below is designed and built on the Career Line look, the app is named Kedge, its icon and splash screen are chosen and wired in, and the contact sheets are in `docs/mockups/`. The user approved the screens on 2026-10-28. The visual design bullets further down are the original plan and no longer apply.
 
 - **Product context.** `PRODUCT.md` records what the design work has to respect:
   - the iOS app is the product and the web UI is legacy
@@ -258,7 +258,12 @@ Every state in the table below is designed and built on the Career Line look, th
 - **Icon: the loaded sleeve.** A bar's sleeve loaded with four plates, one per lift's ink, in the order of competition plates (red, blue, yellow, green), on chipboard in light and navy in dark. It was chosen from four options (the others: an anchor whose stock is a loaded barbell, an anchor over the four-lift stripe, and a crop of the career table). `mobile/assets/kedge.icon` is the Icon Composer bundle `app.json` points at: the ground, the bar and one layer per plate, each with a light and a dark value, flat, with no shadow or highlight of its own; `actool` compiles it to light, dark and tinted renditions. The 1024 renders are in `mobile/assets/icon/`, and the same mark heads the connect screen.
 - **Reviewed.** Impeccable's finish review passed the first three screens after three rounds of fixes, and the rest after a round of eight fixes (the TM test card's alignment, refused fields outlined in danger, the stamp and settings at accessibility sizes, History's heads at accessibility sizes, the chart legend, the capture order, and `DESIGN.md`), judged on simulator screenshots in light, dark and at an accessibility text size. `DESIGN.md` and `.impeccable/design.json` now record the stamp, the ink band, the outline button, errors in danger, the native controls' tint, stacking above 1.5x, the career table and the plate mark.
 
-Still to do: the approval checkpoint for the screens. The name and icon are in `app.json`; the slug, scheme and bundle id follow in Phase 5.
+- **After approval,** three loose ends were closed, one commit each:
+  - **Splash screen:** the plate mark at 76pt, centred on chipboard in light and night navy in dark (the splash plugin's `dark` option), with the bar in ink and the plates in the lift band inks. `mobile/assets/splash/` has each image as an SVG drawn from `plate-mark.tsx` and a 1024 PNG on a transparent ground, with its origin embedded. QuickLook (`qlmanage`) flattens an SVG onto white, so the PNGs come from AppKit's own SVG support. After a rebuild the simulator showed it in both appearances; until the simulator was rebooted, the launch animation still showed iOS's cached snapshot of the old blue screen, which is the system's launch-screen cache, not the build.
+  - **Template leftovers:** the Expo template's tab bar, themed text and views, hint row, web badge, collapsible, external link, animated splash overlay, colour-scheme hooks, `constants/theme.ts` and `global.css` are gone, with the images only they used, the template's `icon.png` and `reset-project.js`. `npx tsc --noEmit` and `npx expo lint` now report nothing, and no CSS imports remain. The Android adaptive icon and the favicon stay, because `app.json` uses them, and now record that they are the template's placeholders, so `impeccable embed-prompt --scan mobile/assets` finds no image without its origin.
+  - **PR target:** its corner was 3pt, outside `DESIGN.md`'s two corners; it now takes the 1pt chip corner (`radius.chip`), checked in the simulator on a completed session.
+
+The name, icon and splash screen are in `app.json`; the slug, scheme and bundle id follow in Phase 5.
 
 Where the result differs from the plan below:
 
