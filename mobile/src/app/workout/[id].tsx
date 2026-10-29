@@ -409,7 +409,7 @@ const local = StyleSheet.create({
   setRow: { paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth * 2 },
   stackedNums: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
   repsCell: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 6 },
-  prChip: { borderRadius: 3, paddingHorizontal: 7, minWidth: 40, alignItems: 'center' },
+  prChip: { borderRadius: radius.chip, paddingHorizontal: 7, minWidth: 40, alignItems: 'center' },
   prNote: { marginTop: 4, textAlign: 'right' },
   restGap: { height: 12 },
   current: { borderRadius: radius.panel, paddingTop: 10, marginBottom: 4 },

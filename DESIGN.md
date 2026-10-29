@@ -363,7 +363,7 @@ None. The system is flat print: depth is a stock step (ground to the lighter pan
 
 ## Shapes
 
-Two corners only: a soft 6pt corner on panels, bands that sit alone, buttons, rep choices and fields, and a near-square 1pt corner on lift chips, the short lift bars and the tone mark. Panels clip their contents, so a band at the top of a panel takes the panel's corner and stays square at its bottom. Rules carry the form: a hairline (two device hairlines) between rows and columns, 3pt solid ink under headings, over totals, under the career table's heads and under the masthead. Outlines are 2pt: the secondary button in ink, a rep choice in rule or line, a refused field in danger. Chart points are circles: filled for a logged PR set, a 2pt ring on stock for a past estimate. The plate mark is drawn from plain rectangles.
+Two corners only: a soft 6pt corner on panels, bands that sit alone, buttons, rep choices and fields, and a near-square 1pt corner on lift chips, the PR target, the short lift bars and the tone mark. Panels clip their contents, so a band at the top of a panel takes the panel's corner and stays square at its bottom. Rules carry the form: a hairline (two device hairlines) between rows and columns, 3pt solid ink under headings, over totals, under the career table's heads and under the masthead. Outlines are 2pt: the secondary button in ink, a rep choice in rule or line, a refused field in danger. Chart points are circles: filled for a logged PR set, a 2pt ring on stock for a past estimate. The plate mark is drawn from plain rectangles.
 
 ## Components
 
@@ -379,7 +379,7 @@ Solid, square-shouldered, printed in the ink colour.
 
 ### Chips
 - **Lift Chip:** a 10pt square of the lift's band ink (1pt corner) before a lift name in a list.
-- **PR Target:** the PR set's rep target printed reversed out of the lift's band, at least 40pt wide, 7pt side padding. In a session opened from history the same chip carries the reps the PR set made.
+- **PR Target:** the PR set's rep target printed reversed out of the lift's band (1pt corner), at least 40pt wide, 7pt side padding. In a session opened from history the same chip carries the reps the PR set made.
 - **Tone Mark:** which way a training max goes: `arrow.up`, `equal` or `arrow.down` reversed in the ground colour out of a square ink stamp (1pt corner), 22pt beside a headline or 18pt beside a verdict line. It grows with the text beside it up to 2x and centres on that text's first line. It is never the only signal: the server's words sit beside it.
 
 ### Cards / Containers
