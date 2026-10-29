@@ -371,7 +371,7 @@ Two corners only: a soft 6pt corner on panels, bands that sit alone, buttons, re
 Solid, square-shouldered, printed in the ink colour.
 - **Shape:** soft corner (6pt), 54pt tall, full width of its container.
 - **Primary:** navy ink fill with stock-coloured label in light; chipboard ink fill with night navy label in dark. Label in uppercase condensed 800 at 22pt; an optional 18pt bold SF Symbol leads it.
-- **Secondary:** the second of two choices ("Keep 205 lb", "Download backup"): transparent fill, a 2pt ink outline, the label and symbol in ink.
+- **Secondary:** the second of two choices ("Keep 205 lb"): transparent fill, a 2pt ink outline, the label and symbol in ink.
 - **Pressed:** opacity 0.8. No scale, no colour change.
 - **Disabled:** opacity 0.35, until the input is valid or something has changed ("Lower to …", "Accept training maxes", "Save settings", "Connect").
 - **Text actions:** SF 600 at 16pt, centred, 44pt minimum height, an optional 16pt semibold SF Symbol before the label: ink for an alternative ("Skip it and start the next block", "Sign out"), soft ink for Cancel, danger for a destructive one (Discard, which confirms through a native destructive alert). Skip and Sign out confirm through native alerts too. Undo is the exception: condensed 800 uppercase in ink with an SF Symbol, 44pt minimum height.

@@ -52,34 +52,36 @@ Decisions made with the user:
 │
 └── mobile/                   Expo app (create-expo-app default template, SDK 58)
     ├── package.json, package-lock.json, .nvmrc (24), tsconfig.json (strict, "@/*" → src/*)
-    ├── app.config.ts, eas.json, eslint.config.js
+    ├── app.json              the app's config; nothing in it is dynamic, so there's no app.config.ts
+    ├── eas.json, eslint.config.js
+    ├── jest.setup.ts         stands in for the keychain, SF Symbols and the SwiftUI views in tests
     ├── AGENTS.md             from the template: points agents at the SDK-matched docs
     ├── assets/               kedge.icon (the app icon, Icon Composer), icon/ (its 1024 renders), splash/ (the
     │                         splash screen's mark), fonts/ (Sofia Sans Extra Condensed, with its OFL licence)
-    ├── scripts/              shoot.mjs (simulator screenshots of every gallery state), contact-sheet.swift
     └── src/
         ├── app/              Expo Router screens
-        │   ├── _layout.tsx   root stack, query client, sign-in gate
+        │   ├── _layout.tsx   loads the fonts and the saved session behind the splash screen, wraps
+        │   │                 the app in ApiProvider
         │   ├── connect.tsx
         │   ├── (tabs)/       _layout.tsx (NativeTabs); (today)/, (history)/ and (settings)/, each a
         │   │                 stack for its large title
         │   ├── workout/[id].tsx
         │   ├── lift/[slug]/  index.tsx, add-estimate.tsx (native sheet)
-        │   ├── setup/        index.tsx, position.tsx, history.tsx
-        │   └── gallery/      dev-only: every screen and state, by ?state=
+        │   └── setup/        index.tsx, position.tsx, history.tsx
         ├── theme/            the design system's tokens: both palettes, the lift inks, fonts, the
         │                     Dynamic Type cap
         ├── components/       card-back.tsx (page, panel, lift band, stat line, headings, table head,
-        │                     rest bar, totals, buttons, fields, notices, tone mark), lift-chart.tsx,
-        │                     plate-mark.tsx (the app's mark), tab-stack.tsx
-        ├── api/              client.ts (openapi-fetch, Bearer, errors), queries.ts (openapi-react-query
-        │                     hooks), schema.gen.ts (generated), fixtures/ (generated)
-        ├── sample/           dev: the -seed-demo block fetched through the API, and use-screen.ts, each
-        │                     screen's data hook until Phase 4's queries replace it
-        ├── gallery/          dev: the gallery's states and the store that puts their data in place
-        ├── dev/              remote-step.ts: lets the screenshot script move between screens
-        └── lib/              format.ts (the server's formatting rules, the rest clock), brand.ts (the
-                              app's name), connection.ts (server URL and token in the keychain)
+        │                     rest bar, totals, buttons, fields, notices, tone mark, load state),
+        │                     lift-chart.tsx, plate-mark.tsx (the app's mark), root-stack.tsx (the root
+        │                     stack, its sign-in gate and the API version check), tab-stack.tsx
+        ├── api/              client.ts (openapi-fetch, Bearer, errors, timeout), queries.tsx (ApiProvider
+        │                     and the openapi-react-query hooks), schema.gen.ts (generated), fixtures/
+        │                     (generated)
+        ├── lib/              format.ts (the server's formatting rules), brand.ts (the app's name),
+        │                     connection.ts (server URL and session in the keychain), rest.ts (the rest clock)
+        ├── __tests__/        screen tests, which can't sit in src/app, where every file is a route
+        └── test-utils.tsx    the screen tests' harness: a stand-in server answering from the fixtures,
+                              and routes rendered signed in to it
 ```
 
 ### One repo, not separate repos
@@ -117,7 +119,7 @@ Split `mobile/` out later with `git subtree split` if other people start contrib
 - **Expo/TypeScript conventions:**
   - The default template's `src/app` routes, with `components/`, `api/` and `lib/` beside them.
   - Strict TypeScript, the `@/` path alias, `npx expo lint` (eslint-config-expo), Prettier.
-  - `jest-expo` + React Native Testing Library, with tests next to the code they cover.
+  - `jest-expo` + React Native Testing Library, with unit tests next to the code they cover and screen tests in `src/__tests__/`.
   - Dependencies added with `npx expo install` so versions match the SDK.
 - **Contract between the halves:**
   - The OpenAPI 3.0 spec in `server/api/openapi.yaml`, written by hand, is the source of truth: routes, parameters, request bodies, and every answer with its status.
@@ -301,7 +303,28 @@ Where the result differs from the plan below:
 - **Also decided here:** the app name and the 1024px icon.
 - **Stop:** show the contact sheet and iterate until the user approves.
 
-### 4. Wire up the live API
+### 4. Wire up the live API ✅ Complete
+
+Every screen now reads and writes the server's `/api/v1`. Done in 15 commits, plus these docs, each with `tsc`, `expo lint` and `jest` green. Connect signs in and keeps the server's address and the session in the keychain, every screen sits behind a sign-in gate, and the API version is checked at launch and on each return to the foreground. The loading, unreachable, failed action, session ended and out-of-date states were designed on Connect, Today and the session, and the user approved them on 2026-10-29. The four questions left open at that checkpoint stay as they are: the keyboard covering Connect's Notice, the button moving when the Notice clears, the contrast of the disabled "Trying again…" label, and the empty frame of Today before Connect.
+
+- **Data:** `lib/connection.ts` holds the address, token and expiry in one keychain item. `api/client.ts` is openapi-fetch with a 15-second timeout, and turns every non-2xx into an `ApiError` carrying the server's own message; status 0 means the server couldn't be reached. `api/queries.tsx` has one read hook per screen and one mutation hook per write, each putting its answer into the cache of the screen it leads to. `lib/rest.ts` times the rest from the tap on Log, outside the screen.
+- **States:** `LoadState` in `card-back.tsx` shows a soft-ink spinner after 400 ms, a Panel with "Try again" when a first load fails, and keeps the data on screen through a failed refetch. A failed action shows its Notice beside its control. Controls are disabled while their request is out, and where a second tap could land before the redraw, as on Start and Log, a ref guard drops it.
+- **Tests:** Jest on `jest-expo` with React Native Testing Library 14. The screen tests in `src/__tests__/` render routes against a stand-in server that answers from the golden fixtures, and carry over the intent of `pages_test` and `workout_test`.
+- **Removed:** the gallery, `src/sample`, the screenshot stepper, and `scripts/` with its `shoot` and `start:shoot` npm scripts. `docs/mockups/` stays as the record of what was approved, and `src/api/fixtures/` stays for the tests. The server's only change is the comment in `screens_test.go` that named the gallery.
+
+Verification results follow: the end-to-end pass in the simulator against `make demo`, and the read-only check against the real server.
+
+Where the result differs from the plan below:
+
+- **Data layer:** `signOut` takes the sentence Connect shows, not a code, so the version check signs out through the same path with its "Update…" message. `queries.tsx` is `.tsx`, because `ApiProvider` has JSX. `useLogin` runs the whole sign-in: `info` and the version check, `login`, the dashboard, then saving the connection. A 502, 503 or 504 that isn't the API's JSON, as `tailscale serve` answers while the server is down, reads as unreachable and is retried once, like a network failure.
+- **Connect doesn't navigate.** Saving the connection opens the gate, which closes Connect before its callbacks run, so the gate lands on Today, and `SetupAfterSignIn` in `components/root-stack.tsx` pushes setup over Today when the dashboard says `needsSetup`. Setup's `dismissTo('/')` then comes back to Today.
+- **Connect's messages:** a session that ended is news, not a fault, so it's an ink Notice with `key.fill`; everything that keeps Kedge from working is a danger Notice. The field an error is about, the password on a 401 or the address where no Kedge server answered, takes the 2pt danger outline; that adds one to the wrong password state approved in Phase 3.
+- **Undo** is offered for the latest done set, so the sets can be taken back one by one, as the web UI allows, and a session's last set can be undone from above Finish.
+- **Settings:** `LoadState` takes a `keep`, the part of a screen that doesn't need the read, so when Settings can't load, its server rows and Sign out still show, and a lifter whose server has moved can sign out.
+- **Keyboard:** React Native's ScrollView re-applies its offset at every keyboard change through a `scrollTo` that leaves out the bars' insets, which snapped a page from under its large title. `Page` now sets `scrollToOverflowEnabled`, which that clamp honours, settles the page as the keyboard hides so it isn't left past its end, and sets `keyboardShouldPersistTaps="handled"`, so a button acts on the first tap with the keyboard up. The session has no fields and keeps the clamp, which its scrolling to the current set relies on.
+- **Config and packages:** the iOS settings are in `app.json`, since nothing in the config is dynamic. react-native is 0.88.1, which SDK 58's expo expects; expo-doctor failed on 0.88.0, a mismatch from before Phase 4. expo-file-system and expo-sharing left with the backup, and expo-file-system stays in the lockfile as a dependency of expo itself.
+- **No backup in the app.** The user decided on 2026-10-29 that the app shouldn't have backups, so the share sheet was never wired up: Settings lost its "Download backup" button, which only ever showed a placeholder, and `fetchBackup` left `api/client.ts`. The server keeps `GET /backup` for the web UI, and the API spec is unchanged.
+- **Simulator automation on Xcode 27:** idb's HID taps do nothing and `simctl pbcopy` doesn't reach the simulator, so taps go through expo-mcp's XCTest driver and text is typed on the on-screen keyboard's keys.
 
 - **Client:** `api/client.ts` is `openapi-fetch` over `schema.gen.ts`'s `paths`, so every path, parameter, body and response is checked at compile time, with a middleware that adds the Bearer token. A 401 sends the user to sign in; an old server shows an "update your server" message (checked via `info`).
 - **Connect:** normalize the URL, check `info`, sign in, and keep the URL and token in `expo-secure-store`.
@@ -310,8 +333,8 @@ Where the result differs from the plan below:
   - starts when a set is logged, for the `restSeconds` the server returns
   - counts down against the clock, so it stays right if the phone sleeps
   - sits above the current set, and the list scrolls to it
-- **Backup:** download with the token, then hand the file to the iOS share sheet.
-- **iOS settings in `app.config.ts`:** `NSAllowsLocalNetworking` plus the local-network permission text, HTTPS everywhere else, and `ITSAppUsesNonExemptEncryption: false`.
+- **Backup:** download with the token, then hand the file to the iOS share sheet. *(Dropped: see above. The server keeps `GET /backup` for the web UI.)*
+- **iOS settings in `app.config.ts`:** `NSAllowsLocalNetworking` plus the local-network permission text, HTTPS everywhere else, and `ITSAppUsesNonExemptEncryption: false`. *(They're in `app.json`, not `app.config.ts`: see above.)*
 - **Component tests:** carry over the intent of `pages_test` and `workout_test`: rest timer position, the rep picker's choices and highlighted targets, TM result cards and the decision form, skip offered only when allowed, chart edge cases, and the estimate error reopening the sheet.
 
 ### 5. EAS and TestFlight
@@ -341,7 +364,7 @@ Where the result differs from the plan below:
   - **mobile job** (on `mobile/**` changes): `npm ci`, `tsc --noEmit`, `expo lint`, `jest`, `npx expo-doctor`, `npx expo export --platform ios`.
   - **image job:** the existing smoke test, with the server as build context.
 - **`release.yml`:** builds the server image only, filtered to `server/**`.
-- **Docs:** root `AGENTS.md`/`CLAUDE.md` with the repo map and conventions: logic lives in Go and the app only displays; API changes run `make generate`; the UI matches the approved gallery. The root README is an overview, with details in `server/README.md` and `mobile/README.md`.
+- **Docs:** root `AGENTS.md`/`CLAUDE.md` with the repo map and conventions: logic lives in Go and the app only displays; API changes run `make generate`; the UI matches the approved contact sheets in `docs/mockups/`. The root README is an overview, with details in `server/README.md` and `mobile/README.md`.
 
 ## Verification
 
@@ -356,6 +379,6 @@ Where the result differs from the plan below:
    - accepting the block review; skipping the deload
    - settings, including each BBB mode
    - past estimates with good and bad input, and a delete
-   - sharing a backup
+   - sharing a backup *(no longer applies: the app has no backup since Phase 4, and the web UI still downloads one)*
 5. **Parity:** point the server at a copy of the user's real database (a backup from the Pi). The app and the web UI show the same numbers on Today, History, each lift page and old workouts.
 6. **Ship:** the TestFlight build works on the phone over Tailscale; an `eas update` arrives without a rebuild; the demo server is reachable with Tailscale off.
