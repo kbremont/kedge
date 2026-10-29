@@ -59,12 +59,16 @@ test('a seeded cache is read under the same key the hook uses', async () => {
 });
 
 describe('query defaults', () => {
-  test('a query asks once more when the server could not be reached', async () => {
+  test.each([
+    ['the network failed', () => Promise.reject(new TypeError('Network request failed'))],
+    // tailscale serve, while the server behind it is down.
+    ['a proxy says it is down', () => new Response('502 Bad Gateway', { status: 502 })],
+  ])('a query asks once more when the server could not be reached: %s', async (_, reply) => {
     let calls = 0;
     const { wrapper } = setUp({
       'GET /dashboard': () => {
         calls++;
-        return Promise.reject(new TypeError('Network request failed'));
+        return reply();
       },
     });
     const { result } = await renderHook(() => useDashboard(), { wrapper });

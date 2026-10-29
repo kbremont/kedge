@@ -15,7 +15,7 @@ import SettingsScreen from '@/app/(tabs)/(settings)/settings';
 import TodayLayout from '@/app/(tabs)/(today)/_layout';
 import ConnectScreen from '@/app/connect';
 import { RootStack } from '@/components/root-stack';
-import { getConnection, sessionEnded } from '@/lib/connection';
+import { getConnection, sessionEnded, signOut } from '@/lib/connection';
 import { fakeServer, json, renderApp, testUrl, type Routes } from '@/test-utils';
 
 // Connect and the sign-in gate, rendered through the app's own root stack.
@@ -267,6 +267,20 @@ describe('the sign-in gate', () => {
     // Signing out on purpose needs no explaining.
     expect(screen.queryByText(sessionEnded)).toBeNull();
     alert.mockRestore();
+  });
+
+  test('after signing out, the password alone signs in again to the address kept', async () => {
+    const server = fakeServer({ 'GET /info': info, ...signIn, 'GET /dashboard': dashboardNext });
+    await renderApp(app, { server, initialUrl: '/' });
+    expect(await screen.findByText('Today')).toBeOnTheScreen();
+
+    await act(() => signOut());
+    await waitFor(() => expect(screen).toHavePathname('/connect'));
+    await fireEvent.changeText(screen.getByLabelText('Password'), 'dev');
+    await fireEvent.press(screen.getByRole('button', { name: 'Connect' }));
+
+    expect(await screen.findByText('Today')).toBeOnTheScreen();
+    expect(getConnection()).toMatchObject({ signedIn: true, url: testUrl, token: 'fresh' });
   });
 
   test('Settings shows a dash for the version until the server gives it, and if it never does', async () => {

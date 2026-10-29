@@ -10,7 +10,8 @@ export type ApiClient = Client<paths>;
 export type Fetch = (request: Request) => Promise<Response>;
 
 export class ApiError extends Error {
-  // The answer's HTTP status, or 0 when none came.
+  // The answer's HTTP status, or 0 when Kedge didn't answer: none came, or
+  // a proxy in front of it said it couldn't reach it.
   readonly status: number;
   // Set when what answered wasn't a Kedge server, such as another app, a web
   // page or a proxy's error.
@@ -75,6 +76,19 @@ function withTimeout(fetch: Fetch): Fetch {
   };
 }
 
+// Bad Gateway, Service Unavailable and Gateway Timeout: what a proxy says
+// when the server behind it doesn't answer.
+const proxyDown = [502, 503, 504];
+
+function isObject(text: string): boolean {
+  try {
+    const body: unknown = JSON.parse(text);
+    return typeof body === 'object' && body !== null;
+  } catch {
+    return false;
+  }
+}
+
 function middleware(url: string, token: string): Middleware {
   const notKedge = (status: number) =>
     new ApiError(status, `No Kedge server answered at ${url.replace(/^https?:\/\//, '')}. Check the address.`, true);
@@ -86,11 +100,20 @@ function middleware(url: string, token: string): Middleware {
 
     async onResponse({ response, schemaPath, options }) {
       if (response.ok) {
+        // A backup's bytes go to the caller as they are.
+        if (options.parseAs !== 'json') return;
         // A 2xx that isn't JSON, such as a web page at that address.
-        if (options.parseAs === 'json' && !response.headers.get('Content-Type')?.includes('json')) {
-          throw notKedge(response.status);
-        }
-        return;
+        if (!response.headers.get('Content-Type')?.includes('json')) throw notKedge(response.status);
+        // Every read the API answers is a JSON object. Anything less, such
+        // as an empty body, a null or JSON cut short, would reach a screen
+        // as nothing to show or as a parse error, so it is refused here.
+        // The body is read to check it, so the caller gets a copy. A body
+        // that stops arriving is the network failing.
+        const text = await response.text().catch(() => null);
+        if (text === null) throw new ApiError(0, unreachable);
+        if (!isObject(text)) throw notKedge(response.status);
+        const { status, statusText, headers } = response;
+        return new Response(text, { status, statusText, headers });
       }
       // The server no longer knows the token, so the gate closes and Connect
       // says why. A wrong password at sign-in is only a refusal, and a 401
@@ -104,6 +127,10 @@ function middleware(url: string, token: string): Middleware {
       if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
         throw new ApiError(response.status, body.error);
       }
+      // A proxy in front of the server, such as tailscale serve, answers
+      // for it while it is down. That is the server out of reach, not
+      // another app at the address, so it is said and retried as such.
+      if (proxyDown.includes(response.status)) throw new ApiError(0, unreachable);
       throw notKedge(response.status);
     },
 

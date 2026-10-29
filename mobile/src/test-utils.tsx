@@ -8,7 +8,8 @@ import { saveConnection, signOut } from '@/lib/connection';
 // For component tests: a stand-in for the server that answers from the golden
 // fixtures and records what it was sent, and routes rendered signed in to it.
 
-export const testUrl = 'http://kedge.test';
+// An address Connect accepts as it is, so a test can sign in to it again.
+export const testUrl = 'http://kedge.local';
 export const testToken = 'test-token';
 
 // A request as the stand-in server saw it, its path without /api/v1.

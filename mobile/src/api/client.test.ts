@@ -119,6 +119,51 @@ test('something other than a Kedge server is told apart', async () => {
   });
 });
 
+// tailscale serve's answer while the server behind it is down.
+const proxy = (status: number) => () =>
+  new Response(`${status} Bad Gateway`, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+
+test.each([502, 503, 504])('a proxy answering %i for a server that is down is the server out of reach', async (s) => {
+  const error = await failure(makeClient({ url }, { fetch: answering(proxy(s)).fetch }).GET('/dashboard'));
+  expect(error).toMatchObject({ status: 0, message: unreachable, notKedge: false });
+});
+
+test("a 5xx from Kedge itself keeps the server's message", async () => {
+  const server = answering(() => json({ error: 'Something went wrong. Check the server log.' }, 502));
+  const error = await failure(makeClient({ url }, { fetch: server.fetch }).GET('/dashboard'));
+  expect(error).toMatchObject({ status: 502, message: 'Something went wrong. Check the server log.' });
+});
+
+test.each([
+  ['an empty body', '', { 'Content-Length': '0' }],
+  ['an empty body without a length', '', {}],
+  ['a null', 'null', {}],
+  ['JSON cut short', '{"apiVersion": 1, "vers', {}],
+])('a 2xx JSON answer with %s is not a Kedge server', async (_, body, headers) => {
+  const reply = () => new Response(body, { headers: { 'Content-Type': 'application/json', ...headers } });
+  const error = await failure(makeClient({ url }, { fetch: answering(reply).fetch }).GET('/info'));
+  expect(error).toMatchObject({
+    status: 200,
+    notKedge: true,
+    message: 'No Kedge server answered at raspberrypi:3000. Check the address.',
+  });
+});
+
+test('a JSON answer reaches the caller whole after its check', async () => {
+  const dashboard = { needsSetup: false, unit: 'lb', name: 'Café ×' };
+  const { data } = await makeClient({ url }, { fetch: answering(() => json(dashboard)).fetch }).GET('/dashboard');
+  expect(data).toEqual(dashboard);
+});
+
+test('a body that stops arriving is the server out of reach', async () => {
+  const cut = () =>
+    new Response(new ReadableStream({ pull: (c) => c.error(new TypeError('The network connection was lost.')) }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  const error = await failure(makeClient({ url }, { fetch: answering(cut).fetch }).GET('/info'));
+  expect(error).toMatchObject({ status: 0, message: unreachable });
+});
+
 test('a backup comes through the middleware as bytes, with its file name', async () => {
   const bytes = new Uint8Array([83, 81, 76, 105, 116, 101]);
   const server = answering(
