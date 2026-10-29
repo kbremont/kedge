@@ -1,62 +1,38 @@
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { useRemoteStep } from '@/dev/remote-step';
-import { font, fontFiles, usePalette } from '@/theme';
+import { ApiProvider } from '@/api/queries';
+import { RootStack } from '@/components/root-stack';
+import { loadConnection, useConnection } from '@/lib/connection';
+import { fontFiles } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
+// The saved session is read while the fonts load, so the splash screen gives
+// way straight to the right first screen: Today, or Connect.
+void loadConnection();
 
 export const unstable_settings = { anchor: '(tabs)' };
 
 export default function RootLayout() {
-  const [loaded] = useFonts(fontFiles);
-  const p = usePalette();
-  useRemoteStep();
+  const [fontsLoaded] = useFonts(fontFiles);
+  const { loaded } = useConnection();
+  const ready = fontsLoaded && loaded;
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
-  }, [loaded]);
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
 
-  if (!loaded) return null;
+  if (!ready) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar style="auto" />
-      <Stack
-        screenOptions={{
-          headerShadowVisible: false,
-          headerStyle: { backgroundColor: p.ground },
-          headerTintColor: p.ink,
-          headerTitleStyle: { fontFamily: font.heavy, fontSize: 20, color: p.ink },
-          headerBackTitle: 'Today',
-          contentStyle: { backgroundColor: p.ground },
-        }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="connect" options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />
-        <Stack.Screen
-          name="setup/index"
-          options={{ title: 'Training maxes', headerBackVisible: false, gestureEnabled: false }}
-        />
-        <Stack.Screen name="setup/position" options={{ title: 'Where are you?', headerBackTitle: 'Back' }} />
-        <Stack.Screen name="setup/history" options={{ headerBackTitle: 'Back' }} />
-        <Stack.Screen name="workout/[id]" />
-        <Stack.Screen name="lift/[slug]/index" />
-        <Stack.Screen name="gallery/index" options={{ title: 'Gallery' }} />
-        <Stack.Screen
-          name="lift/[slug]/add-estimate"
-          options={{
-            presentation: 'formSheet',
-            headerShown: false,
-            sheetAllowedDetents: [0.62],
-            sheetGrabberVisible: true,
-            contentStyle: { backgroundColor: p.ground },
-          }}
-        />
-      </Stack>
-    </GestureHandlerRootView>
+    <ApiProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <StatusBar style="auto" />
+        <RootStack />
+      </GestureHandlerRootView>
+    </ApiProvider>
   );
 }

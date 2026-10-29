@@ -4,6 +4,7 @@ import { SymbolView } from 'expo-symbols';
 import { useState, type ReactNode } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 
+import { useInfo } from '@/api/queries';
 import type { BBBMode, Settings } from '@/api/schema.gen';
 import {
   Button,
@@ -17,8 +18,8 @@ import {
   useCardStyles,
 } from '@/components/card-back';
 import { useOverrides } from '@/gallery/store';
+import { signOut, useConnection } from '@/lib/connection';
 import { fmtClock, fmtWeight } from '@/lib/format';
-import { sample } from '@/sample';
 import { useSettings } from '@/sample/use-screen';
 import { displayScaleCap, font } from '@/theme';
 
@@ -66,6 +67,10 @@ function SettingsForm({ settings, savedAtStart }: { settings: Settings; savedAtS
   const [form, setForm] = useState(saved);
   const [justSaved, setJustSaved] = useState(savedAtStart);
   const stacked = useWindowDimensions().fontScale > 1.5;
+  const { url } = useConnection();
+  // The server's build and API version: a dash until they're in, and if they
+  // can't be fetched.
+  const info = useInfo().data;
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
   const unit = settings.unit;
 
@@ -108,10 +113,12 @@ function SettingsForm({ settings, savedAtStart }: { settings: Settings; savedAtS
     // Sample only: GET /backup, then the share sheet.
     Alert.alert('Backups come with the server', 'Once the app is connected, the backup opens in the share sheet.');
 
-  const signOut = () =>
+  // The gate closes onto Connect, with the address kept, and the provider
+  // forgets every screen of this session.
+  const confirmSignOut = () =>
     Alert.alert('Sign out?', 'You’ll need the server’s password to connect again.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive' },
+      { text: 'Sign out', style: 'destructive', onPress: () => void signOut() },
     ]);
 
   const rest: { key: 'restWarmupSeconds' | 'restMainSeconds' | 'restSuppSeconds'; label: string; sub?: string }[] =
@@ -265,15 +272,20 @@ function SettingsForm({ settings, savedAtStart }: { settings: Settings; savedAtS
       <Heading title="Server" />
       <Row label="Address">
         <Text style={[s.sub, local.value]} numberOfLines={1} ellipsizeMode="middle">
-          {sample.server}
+          {url}
         </Text>
       </Row>
       <Row label="Version">
-        <Text style={[s.sub, local.value]}>
-          {sample.info.version} · API {sample.info.apiVersion}
+        <Text style={[s.sub, local.value]} accessibilityLabel={info ? undefined : 'Unknown'}>
+          {info ? `${info.version} · API ${info.apiVersion}` : '—'}
         </Text>
       </Row>
-      <TextAction label="Sign out" icon="rectangle.portrait.and.arrow.right" onPress={signOut} style={local.signOut} />
+      <TextAction
+        label="Sign out"
+        icon="rectangle.portrait.and.arrow.right"
+        onPress={confirmSignOut}
+        style={local.signOut}
+      />
 
       <Text style={[s.sub, local.footer]}>Not affiliated with Jim Wendler.</Text>
     </Page>
