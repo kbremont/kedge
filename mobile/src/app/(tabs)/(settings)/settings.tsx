@@ -2,7 +2,17 @@ import { Host, Picker, Stepper, Text as SwiftText } from '@expo/ui/swift-ui';
 import { labelsHidden, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { SymbolView } from 'expo-symbols';
 import { useRef, useState, type ReactNode } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
+import {
+  Alert,
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  Switch,
+  Text,
+  useColorScheme,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { useInfo, useSaveSettings, useSetTrainingMax, useSettings } from '@/api/queries';
@@ -161,8 +171,11 @@ function SettingsForm({ settings }: { settings: Settings }) {
     edit({ bbb: { ...form.bbb, [slug]: { ...form.bbb[slug], ...patch } } });
 
   // A training max changes future sessions, so each one is its own decision.
-  // The answer is the settings with it, which redraws its row.
-  const editTM = (slug: string, name: string, value: number) =>
+  // The answer is the settings with it, which redraws its row. A field's
+  // keyboard is closed first: iOS gives the field back its focus when the
+  // prompt closes, so its keyboard would come back over the saved row.
+  const editTM = (slug: string, name: string, value: number) => {
+    Keyboard.dismiss();
     Alert.prompt(
       `${name} training max`,
       'Changes future sessions only. Finished sessions keep the weights they were lifted at.',
@@ -193,6 +206,7 @@ function SettingsForm({ settings }: { settings: Settings }) {
       fmtWeight(value),
       'decimal-pad',
     );
+  };
 
   const submit = () => {
     const input = toInput(form, base.bbb);
@@ -200,6 +214,8 @@ function SettingsForm({ settings }: { settings: Settings }) {
       setRefused(input);
       return;
     }
+    // So the news of the save, or why it failed, isn't behind the keyboard.
+    Keyboard.dismiss();
     send((settled) =>
       save.mutate(input, {
         ...settled,

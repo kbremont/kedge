@@ -5,7 +5,7 @@ import { StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { useAddEstimate, useLift } from '@/api/queries';
 import type { Lift } from '@/api/schema.gen';
-import { Button, Field, Label, LoadState, Notice, TextAction, useCardStyles } from '@/components/card-back';
+import { Button, Field, Label, LoadState, Notice, Page, TextAction, useCardStyles } from '@/components/card-back';
 import { font, liftInk } from '@/theme';
 
 // The day the lifter picked, as the API writes days (YYYY-MM-DD). Read in the
@@ -56,7 +56,10 @@ function Sheet({ slug, l }: { slug: string; l: Lift }) {
   };
 
   return (
-    <View style={[local.sheet, { backgroundColor: p.ground }]}>
+    // A Page, so all of it can be scrolled to above the keyboard: a number
+    // pad has no return key, and at large text sizes, or under a Notice, Add
+    // estimate and Cancel fall below the pad's top.
+    <Page contentContainerStyle={local.sheet}>
       <View style={[local.bar, { backgroundColor: liftInk(p, l.slug).band }]} />
       <Text style={[local.title, { color: p.ink }]} accessibilityRole="header">
         Past estimate
@@ -107,12 +110,12 @@ function Sheet({ slug, l }: { slug: string; l: Lift }) {
         onPress={save}
       />
       <TextAction muted label="Cancel" onPress={() => router.back()} style={local.cancel} />
-    </View>
+    </Page>
   );
 }
 
 const local = StyleSheet.create({
-  sheet: { flex: 1, paddingHorizontal: 20, paddingTop: 0 },
+  sheet: { paddingHorizontal: 20, paddingTop: 0, paddingBottom: 20 },
   bar: { height: 6, marginHorizontal: -20, marginBottom: 18 },
   title: { fontFamily: font.black, fontSize: 30, textTransform: 'uppercase', letterSpacing: 0.4 },
   dateRow: {
