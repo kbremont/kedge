@@ -109,10 +109,6 @@ function SettingsForm({ settings, savedAtStart }: { settings: Settings; savedAtS
     setJustSaved(true);
   };
 
-  const backup = () =>
-    // Sample only: GET /backup, then the share sheet.
-    Alert.alert('Backups come with the server', 'Once the app is connected, the backup opens in the share sheet.');
-
   // The gate closes onto Connect, with the address kept, and the provider
   // forgets every screen of this session.
   const confirmSignOut = () =>
@@ -263,12 +259,6 @@ function SettingsForm({ settings, savedAtStart }: { settings: Settings; savedAtS
         <Button label="Save settings" disabled={!dirty} style={local.save} onPress={save} />
       )}
 
-      <Heading title="Data" />
-      <Intro style={local.intro}>
-        A copy of the whole database, safe to take while you train. It opens in the share sheet.
-      </Intro>
-      <Button secondary icon="square.and.arrow.up" label="Download backup" style={local.backup} onPress={backup} />
-
       <Heading title="Server" />
       <Row label="Address">
         <Text style={[s.sub, local.value]} numberOfLines={1} ellipsizeMode="middle">
@@ -337,7 +327,6 @@ const local = StyleSheet.create({
   segments: { marginTop: 10 },
   save: { marginTop: 24 },
   saved: { marginTop: 18 },
-  backup: { marginTop: 14 },
   value: { marginTop: 0, maxWidth: 210, textAlign: 'right' },
   signOut: { marginTop: 14 },
   footer: { textAlign: 'center', marginTop: 28 },

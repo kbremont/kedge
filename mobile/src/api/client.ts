@@ -46,20 +46,9 @@ export async function answer<T>(request: Promise<{ data?: T }>): Promise<T> {
   return (await request).data as T;
 }
 
-// The database as the server snapshots it, through the same client as every
-// other request so it is signed in and refused the same way. The server names
-// the file after the day.
-export async function fetchBackup(client: ApiClient): Promise<{ bytes: ArrayBuffer; name: string }> {
-  const { data, response } = await client.GET('/backup', { parseAs: 'arrayBuffer' });
-  const disposition = response.headers.get('Content-Disposition') ?? '';
-  const name = /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? '531-backup.db';
-  return { bytes: data as ArrayBuffer, name };
-}
-
 // Gives up on a request with no answer in time. The caller's own signal,
 // React Query's when it cancels, still aborts it too. The clock stops once
-// the headers are in: a body follows quickly, and a backup's can take longer
-// than the timeout to arrive.
+// the headers are in, since a body follows quickly.
 function withTimeout(fetch: Fetch): Fetch {
   return async (request) => {
     const controller = new AbortController();
@@ -98,10 +87,8 @@ function middleware(url: string, token: string): Middleware {
       if (token) request.headers.set('Authorization', `Bearer ${token}`);
     },
 
-    async onResponse({ response, schemaPath, options }) {
+    async onResponse({ response, schemaPath }) {
       if (response.ok) {
-        // A backup's bytes go to the caller as they are.
-        if (options.parseAs !== 'json') return;
         // A 2xx that isn't JSON, such as a web page at that address.
         if (!response.headers.get('Content-Type')?.includes('json')) throw notKedge(response.status);
         // Every read the API answers is a JSON object. Anything less, such

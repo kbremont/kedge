@@ -1,5 +1,5 @@
 import errorInput from '@/api/fixtures/error-input.json';
-import { ApiError, fetchBackup, makeClient, unreachable, type Fetch } from '@/api/client';
+import { ApiError, makeClient, unreachable, type Fetch } from '@/api/client';
 import { getConnection, saveConnection, sessionEnded } from '@/lib/connection';
 import { json } from '@/test-utils';
 
@@ -162,29 +162,4 @@ test('a body that stops arriving is the server out of reach', async () => {
     });
   const error = await failure(makeClient({ url }, { fetch: answering(cut).fetch }).GET('/info'));
   expect(error).toMatchObject({ status: 0, message: unreachable });
-});
-
-test('a backup comes through the middleware as bytes, with its file name', async () => {
-  const bytes = new Uint8Array([83, 81, 76, 105, 116, 101]);
-  const server = answering(
-    () =>
-      new Response(bytes, {
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'Content-Disposition': 'attachment; filename="531-2026-10-28.db"',
-        },
-      }),
-  );
-  const backup = await fetchBackup(makeClient({ url, token: 'tok' }, { fetch: server.fetch }));
-  expect(new Uint8Array(backup.bytes)).toEqual(bytes);
-  expect(backup.name).toBe('531-2026-10-28.db');
-  expect(server.requests[0].headers.get('Authorization')).toBe('Bearer tok');
-});
-
-test('a backup refused is an ApiError like any other', async () => {
-  await saveConnection({ url, token: 'tok', expiresAt: later });
-  const server = answering(() => json({ error: 'Sign in to continue.' }, 401));
-  expect(await failure(fetchBackup(makeClient({ url, token: 'tok' }, { fetch: server.fetch })))).toMatchObject({
-    status: 401,
-  });
 });
