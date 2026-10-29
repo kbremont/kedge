@@ -31,7 +31,10 @@ export function RootStack() {
           contentStyle: { backgroundColor: p.ground },
         }}>
         <Stack.Protected guard={signedIn} redirectTo="/connect">
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          {/* Signing in fades Connect into Today, as signing out fades it back.
+              A screen's animation is its own push and pop, so the screens
+              pushed over the tabs still slide. */}
+          <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'fade' }} />
           <Stack.Screen
             name="setup/index"
             options={{ title: 'Training maxes', headerBackVisible: false, gestureEnabled: false }}

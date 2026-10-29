@@ -46,8 +46,13 @@ function Today({ d }: { d: Dashboard }) {
     );
   }
 
+  // Any keyboard change, such as iOS's Save Password sheet closing after a
+  // sign-in, makes RN's ScrollView re-apply its offset (in
+  // _keyboardWillChangeFrame), clamped as if there were no large title: the
+  // clamp ignores adjustedContentInset, so a page at its top dropped 168 pt.
+  // Not clamping keeps Today where it was.
   return (
-    <Page>
+    <Page scrollToOverflowEnabled>
       <View style={local.stack}>
         {d.testResults.map((r) => (
           <TestResult key={r.workoutId} r={r} />

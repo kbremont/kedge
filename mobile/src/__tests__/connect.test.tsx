@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
-import { Alert, Text } from 'react-native';
+import { Alert, Keyboard, Text } from 'react-native';
 
 import { unreachable } from '@/api/client';
 import dashboardNext from '@/api/fixtures/dashboard-next.json';
@@ -89,7 +89,11 @@ async function connect(url: string, password = 'dev') {
 describe('Connect', () => {
   test('signs in, saves the connection and opens onto Today', async () => {
     const { server } = await openConnect({ 'GET /info': info, ...signIn, 'GET /dashboard': dashboardNext });
+    const dismiss = jest.spyOn(Keyboard, 'dismiss');
     await connect('raspberrypi:3000');
+    // So the keyboard isn't still leaving once Today is on screen.
+    expect(dismiss).toHaveBeenCalled();
+    dismiss.mockRestore();
 
     expect(await screen.findByText('Today')).toBeOnTheScreen();
     expect(screen).toHavePathname('/');

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
@@ -55,6 +55,9 @@ export default function ConnectScreen() {
       return;
     }
     sending.current = true;
+    // Today can open before the keyboard is gone, and a keyboard leaving
+    // over Today would leave it scrolled down from its large title.
+    Keyboard.dismiss();
     // On success the gate closes Connect, so only a failure comes back here.
     login.mutate(
       { url: normalized.url, password },
