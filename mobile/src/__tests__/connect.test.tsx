@@ -6,8 +6,9 @@ import { unreachable } from '@/api/client';
 import dashboardNext from '@/api/fixtures/dashboard-next.json';
 import dashboardSetup from '@/api/fixtures/dashboard-setup.json';
 import info from '@/api/fixtures/info.json';
+import settings from '@/api/fixtures/settings.json';
 import { keys, makeQueryClient, useDashboard } from '@/api/queries';
-import type { Dashboard } from '@/api/schema.gen';
+import type { Dashboard, Settings } from '@/api/schema.gen';
 import TabLayout from '@/app/(tabs)/_layout';
 import HistoryLayout from '@/app/(tabs)/(history)/_layout';
 import SettingsLayout from '@/app/(tabs)/(settings)/_layout';
@@ -51,6 +52,13 @@ const app = {
 };
 
 const signIn = { 'POST /login': { token: 'fresh', expiresAt: '2099-01-01T00:00:00Z' } };
+
+// A cache with Settings in it, so its server rows are on screen at once.
+function withSettings() {
+  const queryClient = makeQueryClient();
+  queryClient.setQueryData(keys.settings(), settings as Settings);
+  return queryClient;
+}
 
 // Opens the app signed out, which is Connect, before a server that answers
 // from `answers`.
@@ -253,8 +261,8 @@ describe('the sign-in gate', () => {
   });
 
   test('Settings shows the server, and signing out there opens Connect with the address kept', async () => {
-    const server = fakeServer({ 'GET /info': info, 'GET /dashboard': dashboardNext });
-    await renderApp(app, { server, initialUrl: '/settings' });
+    const server = fakeServer({ 'GET /info': info, 'GET /dashboard': dashboardNext, 'GET /settings': settings });
+    await renderApp(app, { server, queryClient: withSettings(), initialUrl: '/settings' });
 
     expect(screen.getByText(testUrl)).toBeOnTheScreen();
     expect(await screen.findByText('test · API 1')).toBeOnTheScreen();
@@ -288,8 +296,8 @@ describe('the sign-in gate', () => {
   });
 
   test('Settings shows a dash for the version until the server gives it, and if it never does', async () => {
-    const queryClient = makeQueryClient();
-    const server = fakeServer({ 'GET /dashboard': dashboardNext });
+    const queryClient = withSettings();
+    const server = fakeServer({ 'GET /dashboard': dashboardNext, 'GET /settings': settings });
     await renderApp(app, { server, queryClient, initialUrl: '/settings' });
     expect(screen.getByLabelText('Unknown')).toHaveTextContent('—');
 
