@@ -3,11 +3,10 @@ import { SymbolView } from 'expo-symbols';
 import { Fragment } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
-import type { HistoryItem, LiftRef } from '@/api/schema.gen';
-import { Label, LiftChip, Page, useCardStyles } from '@/components/card-back';
-import { useOverrides } from '@/gallery/store';
+import { useHistory } from '@/api/queries';
+import type { History, HistoryItem, LiftRef } from '@/api/schema.gen';
+import { Label, LiftChip, LoadState, Page, useCardStyles } from '@/components/card-back';
 import { cycleParts, cycleText, shortName, times } from '@/lib/format';
-import { useHistory } from '@/sample/use-screen';
 import { displayScaleCap, font, liftInk } from '@/theme';
 
 // One line per round, newest first: the lifter's career read across like
@@ -36,13 +35,12 @@ const openSession = (it: HistoryItem) =>
   router.push({ pathname: '/workout/[id]', params: { id: it.workoutId, back: 'History' } });
 
 export default function HistoryScreen() {
-  const { version } = useOverrides();
-  return <Career key={version} />;
+  const history = useHistory();
+  return <LoadState query={history}>{(h) => <Career h={h} />}</LoadState>;
 }
 
-function Career() {
+function Career({ h }: { h: History }) {
   const { p, s } = useCardStyles();
-  const h = useHistory();
   const { fontScale } = useWindowDimensions();
   const lines = careerLines(h.items);
 
