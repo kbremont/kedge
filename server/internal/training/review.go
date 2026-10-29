@@ -71,6 +71,7 @@ func (s *Service) tmTestResults(ctx context.Context, st *blockState) ([]TMTestRe
 		r := TMTestResult{
 			WorkoutID: t.ID,
 			LiftName:  names[t.LiftSlug],
+			LiftSlug:  t.LiftSlug,
 			Unit:      st.Raw.Unit,
 			Tested:    t.TrainingMax,
 			Reps:      reps,

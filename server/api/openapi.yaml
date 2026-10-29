@@ -899,6 +899,7 @@ components:
       required:
         - workoutId
         - liftName
+        - liftSlug
         - unit
         - tested
         - reps
@@ -913,6 +914,8 @@ components:
           type: integer
           format: int64
         liftName:
+          type: string
+        liftSlug:
           type: string
         unit:
           type: string
@@ -992,6 +995,7 @@ components:
       required:
         - id
         - liftName
+        - liftSlug
         - cycleLabel
         - phase
         - unit
@@ -1006,6 +1010,8 @@ components:
           type: integer
           format: int64
         liftName:
+          type: string
+        liftSlug:
           type: string
         cycleLabel:
           type: string

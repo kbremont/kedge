@@ -47,6 +47,7 @@ func toDashboard(d *training.Dashboard) Dashboard {
 		out.TestResults = append(out.TestResults, TMTestResult{
 			WorkoutID:     r.WorkoutID,
 			LiftName:      r.LiftName,
+			LiftSlug:      r.LiftSlug,
 			Unit:          r.Unit,
 			Tested:        r.Tested,
 			Reps:          r.Reps,
@@ -85,6 +86,7 @@ func toWorkout(w *training.Workout) Workout {
 	out := Workout{
 		ID:          w.ID,
 		LiftName:    w.LiftName,
+		LiftSlug:    w.LiftSlug,
 		CycleLabel:  w.CycleLabel,
 		Phase:       Phase(w.Phase),
 		Unit:        w.Unit,

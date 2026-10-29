@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 100 100">
+  <!-- The splash image, dark: the plate mark from src/components/plate-mark.tsx on a transparent ground; the splash's background colour is the night navy ground. -->
+  <rect x="4" y="46" width="26" height="8" rx="1" fill="#E4DED2"/>
+  <rect x="28" y="37" width="8" height="26" rx="1.5" fill="#E4DED2"/>
+  <rect x="38" y="12" width="10" height="76" rx="1.5" fill="#C24A33"/>
+  <rect x="50" y="18" width="10" height="64" rx="1.5" fill="#3F72BD"/>
+  <rect x="62" y="24" width="10" height="52" rx="1.5" fill="#D9A21B"/>
+  <rect x="74" y="30" width="10" height="40" rx="1.5" fill="#33844F"/>
+  <rect x="84" y="44" width="12" height="12" rx="1" fill="#E4DED2"/>
+</svg>

@@ -57,6 +57,7 @@ type NextUp struct {
 type TMTestResult struct {
 	WorkoutID int64
 	LiftName  string
+	LiftSlug  string
 	Unit      string
 	Tested    float64 // the training max that was tested
 	Reps      int     // performed at 100%
@@ -96,6 +97,7 @@ type TMReviewRow struct {
 type Workout struct {
 	ID          int64
 	LiftName    string
+	LiftSlug    string
 	CycleLabel  string
 	Phase       string
 	Unit        string

@@ -134,6 +134,7 @@ func (s *Service) Workout(ctx context.Context, id int64) (*Workout, error) {
 	w := &Workout{
 		ID:          workout.ID,
 		LiftName:    lift.Name,
+		LiftSlug:    lift.Slug,
 		CycleLabel:  workout.CycleLabel,
 		Phase:       workout.Phase,
 		Unit:        raw.Unit,

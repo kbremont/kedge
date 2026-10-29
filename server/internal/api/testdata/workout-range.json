@@ -5,6 +5,7 @@
   "cycleLabel": "7th Week Deload",
   "id": 1,
   "liftName": "Overhead Press",
+  "liftSlug": "press",
   "phase": "deload",
   "restSeconds": 90,
   "sets": [
