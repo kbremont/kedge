@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import { useRef, type ComponentRef } from 'react';
 import {
   Alert,
   Pressable,
@@ -13,27 +13,32 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 
+import { useDiscardWorkout, useFinishWorkout, useLogSet, useUndoSet, useWorkout } from '@/api/queries';
 import type { Set, Workout } from '@/api/schema.gen';
-import { Button, Label, Notice, Page, RestBar, Totals, useCardStyles } from '@/components/card-back';
-import { useOverrides } from '@/gallery/store';
-import { cycleText, fmtClock, fmtPct, fmtWeight, plateList, times, useRestClock } from '@/lib/format';
-import { sample } from '@/sample';
-import { useWorkout } from '@/sample/use-screen';
+import { Button, Label, LoadState, Notice, Page, RestBar, Totals, useCardStyles } from '@/components/card-back';
+import { cycleText, fmtClock, fmtPct, fmtWeight, plateList, times } from '@/lib/format';
+import { useRest } from '@/lib/rest';
 import { displayScaleCap, font, liftInk, radius } from '@/theme';
 
 export default function WorkoutScreen() {
-  const { id, back } = useLocalSearchParams<{ id: string; back?: string }>();
-  const { version } = useOverrides();
-  const w = useWorkout(id);
+  const params = useLocalSearchParams<{ id: string; back?: string }>();
+  // The cache keys a session by the API's number, not the route's string.
+  const id = Number(params.id);
+  const workout = useWorkout(id);
+  // A logged set's rest starts as its answer arrives, a moment before the
+  // answer reaches the screen. Read here, beside the session's data, a new
+  // rest redraws the session too, so the bar and the sets are never from
+  // different moments.
+  const rest = useRest(id);
   return (
     <>
-      <Stack.Screen options={{ title: w.liftName, headerBackTitle: back ?? 'Today' }} />
-      <Session key={version} w={w} />
+      <Stack.Screen options={{ title: workout.data?.liftName ?? '', headerBackTitle: params.back ?? 'Today' }} />
+      <LoadState query={workout}>{(w) => <Session w={w} rest={rest} />}</LoadState>
     </>
   );
 }
 
-function Session({ w }: { w: Workout }) {
+function Session({ w, rest }: { w: Workout; rest: { left: number; total: number } }) {
   const { p, s } = useCardStyles();
   const slug = w.liftSlug;
   const ink = liftInk(p, slug);
@@ -44,46 +49,46 @@ function Session({ w }: { w: Workout }) {
   const headerHeight = useHeaderHeight();
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
 
-  // Sample only: stands in for the session the API returns after each
-  // PUT /workouts/{id}/sets/{idx}, with restSeconds starting the timer.
-  // ?logged=n opens the sample n sets further on, for the gallery.
-  // ?discard=1 opens the discard confirmation.
-  const { logged, discard: askDiscard } = useLocalSearchParams<{ logged?: string; discard?: string }>();
-  const [sets, setSets] = useState(() => {
-    let n = Number(logged ?? 0);
-    return w.sets.map((x) => (!x.done && n-- > 0 ? { ...x, done: true, actualReps: x.targetReps } : x));
-  });
-  const [lastLogged, setLastLogged] = useState(() => sets.findLast((x) => x.done)?.idx ?? null);
-  const { left, restart } = useRestClock(w.restSeconds, sample.restStartedAgo);
-  const current = w.completed ? undefined : sets.find((x) => !x.done);
+  const logSet = useLogSet(w.id);
+  const undoSet = useUndoSet(w.id);
+  const finish = useFinishWorkout(w.id);
+  const discard = useDiscardWorkout(w.id);
+  // One request at a time: until the server answers, the current set is
+  // still the one just tapped, so a second tap must not log it again or
+  // reach the set after.
+  const busy = logSet.isPending || undoSet.isPending || finish.isPending || discard.isPending;
+  // The rest the last set logged here started, timed from the tap. Tapping
+  // Log ends the rest before it, and the next one waits until the set is
+  // logged, so it never shows over the set just tapped.
+  const { left, total } = rest;
+  const resting = left > 0 && !logSet.isPending;
+  const current = w.completed ? undefined : w.sets.find((x) => x.idx === w.currentIdx);
   // A session opened from history: every set as it was lifted, and the PR
   // set's result as the bottom line.
-  const pr = w.completed ? sets.find((x) => x.isAmrap && x.done) : undefined;
-  const undoable = sets.find((x) => x.idx === lastLogged && x.done);
+  const pr = w.completed ? w.sets.find((x) => x.isAmrap && x.done) : undefined;
+  // The set logged before the current one can be taken back.
+  const undoable = current ? w.sets.findLast((x) => x.done && x.idx < current.idx) : undefined;
 
+  // A new set request replaces the news of the last one that failed.
   const log = (set: Set, reps: number) => {
-    setSets((prev) => prev.map((x) => (x.idx === set.idx ? { ...x, done: true, actualReps: reps } : x)));
-    setLastLogged(set.idx);
-    restart();
+    undoSet.reset();
+    logSet.mutate({ idx: set.idx, reps });
   };
 
-  // Sample only: DELETE /workouts/{id}/sets/{idx}.
   const undo = (set: Set) => {
-    setSets((prev) => prev.map((x) => (x.idx === set.idx ? { ...x, done: false, actualReps: 0 } : x)));
-    setLastLogged(null);
+    logSet.reset();
+    undoSet.mutate({ idx: set.idx });
   };
 
-  const discard = () =>
+  const confirmDiscard = () =>
     Alert.alert('Discard this session?', 'The sets logged in it are removed. This can’t be undone.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Discard session', style: 'destructive', onPress: () => router.back() },
+      {
+        text: 'Discard session',
+        style: 'destructive',
+        onPress: () => discard.mutate(undefined, { onSuccess: () => router.back() }),
+      },
     ]);
-
-  useEffect(() => {
-    if (askDiscard === '1') discard();
-    // Gallery only: open once on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Keeps the current set and its Log button on screen as the session moves
   // down the table: once they would end below the fold, the table scrolls to
@@ -122,12 +127,12 @@ function Session({ w }: { w: Workout }) {
         )}
       </View>
 
-      {sets.map((set) => {
+      {w.sets.map((set) => {
         if (set.idx === current?.idx) {
           return (
             <View key={set.idx} onLayout={keepInView}>
-              {left > 0 ? (
-                <RestBar slug={slug} left={left} total={w.restSeconds} clock={fmtClock(left)} />
+              {resting ? (
+                <RestBar slug={slug} left={left} total={total} clock={fmtClock(left)} />
               ) : (
                 <View style={local.restGap} />
               )}
@@ -139,14 +144,21 @@ function Session({ w }: { w: Workout }) {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Undo ${fmtWeight(undoable.weight)} × ${undoable.actualReps}`}
+                    accessibilityState={{ disabled: busy }}
+                    disabled={busy}
                     onPress={() => undo(undoable)}
-                    style={({ pressed }) => [local.undo, pressed && s.pressed]}>
+                    style={({ pressed }) => [local.undo, pressed && s.pressed, busy && s.disabled]}>
                     <SymbolView name="arrow.uturn.backward" tintColor={p.ink} size={14} weight="bold" />
                     <Text style={[local.undoText, { color: p.ink }]} maxFontSizeMultiplier={displayScaleCap}>
                       Undo
                     </Text>
                   </Pressable>
                 </View>
+              ) : null}
+              {undoSet.error ? (
+                <Notice error style={local.undoError}>
+                  {undoSet.error.message}
+                </Notice>
               ) : null}
               <View style={[local.current, { backgroundColor: p.stock }]}>
                 <View style={local.currentTop}>
@@ -178,12 +190,25 @@ function Session({ w }: { w: Workout }) {
                     {w.unit} exactly.
                   </Notice>
                 ) : null}
+                {logSet.error ? (
+                  <Notice error style={local.short}>
+                    {logSet.error.message}
+                  </Notice>
+                ) : null}
                 {set.asksReps ? (
-                  <RepPicker set={set} slug={slug} bestE1rm={w.bestE1rm} unit={w.unit} onPick={(r) => log(set, r)} />
+                  <RepPicker
+                    set={set}
+                    slug={slug}
+                    bestE1rm={w.bestE1rm}
+                    unit={w.unit}
+                    disabled={busy}
+                    onPick={(r) => log(set, r)}
+                  />
                 ) : (
                   <Button
                     icon="checkmark"
                     label={`Log ${set.targetReps} reps`}
+                    disabled={busy}
                     style={local.log}
                     onPress={() => log(set, set.targetReps)}
                   />
@@ -210,12 +235,34 @@ function Session({ w }: { w: Workout }) {
           <Totals label="PR set" value={`${fmtWeight(pr.weight)} × ${pr.actualReps}`} />
         ) : null
       ) : current ? (
-        <Pressable accessibilityRole="button" style={local.discard} onPress={discard}>
-          <Text style={[local.discardText, { color: p.danger }]}>Discard this session</Text>
-        </Pressable>
+        <>
+          {discard.error ? (
+            <Notice error style={local.endError}>
+              {discard.error.message}
+            </Notice>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            style={[local.discard, busy && s.disabled]}
+            onPress={confirmDiscard}>
+            <Text style={[local.discardText, { color: p.danger }]}>Discard this session</Text>
+          </Pressable>
+        </>
       ) : (
         <View onLayout={() => scroll.current?.scrollToEnd()}>
-          <Button label="Finish session" style={{ marginTop: 20 }} onPress={() => router.back()} />
+          {finish.error ? (
+            <Notice error style={local.endError}>
+              {finish.error.message}
+            </Notice>
+          ) : null}
+          <Button
+            label="Finish session"
+            disabled={busy}
+            style={finish.error ? local.afterError : local.finish}
+            onPress={() => finish.mutate(undefined, { onSuccess: () => router.back() })}
+          />
         </View>
       )}
     </Page>
@@ -338,12 +385,14 @@ function RepPicker({
   slug,
   bestE1rm,
   unit,
+  disabled,
   onPick,
 }: {
   set: Set;
   slug: string;
   bestE1rm: number;
   unit: string;
+  disabled: boolean;
   onPick: (reps: number) => void;
 }) {
   const { p, s } = useCardStyles();
@@ -360,7 +409,7 @@ function RepPicker({
           Best estimated max {fmtWeight(bestE1rm)} {unit}
         </Text>
       ) : null}
-      <View style={local.repGrid}>
+      <View style={[local.repGrid, disabled && s.disabled]}>
         {rows.map((row, i) => (
           <View key={i} style={local.repRow}>
             {row.map((c) => (
@@ -368,6 +417,8 @@ function RepPicker({
                 key={c.reps}
                 accessibilityRole="button"
                 accessibilityLabel={`Log ${c.reps} reps${c.target ? ', meets the target' : ''}`}
+                accessibilityState={{ disabled }}
+                disabled={disabled}
                 onPress={() => onPick(c.reps)}
                 style={({ pressed }) => [
                   local.rep,
@@ -433,6 +484,7 @@ const local = StyleSheet.create({
   loggedText: { marginTop: 0, flexShrink: 1 },
   undo: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingLeft: 12 },
   undoText: { fontFamily: font.heavy, fontSize: 18, letterSpacing: 0.6, textTransform: 'uppercase' },
+  undoError: { paddingTop: 0 },
   currentMeta: { fontSize: 15, paddingHorizontal: 16, marginTop: -2 },
   plateRow: {
     flexDirection: 'row',
@@ -460,4 +512,7 @@ const local = StyleSheet.create({
   },
   discard: { alignItems: 'center', paddingVertical: 18, marginTop: 12 },
   discardText: { fontSize: 16, fontWeight: '600' },
+  finish: { marginTop: 20 },
+  endError: { marginTop: 12, paddingBottom: 0 },
+  afterError: { marginTop: 12 },
 });

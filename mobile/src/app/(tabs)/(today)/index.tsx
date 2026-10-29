@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
+import { useAcceptReview, useDashboard, useDecideTMTest, useSkipCycle, useStartWorkout } from '@/api/queries';
 import type { Dashboard, NextUp, TMReview, TMTestResult } from '@/api/schema.gen';
 import {
   Button,
@@ -12,6 +13,8 @@ import {
   Label,
   LiftBand,
   LiftChip,
+  LoadState,
+  Notice,
   Page,
   Panel,
   Stat,
@@ -21,27 +24,16 @@ import {
   ToneMark,
   useCardStyles,
 } from '@/components/card-back';
-import { useOverrides } from '@/gallery/store';
 import { cycleText, fmtWeight, shortName, times } from '@/lib/format';
-import { sample } from '@/sample';
-import { useDashboard } from '@/sample/use-screen';
 import { displayScaleCap, font, liftInk, radius, space } from '@/theme';
 
 export default function TodayScreen() {
-  const { version } = useOverrides();
-  const d = useDashboard();
-  return <Today key={version} d={d} />;
+  const dashboard = useDashboard();
+  return <LoadState query={dashboard}>{(d) => <Today d={d} />}</LoadState>;
 }
 
 function Today({ d }: { d: Dashboard }) {
   const { p, s } = useCardStyles();
-  // Sample only: stands in for the dashboard the API returns after a TM test
-  // decision or an accepted review.
-  const [settled, setSettled] = useState<number[]>([]);
-  const [accepted, setAccepted] = useState(false);
-  const results = d.testResults.filter((r) => !settled.includes(r.workoutId));
-  const review = accepted ? null : d.review;
-  const held = results.some((r) => r.needsDecision) || review !== null;
 
   if (d.needsSetup) {
     return (
@@ -57,12 +49,13 @@ function Today({ d }: { d: Dashboard }) {
   return (
     <Page>
       <View style={local.stack}>
-        {results.map((r) => (
-          <TestResult key={r.workoutId} r={r} onSettle={() => setSettled((x) => [...x, r.workoutId])} />
+        {d.testResults.map((r) => (
+          <TestResult key={r.workoutId} r={r} />
         ))}
-        {review ? <Review review={review} onAccept={() => setAccepted(true)} /> : null}
+        {/* A new review starts from its own proposals. */}
+        {d.review ? <Review key={d.review.key} review={d.review} /> : null}
         {d.next ? (
-          <NextCard next={d.next} unit={d.unit} held={d.next.blocked && held} />
+          <NextCard next={d.next} unit={d.unit} held={d.next.blocked} />
         ) : (
           <Panel style={local.pad}>
             <Intro>Nothing scheduled. Check your program in Settings.</Intro>
@@ -139,15 +132,26 @@ function Today({ d }: { d: Dashboard }) {
 }
 
 // The next session in its lift's band. While a training max decision is
-// waiting, the start button gives way to what it waits on.
+// waiting, the start button gives way to what it waits on. Start and Resume
+// both ask the server for the session, so a stale card is refused with why.
 function NextCard({ next, unit, held }: { next: NextUp; unit: string; held: boolean }) {
   const { p, s } = useCardStyles();
+  const start = useStartWorkout();
+  const skip = useSkipCycle();
+  const busy = start.isPending || skip.isPending;
   const cycle = cycleText(next.cycleLabel);
-  const skip = () =>
+
+  // A refusal to start stays beside the hold it ran into, which Today
+  // refetches to show, and goes once that hold is settled.
+  const { reset } = start;
+  useEffect(() => {
+    if (!held) reset();
+  }, [held, reset]);
+
+  const confirmSkip = () =>
     Alert.alert(`Skip the ${next.cycleLabel}?`, 'The next block starts now.', [
       { text: 'Cancel', style: 'cancel' },
-      // Sample only: POST /skip-cycle answers with the new dashboard.
-      { text: 'Skip it', style: 'destructive' },
+      { text: 'Skip it', style: 'destructive', onPress: () => skip.mutate() },
     ]);
   return (
     <Panel>
@@ -161,6 +165,11 @@ function NextCard({ next, unit, held }: { next: NextUp; unit: string; held: bool
         <Stat label="Round" value={String(next.roundOfBlock)} unit={`of ${next.roundsInBlock}`} />
         <Stat label="TM" value={fmtWeight(next.trainingMax)} unit={unit} last />
       </StatRow>
+      {start.error ? (
+        <Notice error style={local.cardError}>
+          {start.error.message}
+        </Notice>
+      ) : null}
       {held ? (
         <View style={local.held}>
           <SymbolView name="lock.fill" tintColor={p.ink2} size={15} />
@@ -170,11 +179,26 @@ function NextCard({ next, unit, held }: { next: NextUp; unit: string; held: bool
         <>
           <Button
             label={next.inProgress ? 'Resume session' : 'Start session'}
+            disabled={busy}
             style={local.start}
-            onPress={() => router.push({ pathname: '/workout/[id]', params: { id: sample.workout.id } })}
+            onPress={() =>
+              start.mutate(undefined, {
+                onSuccess: (w) => router.push({ pathname: '/workout/[id]', params: { id: w.id } }),
+              })
+            }
           />
           {next.canSkip ? (
-            <TextAction label="Skip it and start the next block" onPress={skip} style={local.skip} />
+            <TextAction
+              label="Skip it and start the next block"
+              disabled={busy}
+              onPress={confirmSkip}
+              style={local.skip}
+            />
+          ) : null}
+          {skip.error ? (
+            <Notice error style={local.skipError}>
+              {skip.error.message}
+            </Notice>
           ) : null}
         </>
       )}
@@ -184,10 +208,11 @@ function NextCard({ next, unit, held }: { next: NextUp; unit: string; held: bool
 
 // One lift's TM test, as soon as it is done. A pass is news; a failure asks
 // whether to lower the training max, and nothing is written until the lifter
-// chooses.
-function TestResult({ r, onSettle }: { r: TMTestResult; onSettle: () => void }) {
+// chooses. Today comes back without the question.
+function TestResult({ r }: { r: TMTestResult }) {
   const { p, s } = useCardStyles();
   const indent = useMarkIndent(22);
+  const decide = useDecideTMTest();
   const [tm, setTm] = useState(fmtWeight(r.proposed));
   const valid = Number(tm) > 0;
   return (
@@ -225,18 +250,23 @@ function TestResult({ r, onSettle }: { r: TMTestResult; onSettle: () => void }) 
               />
             </View>
           </View>
-          {/* Sample only: POST /tm-test/{id} with lower or keep. */}
+          {decide.error ? (
+            <Notice error style={local.decideError}>
+              {decide.error.message}
+            </Notice>
+          ) : null}
           <Button
             label={valid ? `Lower to ${tm} ${r.unit}` : 'Lower training max'}
-            disabled={!valid}
+            disabled={!valid || decide.isPending}
             style={local.decideButton}
-            onPress={onSettle}
+            onPress={() => decide.mutate({ id: r.workoutId, action: 'lower', tm: Number(tm) })}
           />
           <Button
             secondary
             label={`Keep ${fmtWeight(r.current)} ${r.unit}`}
+            disabled={decide.isPending}
             style={[local.decideButton, local.lastButton]}
-            onPress={onSettle}
+            onPress={() => decide.mutate({ id: r.workoutId, action: 'keep' })}
           />
         </>
       ) : null}
@@ -245,14 +275,16 @@ function TestResult({ r, onSettle }: { r: TMTestResult; onSettle: () => void }) 
 }
 
 // The start of a block: a training max for every lift, each with its evidence,
-// all editable. The block waits until they are accepted.
-function Review({ review, onAccept }: { review: TMReview; onAccept: () => void }) {
+// all editable. The block waits until they are accepted, as edited.
+function Review({ review }: { review: TMReview }) {
   const { p, s } = useCardStyles();
   const indent = useMarkIndent(18);
+  const accept = useAcceptReview();
   const [values, setValues] = useState(() =>
     Object.fromEntries(review.rows.map((r) => [r.slug, fmtWeight(r.proposed)])),
   );
   const valid = review.rows.every((r) => Number(values[r.slug]) > 0);
+  const tms = Object.fromEntries(review.rows.map((r) => [r.slug, Number(values[r.slug])]));
   return (
     <Panel>
       <View style={[local.inkBand, { backgroundColor: p.button }]}>
@@ -299,8 +331,17 @@ function Review({ review, onAccept }: { review: TMReview; onAccept: () => void }
           <Text style={[s.sub, local.evidence, { marginLeft: indent }]}>{row.evidence}</Text>
         </View>
       ))}
-      {/* Sample only: POST /tm-review with the key and every value. */}
-      <Button label="Accept training maxes" disabled={!valid} style={local.start} onPress={onAccept} />
+      {accept.error ? (
+        <Notice error style={local.cardError}>
+          {accept.error.message}
+        </Notice>
+      ) : null}
+      <Button
+        label="Accept training maxes"
+        disabled={!valid || accept.isPending}
+        style={local.start}
+        onPress={() => accept.mutate({ key: review.key, tms })}
+      />
     </Panel>
   );
 }
@@ -318,6 +359,8 @@ const local = StyleSheet.create({
   pad: { padding: 16 },
   start: { margin: 12 },
   skip: { marginTop: -6, marginBottom: 4 },
+  cardError: { marginHorizontal: 16, paddingTop: 12, paddingBottom: 0 },
+  skipError: { marginHorizontal: 16, paddingTop: 0, paddingBottom: 14 },
   held: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 18 },
   result: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14 },
   verdictRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
@@ -335,6 +378,7 @@ const local = StyleSheet.create({
   newTmField: { marginTop: 4 },
   nowValue: { height: 52, marginTop: 4, justifyContent: 'center' },
   decideButton: { marginHorizontal: 12, marginTop: 12 },
+  decideError: { marginHorizontal: 14, paddingBottom: 0 },
   lastButton: { marginTop: 8, marginBottom: 12 },
   inkBand: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 },
   inkTitle: { fontFamily: font.black, fontSize: 30, lineHeight: 32, letterSpacing: 0.4, textTransform: 'uppercase' },

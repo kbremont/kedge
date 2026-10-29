@@ -1,8 +1,9 @@
 // The Career Line building blocks: every screen is stock, ink, ruled stat
 // lines and a band in the lift's colour.
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { useEffect, useMemo, useRef, type ComponentRef, type ReactNode, type Ref } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type Ref } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -169,6 +170,10 @@ function makeStyles(p: Palette) {
     noticeText: { flex: 1, fontSize: 15, fontWeight: '600', color: p.ink, lineHeight: 20 },
     tone: { width: 22, height: 22, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center' },
     intro: { fontSize: 15, lineHeight: 21, color: p.ink2 },
+    loading: { marginTop: 40 },
+    failed: { padding: 16 },
+    failedNotice: { paddingVertical: 0 },
+    failedButton: { marginTop: 14 },
   });
 }
 
@@ -350,6 +355,7 @@ export function TextAction({
   icon,
   danger,
   muted,
+  disabled,
   onPress,
   style,
 }: {
@@ -357,6 +363,7 @@ export function TextAction({
   icon?: SFSymbol;
   danger?: boolean;
   muted?: boolean;
+  disabled?: boolean;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
@@ -365,8 +372,10 @@ export function TextAction({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [s.textAction, pressed && s.pressed, style]}>
+      style={({ pressed }) => [s.textAction, pressed && s.pressed, disabled && s.disabled, style]}>
       {icon ? <SymbolView name={icon} tintColor={color} size={16} weight="semibold" /> : null}
       <Text style={[s.textActionText, { color }]}>{label}</Text>
     </Pressable>
@@ -525,4 +534,58 @@ export function ToneMark({ tone, size = 22, line = size }: { tone: Tone; size?: 
 export function Intro({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
   const { s } = useCardStyles();
   return <Text style={[s.intro, style]}>{children}</Text>;
+}
+
+// A screen's read, as a query hook returns it.
+type Loadable<D> = {
+  data: D | undefined;
+  error: Error | null;
+  isFetching: boolean;
+  refetch: () => unknown;
+};
+
+// A screen until its first load arrives, then the screen itself:
+//   <LoadState query={useHistory()}>{(h) => <History h={h} />}</LoadState>
+// A quick answer shows nothing meanwhile, so the spinner only appears after
+// a moment. A failed first load says why and offers to ask again. Once there
+// is data it stays on screen, even when a refetch fails: the query then
+// reports an error with its data still set, so data is checked first.
+export function LoadState<D>({ query, children }: { query: Loadable<D>; children: (data: D) => ReactNode }) {
+  const { p, s } = useCardStyles();
+  // Asking again clears the query's error until the answer comes, so the
+  // last one stays on screen meanwhile, over a button that says it's trying.
+  const [failure, setFailure] = useState<Error | null>(null);
+  if (query.error && query.error !== failure) setFailure(query.error);
+  const shown = query.error ?? failure;
+  const waiting = query.data === undefined && !shown;
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!waiting) return;
+    const id = setTimeout(() => setSlow(true), 400);
+    return () => clearTimeout(id);
+  }, [waiting]);
+
+  if (query.data !== undefined) return children(query.data);
+  if (shown) {
+    return (
+      <Page>
+        <Panel style={s.failed}>
+          <Notice error style={s.failedNotice}>
+            {shown.message}
+          </Notice>
+          <Button
+            label={query.isFetching ? 'Trying again…' : 'Try again'}
+            disabled={query.isFetching}
+            style={s.failedButton}
+            onPress={() => void query.refetch()}
+          />
+        </Panel>
+      </Page>
+    );
+  }
+  return (
+    <Page>
+      {slow ? <ActivityIndicator size="large" color={p.ink2} accessibilityLabel="Loading" style={s.loading} /> : null}
+    </Page>
+  );
 }
