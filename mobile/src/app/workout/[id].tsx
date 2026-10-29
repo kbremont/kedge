@@ -121,8 +121,11 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
     }
   };
 
+  // keepInView's scrollTo near the end of the table aims past the page's
+  // end, which RN's clamp stops; Page turns the clamp off for the keyboard.
+  // This page has no fields, so it keeps the clamp.
   return (
-    <Page ref={scroll}>
+    <Page ref={scroll} scrollToOverflowEnabled={false}>
       <View style={[local.band, { backgroundColor: ink.band }]}>
         <View style={local.bandTop}>
           <Text style={[local.bandText, { color: ink.onBand }]} maxFontSizeMultiplier={displayScaleCap}>

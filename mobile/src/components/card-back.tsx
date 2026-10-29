@@ -3,6 +3,7 @@
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import {
   Children,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -14,6 +15,7 @@ import {
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -196,6 +198,9 @@ export function useCardStyles() {
 export function Page({
   children,
   ref,
+  onScroll,
+  onLayout,
+  onContentSizeChange,
   ...props
 }: ScrollViewProps & {
   children: ReactNode;
@@ -213,6 +218,41 @@ export function Page({
     }, 350);
     return () => clearTimeout(id);
   }, [scrollY]);
+
+  // With automaticallyAdjustKeyboardInsets, RN's ScrollView re-applies its
+  // offset at every keyboard change in the app (in _keyboardWillChangeFrame),
+  // clamped to its own contentInset. That leaves out the insets automatic
+  // adjustment adds for the bars: a page at its top under a large title, at
+  // about -168, was snapped to 0, and one at its very end was pulled down by
+  // the tab bar's or home indicator's height. scrollToOverflowEnabled turns
+  // the clamp off, so a keyboard moves a page only to bring its field into
+  // view.
+  //
+  // Unclamped, a page can be left past its end: moved into the room the
+  // keyboard took, as the keyboard leaves. So it's settled then. A page at
+  // least as tall as its frame zooms to the rect it shows, which UIKit clamps
+  // to the page's real bounds, bars and all. A shorter one may have no room
+  // to scroll at all, so it goes back to where it was before the keyboard.
+  //
+  // The flag unclamps scrollTo too, so a page that scrolls itself towards
+  // its end keeps the clamp, with scrollToOverflowEnabled={false}.
+  const view = useRef({ y: 0, before: 0, width: 0, height: 0, contentHeight: 0 });
+  const settle = useCallback(() => {
+    const { y, before, width, height, contentHeight } = view.current;
+    if (Platform.OS !== 'ios' || !(y > before && y > contentHeight - height)) {
+      // The keyboard's room is gone, so where the page is now is without it.
+      view.current.before = y;
+    } else if (contentHeight >= height) {
+      own.current?.scrollResponderZoomTo({ x: 0, y, width, height, animated: true });
+    } else {
+      own.current?.scrollTo({ y: before });
+    }
+  }, []);
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardWillHide', settle);
+    return () => sub.remove();
+  }, [settle]);
+
   return (
     <ScrollView
       ref={(node) => {
@@ -223,9 +263,27 @@ export function Page({
       style={s.page}
       contentInsetAdjustmentBehavior="automatic"
       automaticallyAdjustKeyboardInsets
+      scrollToOverflowEnabled
       keyboardDismissMode="interactive"
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={s.pageContent}
-      {...props}>
+      {...props}
+      onScroll={(e) => {
+        const { contentOffset, contentInset } = e.nativeEvent;
+        view.current.y = contentOffset.y;
+        // No keyboard room in the inset: where the page is without one.
+        if (contentInset.bottom <= (props.contentInset?.bottom ?? 0)) view.current.before = contentOffset.y;
+        onScroll?.(e);
+      }}
+      onLayout={(e) => {
+        view.current.width = e.nativeEvent.layout.width;
+        view.current.height = e.nativeEvent.layout.height;
+        onLayout?.(e);
+      }}
+      onContentSizeChange={(width, height) => {
+        view.current.contentHeight = height;
+        onContentSizeChange?.(width, height);
+      }}>
       {children}
     </ScrollView>
   );
