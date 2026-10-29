@@ -1,9 +1,20 @@
 // The Career Line building blocks: every screen is stock, ink, ruled stat
 // lines and a band in the lift's colour.
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type Ref } from 'react';
 import {
+  Children,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentRef,
+  type ReactNode,
+  type Ref,
+} from 'react';
+import {
+  AccessibilityInfo,
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -327,9 +338,12 @@ export function Button({
 }) {
   const { p, s } = useCardStyles();
   const color = secondary ? p.ink : p.onButton;
+  // The label is read as written, not in the caps it's printed in, and
+  // without the icon's own name, such as the checkmark's "selected".
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
@@ -369,9 +383,11 @@ export function TextAction({
 }) {
   const { p, s } = useCardStyles();
   const color = danger ? p.danger : muted ? p.ink2 : p.ink;
+  // Read as its words alone, like Button.
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
@@ -478,6 +494,9 @@ export function Field({
 
 // A line of news under or over a form: an error in danger, a confirmation in
 // ink. Each carries its symbol, so colour is never the only signal.
+// VoiceOver reads it as one element, its words alone. iOS has no live
+// regions, so an error is announced as it appears and whenever it changes;
+// Android's live region reads it, and news, by itself.
 export function Notice({
   error,
   icon,
@@ -491,9 +510,16 @@ export function Notice({
 }) {
   const { p, s } = useCardStyles();
   const color = error ? p.danger : p.ink;
+  const text = Children.toArray(children)
+    .filter((c) => typeof c === 'string' || typeof c === 'number')
+    .join('');
+  useEffect(() => {
+    if (error && text && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(text);
+  }, [error, text]);
   return (
     <View
       style={[s.notice, style]}
+      accessible
       accessibilityRole={error ? 'alert' : undefined}
       accessibilityLiveRegion="polite">
       <SymbolView
@@ -501,6 +527,7 @@ export function Notice({
         tintColor={color}
         size={18}
         style={{ marginTop: 1 }}
+        accessibilityElementsHidden
       />
       <Text style={[s.noticeText, { color }]}>{children}</Text>
     </View>
