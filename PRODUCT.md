@@ -87,7 +87,7 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 - **Screen fixtures:** `mobile/src/api/fixtures/*.json` has a golden API response for every screen state the app shows, generated from the server's tests.
 - **Demo data:** `make demo` runs the server against a database seeded with a realistic block. It covers both leaders, a passed TM test, part of the anchor, and past estimates.
 - **The legacy web UI** at `make run` (`server/internal/web`) works as a reference for behavior and copy, not for the look.
-- **Assets:** the PWA icons in `server/internal/web/static/` belong to the legacy web UI. The app icon is `mobile/assets/kedge.icon` (with 1024px renders in `mobile/assets/icon/`); the rest of `mobile/assets/images/` (splash, Android icons) are Expo template placeholders.
+- **Assets:** the PWA icons in `server/internal/web/static/` belong to the legacy web UI. The app icon is `mobile/assets/kedge.icon` (with 1024px renders in `mobile/assets/icon/`), and the splash screen shows the same mark (`mobile/assets/splash/`). The Android icons and the favicon in `mobile/assets/images/` are Expo template placeholders.
 - **Not available:** no App Store screenshots, testimonials, user counts or reviews. Don't invent any.
 
 ## Product Principles

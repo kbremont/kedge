@@ -687,6 +687,14 @@
           "press",
           "squat"
         ]
+      },
+      "splash": {
+        "light": "mobile/assets/splash/splash-light.svg",
+        "dark": "mobile/assets/splash/splash-dark.svg",
+        "size": 76,
+        "groundLight": "chipboard",
+        "groundDark": "night-navy",
+        "background": "transparent; the splash plugin's backgroundColor is the ground"
       }
     },
     "liftInkNote": "The press band takes navy ink as on-band in both appearances."
