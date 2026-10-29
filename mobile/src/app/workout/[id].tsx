@@ -11,6 +11,8 @@ import {
   useWindowDimensions,
   View,
   type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 
 import { useDiscardWorkout, useFinishWorkout, useLogSet, useUndoSet, useWorkout } from '@/api/queries';
@@ -57,6 +59,18 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
   // still the one just tapped, so a second tap must not log it again or
   // reach the set after.
   const busy = logSet.isPending || undoSet.isPending || finish.isPending || discard.isPending;
+  // `busy` disables the controls once the screen redraws, and a second tap
+  // can land before that, so while a request is out a tap sends nothing.
+  const sending = useRef(false);
+  const send = (request: (settled: { onSettled: () => void }) => void) => {
+    if (sending.current) return;
+    sending.current = true;
+    request({
+      onSettled: () => {
+        sending.current = false;
+      },
+    });
+  };
   // The rest the last set logged here started, timed from the tap. Tapping
   // Log ends the rest before it, and the next one waits until the set is
   // logged, so it never shows over the set just tapped.
@@ -66,28 +80,35 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
   // A session opened from history: every set as it was lifted, and the PR
   // set's result as the bottom line.
   const pr = w.completed ? w.sets.find((x) => x.isAmrap && x.done) : undefined;
-  // The set logged before the current one can be taken back.
-  const undoable = current ? w.sets.findLast((x) => x.done && x.idx < current.idx) : undefined;
+  // The set logged last can be taken back: the one before the current set,
+  // or once every set is logged, the last of them, such as a TM test's
+  // AMRAP.
+  const undoable = w.completed ? undefined : w.sets.findLast((x) => x.done && (!current || x.idx < current.idx));
+  // A failure is news about its own set. If the session has moved on since,
+  // say by a refetch, it isn't shown beside another.
+  const logError = logSet.error && logSet.variables?.idx === current?.idx ? logSet.error : null;
+  const undoError = undoSet.error && undoSet.variables?.idx === undoable?.idx ? undoSet.error : null;
 
   // A new set request replaces the news of the last one that failed.
-  const log = (set: Set, reps: number) => {
-    undoSet.reset();
-    logSet.mutate({ idx: set.idx, reps });
-  };
+  const log = (set: Set, reps: number) =>
+    send((settled) => {
+      undoSet.reset();
+      logSet.mutate({ idx: set.idx, reps }, settled);
+    });
 
-  const undo = (set: Set) => {
-    logSet.reset();
-    undoSet.mutate({ idx: set.idx });
-  };
+  const undo = (set: Set) =>
+    send((settled) => {
+      logSet.reset();
+      undoSet.mutate({ idx: set.idx }, settled);
+    });
+
+  const end = (mutation: typeof finish) =>
+    send((settled) => mutation.mutate(undefined, { ...settled, onSuccess: () => router.back() }));
 
   const confirmDiscard = () =>
     Alert.alert('Discard this session?', 'The sets logged in it are removed. This can’t be undone.', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Discard session',
-        style: 'destructive',
-        onPress: () => discard.mutate(undefined, { onSuccess: () => router.back() }),
-      },
+      { text: 'Discard session', style: 'destructive', onPress: () => end(discard) },
     ]);
 
   // Keeps the current set and its Log button on screen as the session moves
@@ -137,28 +158,7 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
                 <View style={local.restGap} />
               )}
               {undoable ? (
-                <View style={local.loggedRow}>
-                  <Text style={[s.sub, local.loggedText]}>
-                    Logged {fmtWeight(undoable.weight)} × {undoable.actualReps}
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Undo ${fmtWeight(undoable.weight)} × ${undoable.actualReps}`}
-                    accessibilityState={{ disabled: busy }}
-                    disabled={busy}
-                    onPress={() => undo(undoable)}
-                    style={({ pressed }) => [local.undo, pressed && s.pressed, busy && s.disabled]}>
-                    <SymbolView name="arrow.uturn.backward" tintColor={p.ink} size={14} weight="bold" />
-                    <Text style={[local.undoText, { color: p.ink }]} maxFontSizeMultiplier={displayScaleCap}>
-                      Undo
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : null}
-              {undoSet.error ? (
-                <Notice error style={local.undoError}>
-                  {undoSet.error.message}
-                </Notice>
+                <Undo set={undoable} disabled={busy} error={undoError} onPress={() => undo(undoable)} />
               ) : null}
               <View style={[local.current, { backgroundColor: p.stock }]}>
                 <View style={local.currentTop}>
@@ -190,9 +190,9 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
                     {w.unit} exactly.
                   </Notice>
                 ) : null}
-                {logSet.error ? (
+                {logError ? (
                   <Notice error style={local.short}>
-                    {logSet.error.message}
+                    {logError.message}
                   </Notice>
                 ) : null}
                 {set.asksReps ? (
@@ -252,6 +252,15 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
         </>
       ) : (
         <View onLayout={() => scroll.current?.scrollToEnd()}>
+          {undoable ? (
+            <Undo
+              set={undoable}
+              disabled={busy}
+              error={undoError}
+              onPress={() => undo(undoable)}
+              style={local.lastLogged}
+            />
+          ) : null}
           {finish.error ? (
             <Notice error style={local.endError}>
               {finish.error.message}
@@ -260,12 +269,56 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
           <Button
             label="Finish session"
             disabled={busy}
-            style={finish.error ? local.afterError : local.finish}
-            onPress={() => finish.mutate(undefined, { onSuccess: () => router.back() })}
+            style={finish.error ? local.afterError : undoable ? local.afterLogged : local.finish}
+            onPress={() => end(finish)}
           />
         </View>
       )}
     </Page>
+  );
+}
+
+// The set logged last, with a way to take it back, and why taking it back
+// failed if it did.
+function Undo({
+  set,
+  disabled,
+  error,
+  onPress,
+  style,
+}: {
+  set: Set;
+  disabled: boolean;
+  error: Error | null;
+  onPress: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { p, s } = useCardStyles();
+  return (
+    <>
+      <View style={[local.loggedRow, style]}>
+        <Text style={[s.sub, local.loggedText]}>
+          Logged {fmtWeight(set.weight)} × {set.actualReps}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Undo ${fmtWeight(set.weight)} × ${set.actualReps}`}
+          accessibilityState={{ disabled }}
+          disabled={disabled}
+          onPress={onPress}
+          style={({ pressed }) => [local.undo, pressed && s.pressed, disabled && s.disabled]}>
+          <SymbolView name="arrow.uturn.backward" tintColor={p.ink} size={14} weight="bold" />
+          <Text style={[local.undoText, { color: p.ink }]} maxFontSizeMultiplier={displayScaleCap}>
+            Undo
+          </Text>
+        </Pressable>
+      </View>
+      {error ? (
+        <Notice error style={local.undoError}>
+          {error.message}
+        </Notice>
+      ) : null}
+    </>
   );
 }
 
@@ -482,6 +535,9 @@ const local = StyleSheet.create({
     marginBottom: 2,
   },
   loggedText: { marginTop: 0, flexShrink: 1 },
+  // Above Finish there's no rest bar or gap to pull up into, so the row
+  // sits as far under the last set as it does under the rest gap.
+  lastLogged: { marginTop: 2 },
   undo: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingLeft: 12 },
   undoText: { fontFamily: font.heavy, fontSize: 18, letterSpacing: 0.6, textTransform: 'uppercase' },
   undoError: { paddingTop: 0 },
@@ -513,6 +569,7 @@ const local = StyleSheet.create({
   discard: { alignItems: 'center', paddingVertical: 18, marginTop: 12 },
   discardText: { fontSize: 16, fontWeight: '600' },
   finish: { marginTop: 20 },
+  afterLogged: { marginTop: 10 },
   endError: { marginTop: 12, paddingBottom: 0 },
   afterError: { marginTop: 12 },
 });

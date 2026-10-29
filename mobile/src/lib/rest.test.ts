@@ -31,6 +31,17 @@ test('runs from the tap, not from when the answer came', async () => {
   expect(result.current.left).toBe(88);
 });
 
+test('shows the right time from its first frame on a screen open before the tap', async () => {
+  const { result } = await renderHook(() => useRest(7));
+  // The session sits open, with no rest ticking, before the set is tapped.
+  jest.advanceTimersByTime(60_000);
+  const tapped = Date.now();
+  // Its answer arrives 2 s later, and no tick has run since.
+  jest.advanceTimersByTime(2_000);
+  await act(() => startRest(7, 90, tapped));
+  expect(result.current).toEqual({ left: 88, total: 90 });
+});
+
 test('stays right across a sleep that stopped the timers', async () => {
   const { result } = await renderHook(() => useRest(7));
   await act(() => startRest(7, 180));

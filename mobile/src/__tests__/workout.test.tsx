@@ -33,9 +33,8 @@ function logged(w: Workout, idx: number, reps: number): Workout {
 const layout = () => <Stack />;
 
 // Opens `w` straight in the session screen, from a seeded cache.
-async function openSession(w: Workout, routes: Routes = {}) {
+async function openSession(w: Workout, routes: Routes = {}, queryClient = makeQueryClient()) {
   const server = fakeServer({ [`GET /workouts/${w.id}`]: w, ...routes });
-  const queryClient = makeQueryClient();
   queryClient.setQueryData(keys.workout(w.id), w);
   await renderApp(
     { _layout: layout, 'workout/[id]': WorkoutScreen },
@@ -178,6 +177,64 @@ test('Undo takes back the set just logged, and its rest', async () => {
   await waitFor(() => expect(screen.queryByLabelText(/^Rest/)).not.toBeOnTheScreen());
   expect(server.sent.at(-1)).toMatchObject({ method: 'DELETE', path: `/workouts/${id}/sets/3` });
   expect(screen.getByLabelText('65 lb, 5 reps')).toBeOnTheScreen();
+});
+
+test('once every set is logged, the last one can still be taken back', async () => {
+  // A TM test ends on its PR set, the set most worth taking back.
+  const amrap = workoutAmrap as Workout;
+  const tmTest = { ...amrap, sets: amrap.sets.slice(0, 6) };
+  const server = await openSession(logged(tmTest, 5, 9), { [`DELETE /workouts/${id}/sets/5`]: tmTest });
+
+  // The row reads as it does over a current set, here above Finish.
+  expect(screen.getByText('Logged 85 × 9')).toBeOnTheScreen();
+  const undo = screen.getByRole('button', { name: 'Undo 85 × 9' });
+  expect(undo.parent!.parent).toContainElement(screen.getByRole('button', { name: 'Finish session' }));
+
+  await fireEvent.press(undo);
+  expect(await screen.findByRole('button', { name: 'Log 9 reps' })).toBeOnTheScreen();
+  expect(server.sent.at(-1)).toMatchObject({ method: 'DELETE', path: `/workouts/${id}/sets/5` });
+  expect(screen.queryByRole('button', { name: 'Finish session' })).not.toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Undo 75 × 5' })).toBeOnTheScreen();
+});
+
+describe('a failure is shown only beside the set it was about', () => {
+  const unreached = () => Promise.reject(new TypeError('Network request failed'));
+
+  test('a failed log, once the session has moved on', async () => {
+    const queryClient = makeQueryClient();
+    await openSession(current, { [`PUT /workouts/${id}/sets/3`]: unreached }, queryClient);
+    await fireEvent.press(screen.getByRole('button', { name: 'Log 5 reps' }));
+    expect(await screen.findByText(unreachable)).toBeOnTheScreen();
+
+    // The set was logged after all, as a refetch shows.
+    await act(async () => queryClient.setQueryData(keys.workout(id), logged(current, 3, 5)));
+    expect(await screen.findByLabelText('75 lb, 5 reps')).toBeOnTheScreen();
+    expect(screen.queryByText(unreachable)).not.toBeOnTheScreen();
+  });
+
+  test('a failed undo, once another set is the last logged', async () => {
+    const queryClient = makeQueryClient();
+    const after3 = logged(current, 3, 5);
+    await openSession(after3, { [`DELETE /workouts/${id}/sets/3`]: unreached }, queryClient);
+    await fireEvent.press(screen.getByRole('button', { name: 'Undo 65 × 5' }));
+    expect(await screen.findByText(unreachable)).toBeOnTheScreen();
+
+    await act(async () => queryClient.setQueryData(keys.workout(id), logged(after3, 4, 5)));
+    expect(await screen.findByRole('button', { name: 'Undo 75 × 5' })).toBeOnTheScreen();
+    expect(screen.queryByText(unreachable)).not.toBeOnTheScreen();
+  });
+});
+
+test('a second tap on Log before the screen redraws sends nothing more', async () => {
+  const put = held<Workout>();
+  const server = await openSession(current, { [`PUT /workouts/${id}/sets/3`]: put.reply });
+  const log = screen.getByRole('button', { name: 'Log 5 reps' });
+  await fireEvent.press(log);
+  await fireEvent.press(log);
+
+  await put.answer(logged(current, 3, 5));
+  expect(await screen.findByLabelText('75 lb, 5 reps')).toBeOnTheScreen();
+  expect(server.sent.filter((x) => x.method === 'PUT')).toHaveLength(1);
 });
 
 test('Finish ends the session and goes back to Today', async () => {

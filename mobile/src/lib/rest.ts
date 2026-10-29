@@ -6,7 +6,9 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 // only a set logged since the app started has one, so a session opened fresh
 // shows no timer.
 
-type Rest = { startedAt: number; seconds: number };
+// `storedAt` is when the rest reached the store, the answer's arrival: the
+// screen's clock reading can be older than that, from before the rest began.
+type Rest = { startedAt: number; seconds: number; storedAt: number };
 
 const rests = new Map<number, Rest>();
 const listeners = new Set<() => void>();
@@ -23,7 +25,7 @@ function subscribe(l: () => void) {
 }
 
 export function startRest(workoutId: number, seconds: number, startedAt = Date.now()) {
-  rests.set(workoutId, { startedAt, seconds });
+  rests.set(workoutId, { startedAt, seconds, storedAt: Date.now() });
   changed();
 }
 
@@ -52,7 +54,8 @@ export function useRest(workoutId: number): { left: number; total: number } {
   }, [rest]);
 
   if (!rest) return { left: 0, total: 0 };
-  // Until the first tick `now` can be from before the rest began.
-  const elapsed = Math.max(0, Math.floor((now - rest.startedAt) / 1000));
+  // Until the first tick, `now` is from the mount or the last rest's end,
+  // which would show a rest that began since at its full length.
+  const elapsed = Math.max(0, Math.floor((Math.max(now, rest.storedAt) - rest.startedAt) / 1000));
   return { left: Math.max(0, rest.seconds - elapsed), total: rest.seconds };
 }

@@ -77,6 +77,21 @@ describe('starting a session', () => {
     expect(await screen.findByLabelText('65 lb, 5 reps')).toBeOnTheScreen();
   });
 
+  test('a second tap before the button redraws asks for one session, and opens it', async () => {
+    const post = held<Workout>();
+    const { server } = await openToday(next, {
+      'POST /workouts': post.reply,
+      [`GET /workouts/${current.id}`]: current,
+    });
+    const start = screen.getByRole('button', { name: 'Start session' });
+    await fireEvent.press(start);
+    await fireEvent.press(start);
+
+    await post.answer(current);
+    await waitFor(() => expect(screen).toHavePathname(`/workout/${current.id}`));
+    expect(sentTo(server, 'POST /workouts')).toHaveLength(1);
+  });
+
   test('a refusal says why, and Today refetches to show the hold until it is settled', async () => {
     const { server } = await openToday(next, {
       'POST /workouts': () => {

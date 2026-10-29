@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { useAcceptReview, useDashboard, useDecideTMTest, useSkipCycle, useStartWorkout } from '@/api/queries';
@@ -140,6 +140,20 @@ function NextCard({ next, unit, held }: { next: NextUp; unit: string; held: bool
   const skip = useSkipCycle();
   const busy = start.isPending || skip.isPending;
   const cycle = cycleText(next.cycleLabel);
+  // A second tap can land before the button redraws disabled. Two starts
+  // race, the second is refused, and the first never opens its session.
+  const starting = useRef(false);
+
+  const startSession = () => {
+    if (starting.current) return;
+    starting.current = true;
+    start.mutate(undefined, {
+      onSuccess: (w) => router.push({ pathname: '/workout/[id]', params: { id: w.id } }),
+      onSettled: () => {
+        starting.current = false;
+      },
+    });
+  };
 
   // A refusal to start stays beside the hold it ran into, which Today
   // refetches to show, and goes once that hold is settled.
@@ -181,11 +195,7 @@ function NextCard({ next, unit, held }: { next: NextUp; unit: string; held: bool
             label={next.inProgress ? 'Resume session' : 'Start session'}
             disabled={busy}
             style={local.start}
-            onPress={() =>
-              start.mutate(undefined, {
-                onSuccess: (w) => router.push({ pathname: '/workout/[id]', params: { id: w.id } }),
-              })
-            }
+            onPress={startSession}
           />
           {next.canSkip ? (
             <TextAction
