@@ -14,8 +14,9 @@ import { keys, makeQueryClient } from '@/api/queries';
 import type { Dashboard, Workout } from '@/api/schema.gen';
 import TodayScreen from '@/app/(tabs)/(today)/index';
 import WorkoutScreen from '@/app/workout/[id]';
+import { repsText } from '@/lib/format';
 import { clearRest } from '@/lib/rest';
-import { fakeServer, renderApp, type Routes } from '@/test-utils';
+import { fakeServer, json, renderApp, type Routes } from '@/test-utils';
 
 // The session screen against a stand-in server: what the server's
 // workout_test pins for the web page (the rest timer's place, the rep
@@ -114,7 +115,8 @@ describe('rest timer', () => {
 });
 
 describe('rep picker', () => {
-  const label = (reps: number, target: boolean) => `Log ${reps} reps${target ? ', meets the target' : ''}`;
+  const label = (reps: number, target: boolean) =>
+    `Log ${reps} ${reps === 1 ? 'rep' : 'reps'}${target ? ', meets the target' : ''}`;
 
   test.each([
     // The deload's 80% × 3–5 starts at a single rep, so a short set can be logged.
@@ -129,7 +131,7 @@ describe('rep picker', () => {
     // Exactly the choices, in order: the set asks for its reps rather than
     // offering one Log button.
     const choices = Array.from({ length: 10 }, (_, i) => from + i);
-    const buttons = screen.getAllByRole('button', { name: /^Log \d+ reps/ });
+    const buttons = screen.getAllByRole('button', { name: /^Log \d+ reps?\b/ });
     expect(buttons.map((b) => b.props.accessibilityLabel)).toEqual(
       choices.map((r) => label(r, targets.includes(r))),
     );
@@ -142,11 +144,11 @@ describe('rep picker', () => {
     );
     // In flight, no second tap can log this set again or the one after.
     await waitFor(() => expect(buttons[0]).toBeDisabled());
-    for (const b of screen.getAllByRole('button', { name: /^Log \d+ reps/ })) expect(b).toBeDisabled();
+    for (const b of screen.getAllByRole('button', { name: /^Log \d+ reps?\b/ })) expect(b).toBeDisabled();
 
     await put.answer(logged(w, idx, pick));
     const next = w.sets[idx + 1];
-    expect(await screen.findByLabelText(`${next.weight} lb, ${next.repTarget} reps`)).toBeOnTheScreen();
+    expect(await screen.findByLabelText(`${next.weight} lb, ${repsText(next.repTarget)}`)).toBeOnTheScreen();
   });
 });
 
@@ -163,6 +165,33 @@ test('a failed log says why beside the Log button and leaves the set to log', as
   expect(log).toBeEnabled();
   expect(screen.getByLabelText('65 lb, 5 reps')).toBeOnTheScreen();
   expect(screen.queryByLabelText(/^Rest/)).not.toBeOnTheScreen();
+});
+
+test('a single is one rep, on the button and to VoiceOver', async () => {
+  const single = {
+    ...current,
+    sets: current.sets.map((x) => (x.idx === current.currentIdx ? { ...x, targetReps: 1, repTarget: '1' } : x)),
+  };
+  await openSession(single);
+  expect(screen.getByRole('button', { name: 'Log 1 rep' })).toBeOnTheScreen();
+  expect(screen.getByLabelText('65 lb, 1 rep')).toBeOnTheScreen();
+});
+
+test('a session discarded somewhere else says so, and goes back', async () => {
+  let discarded = false;
+  await resume(current, {
+    [`GET /workouts/${id}`]: () => (discarded ? json({ error: 'Not found.' }, 404) : current),
+    [`PUT /workouts/${id}/sets/3`]: () => json({ error: 'Not found.' }, 404),
+  });
+  discarded = true;
+
+  // Logging finds the session gone, and the screen asks again.
+  await fireEvent.press(await screen.findByRole('button', { name: 'Log 5 reps' }));
+  expect(await screen.findByText(/discarded somewhere else/)).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Log 5 reps' })).not.toBeOnTheScreen();
+
+  await fireEvent.press(screen.getByRole('button', { name: 'Back to Today' }));
+  await waitFor(() => expect(screen).toHavePathname('/'));
 });
 
 test('Undo takes back the set just logged, and its rest', async () => {

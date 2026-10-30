@@ -53,3 +53,10 @@ export function fmtClock(seconds: number): string {
 export function times(summary: string): string {
   return summary.replace(' x ', ' × ');
 }
+
+// A count or target of reps in words: "1 rep", "5 reps", "3+ reps". The
+// program's singles, such as the 1+ week's top set and the TM test's 90%,
+// take the singular.
+export function repsText(reps: number | string): string {
+  return `${reps} ${String(reps) === '1' ? 'rep' : 'reps'}`;
+}

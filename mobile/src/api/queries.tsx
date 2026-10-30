@@ -235,6 +235,9 @@ function useChange<V = void, D = unknown>(
       if (error instanceof ApiError && error.status === 409) {
         void queryClient.invalidateQueries({ queryKey: keys.dashboard() });
       }
+      // What the change was about is gone, such as a session discarded in
+      // the web UI, so every screen asks again and shows what's there now.
+      if (error instanceof ApiError && error.status === 404) void queryClient.invalidateQueries();
     },
   });
 }

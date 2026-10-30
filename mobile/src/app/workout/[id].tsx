@@ -15,10 +15,11 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { ApiError } from '@/api/client';
 import { useDiscardWorkout, useFinishWorkout, useLogSet, useUndoSet, useWorkout } from '@/api/queries';
 import type { Set, Workout } from '@/api/schema.gen';
-import { Button, Label, LoadState, Notice, Page, RestBar, Totals, useCardStyles } from '@/components/card-back';
-import { cycleText, fmtClock, fmtPct, fmtWeight, plateList, times } from '@/lib/format';
+import { Button, Label, LoadState, Notice, Page, Panel, RestBar, Totals, useCardStyles } from '@/components/card-back';
+import { cycleText, fmtClock, fmtPct, fmtWeight, plateList, repsText, times } from '@/lib/format';
 import { useRest } from '@/lib/rest';
 import { displayScaleCap, font, liftInk, radius } from '@/theme';
 
@@ -32,11 +33,35 @@ export default function WorkoutScreen() {
   // rest redraws the session too, so the bar and the sets are never from
   // different moments.
   const rest = useRest(id);
+  // A session the server no longer has. LoadState keeps a screen's data
+  // through a failed refetch, but this one can't be logged any more.
+  const gone = workout.error instanceof ApiError && workout.error.status === 404;
+  const back = params.back ?? 'Today';
   return (
     <>
-      <Stack.Screen options={{ title: workout.data?.liftName ?? '', headerBackTitle: params.back ?? 'Today' }} />
-      <LoadState query={workout}>{(w) => <Session w={w} rest={rest} />}</LoadState>
+      <Stack.Screen options={{ title: workout.data?.liftName ?? '', headerBackTitle: back }} />
+      {gone ? (
+        <Gone back={back} />
+      ) : (
+        <LoadState query={workout}>{(w) => <Session w={w} rest={rest} />}</LoadState>
+      )}
     </>
+  );
+}
+
+// Discarded somewhere else, such as in the web UI, while it was open here:
+// said the way a failed first load is, with the way back.
+function Gone({ back }: { back: string }) {
+  const { s } = useCardStyles();
+  return (
+    <Page>
+      <Panel style={s.failed}>
+        <Notice error style={s.failedNotice}>
+          This session was discarded somewhere else, so it’s no longer on your server.
+        </Notice>
+        <Button label={`Back to ${back}`} style={s.failedButton} onPress={() => router.back()} />
+      </Panel>
+    </Page>
   );
 }
 
@@ -168,7 +193,7 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
                   <Text
                     style={[local.currentWeight, { color: p.ink }]}
                     maxFontSizeMultiplier={displayScaleCap}
-                    accessibilityLabel={`${fmtWeight(set.weight)} ${w.unit}, ${set.repTarget} reps`}>
+                    accessibilityLabel={`${fmtWeight(set.weight)} ${w.unit}, ${repsText(set.repTarget)}`}>
                     {fmtWeight(set.weight)}
                     <Text style={[local.currentUnit, { color: p.ink2 }]}> {w.unit}</Text>
                   </Text>
@@ -210,7 +235,7 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
                 ) : (
                   <Button
                     icon="checkmark"
-                    label={`Log ${set.targetReps} reps`}
+                    label={`Log ${repsText(set.targetReps)}`}
                     disabled={busy}
                     style={local.log}
                     onPress={() => log(set, set.targetReps)}
@@ -472,7 +497,7 @@ function RepPicker({
               <Pressable
                 key={c.reps}
                 accessibilityRole="button"
-                accessibilityLabel={`Log ${c.reps} reps${c.target ? ', meets the target' : ''}`}
+                accessibilityLabel={`Log ${repsText(c.reps)}${c.target ? ', meets the target' : ''}`}
                 accessibilityState={{ disabled }}
                 disabled={disabled}
                 onPress={() => onPick(c.reps)}
