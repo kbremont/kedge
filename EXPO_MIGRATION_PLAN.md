@@ -305,14 +305,25 @@ Where the result differs from the plan below:
 
 ### 4. Wire up the live API ✅ Complete
 
-Every screen now reads and writes the server's `/api/v1`. Done in 15 commits, plus these docs, each with `tsc`, `expo lint` and `jest` green. Connect signs in and keeps the server's address and the session in the keychain, every screen sits behind a sign-in gate, and the API version is checked at launch and on each return to the foreground. The loading, unreachable, failed action, session ended and out-of-date states were designed on Connect, Today and the session, and the user approved them on 2026-10-29. The four questions left open at that checkpoint stay as they are: the keyboard covering Connect's Notice, the button moving when the Notice clears, the contrast of the disabled "Trying again…" label, and the empty frame of Today before Connect.
+Every screen now reads and writes the server's `/api/v1`. Done in 17 commits, plus the docs, each with `tsc`, `expo lint` and `jest` green. Connect signs in and keeps the server's address and the session in the keychain, every screen sits behind a sign-in gate, and the API version is checked at launch and on each return to the foreground. The loading, unreachable, failed action, session ended and out-of-date states were designed on Connect, Today and the session, and the user approved them on 2026-10-29. The four questions left open at that checkpoint stay as they are: the keyboard covering Connect's Notice, the button moving when the Notice clears, the contrast of the disabled "Trying again…" label, and the empty frame of Today before Connect.
 
 - **Data:** `lib/connection.ts` holds the address, token and expiry in one keychain item. `api/client.ts` is openapi-fetch with a 15-second timeout, and turns every non-2xx into an `ApiError` carrying the server's own message; status 0 means the server couldn't be reached. `api/queries.tsx` has one read hook per screen and one mutation hook per write, each putting its answer into the cache of the screen it leads to. `lib/rest.ts` times the rest from the tap on Log, outside the screen.
 - **States:** `LoadState` in `card-back.tsx` shows a soft-ink spinner after 400 ms, a Panel with "Try again" when a first load fails, and keeps the data on screen through a failed refetch. A failed action shows its Notice beside its control. Controls are disabled while their request is out, and where a second tap could land before the redraw, as on Start and Log, a ref guard drops it.
 - **Tests:** Jest on `jest-expo` with React Native Testing Library 14. The screen tests in `src/__tests__/` render routes against a stand-in server that answers from the golden fixtures, and carry over the intent of `pages_test` and `workout_test`.
 - **Removed:** the gallery, `src/sample`, the screenshot stepper, and `scripts/` with its `shoot` and `start:shoot` npm scripts. `docs/mockups/` stays as the record of what was approved, and `src/api/fixtures/` stays for the tests. The server's only change is the comment in `screens_test.go` that named the gallery.
 
-Verification results follow: the end-to-end pass in the simulator against `make demo`, and the read-only check against the real server.
+Verification:
+
+- **Checks:** `tsc` and `expo lint` report nothing, `jest` passes 199 tests in 13 suites, `expo-doctor` passes its 20 checks, `expo export --platform ios` bundles, `make check` passes and `make generate` leaves no diff.
+- **End to end,** in the simulator against `make demo`, with screenshots in `.context/phase4/`. Every check passed:
+  - **Sign-in:** a wrong password, then the right one.
+  - **Sessions:** a full session with the rest timer, an AMRAP through the picker, an undo and Finish; separately, a discard.
+  - **Settings:** each BBB mode saved and read back, and a training max changed.
+  - **Past estimates:** a good one, a refused one with the sheet staying open, and a delete by swipe. History opens a finished session and a lift.
+  - **Scratch database:** onboarding partway into the program, a failed TM test settled once with Lower and once with Keep, and an anchor finished through the deload skip and the block review, accepted with an edited value. The API fast-forwarded the sessions in between.
+  - **Approximations:** the simulator can't be locked, so the rest timer was checked across 40 s in the background, and it had counted on against the clock. The foreground refetch was checked by changing data through the API rather than the web UI.
+  - **Fixes it led to:** a single now reads "1 rep", and a session discarded elsewhere while open now says so instead of showing a bare "Not found." when logged.
+- **Real server:** the read-only comparison against `https://lift.lyle.sh` is still to do. It needs the server's password.
 
 Where the result differs from the plan below:
 
@@ -320,6 +331,7 @@ Where the result differs from the plan below:
 - **Connect doesn't navigate.** Saving the connection opens the gate, which closes Connect before its callbacks run, so the gate lands on Today, and `SetupAfterSignIn` in `components/root-stack.tsx` pushes setup over Today when the dashboard says `needsSetup`. Setup's `dismissTo('/')` then comes back to Today.
 - **Connect's messages:** a session that ended is news, not a fault, so it's an ink Notice with `key.fill`; everything that keeps Kedge from working is a danger Notice. The field an error is about, the password on a 401 or the address where no Kedge server answered, takes the 2pt danger outline; that adds one to the wrong password state approved in Phase 3.
 - **Undo** is offered for the latest done set, so the sets can be taken back one by one, as the web UI allows, and a session's last set can be undone from above Finish.
+- **A session that's gone:** `LoadState` keeps data through a failed refetch, but a session that answers 404 has been discarded somewhere else, so the session screen says so, with the way back to Today, and any change answered with a 404 refetches every screen.
 - **Settings:** `LoadState` takes a `keep`, the part of a screen that doesn't need the read, so when Settings can't load, its server rows and Sign out still show, and a lifter whose server has moved can sign out.
 - **Keyboard:** React Native's ScrollView re-applies its offset at every keyboard change through a `scrollTo` that leaves out the bars' insets, which snapped a page from under its large title. `Page` now sets `scrollToOverflowEnabled`, which that clamp honours, settles the page as the keyboard hides so it isn't left past its end, and sets `keyboardShouldPersistTaps="handled"`, so a button acts on the first tap with the keyboard up. The session has no fields and keeps the clamp, which its scrolling to the current set relies on.
 - **Config and packages:** the iOS settings are in `app.json`, since nothing in the config is dynamic. react-native is 0.88.1, which SDK 58's expo expects; expo-doctor failed on 0.88.0, a mismatch from before Phase 4. expo-file-system and expo-sharing left with the backup, and expo-file-system stays in the lockfile as a dependency of expo itself.
