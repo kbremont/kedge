@@ -1,46 +1,98 @@
-# Welcome to your Expo app 👋
+# Kedge
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+The iOS app for the 5/3/1 tracker, built with Expo (SDK 58). It shows what
+the Go server in [`../server`](../server/README.md) computes and keeps no
+training logic of its own. Bundle id `sh.lyle.kedge`; EAS project
+[`@lyle15/kedge`](https://expo.dev/accounts/lyle15/projects/kedge); App Store
+Connect app `6829543729`.
 
-## Get started
+## Develop
 
-1. Install dependencies
+```sh
+npm ci
+npx expo run:ios       # build the dev client and install it in the simulator
+npx expo start         # Metro, for the dev client
+npx tsc --noEmit && npx expo lint && npx jest
+```
 
-   ```bash
-   npm install
-   ```
+`ios/` is generated (Continuous Native Generation) and ignored: configure
+native behaviour in `app.json`. After adding a package with native code, or
+taking a new SDK release, rebuild the dev client with
+`npx expo prebuild --clean -p ios` and `npx expo run:ios`. Restart Metro
+with `--clear` after `npx expo install` changes packages under it.
 
-2. Start the app
+## Release
 
-   ```bash
-   npx expo start
-   ```
+Run EAS as `npx eas-cli@latest …` from this directory, logged in with
+`eas login`. `eas.json` has three build profiles:
 
-In the output, you'll find options to open the app in a
+| Profile | Build | Update channel |
+|---|---|---|
+| `development` | the dev client, for the simulator | none: it loads from Metro |
+| `preview` | a release build for the simulator | `preview` |
+| `production` | for the App Store and TestFlight | `production` |
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Builds run on the Node version in `.nvmrc`. Settings' App row says what an
+install is running: its version and build, then `built in`, `update <date>`
+or `development`.
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Apple credentials
 
-## Other setup steps
+The Apple account signs in with security keys, which EAS's Apple ID sign-in
+can't use, so EAS talks to Apple with an App Store Connect API key: a team
+key with Admin access, kept outside the repo. Export it before a production
+build or a submit:
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```sh
+export EXPO_ASC_API_KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8
+export EXPO_ASC_KEY_ID=<KEY_ID>
+export EXPO_ASC_ISSUER_ID=<ISSUER_ID>
+export EXPO_APPLE_TEAM_ID=6ZQGF8WCR4
+export EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
+```
 
-## Learn more
+EAS keeps the distribution certificate and provisioning profile it made, and
+`eas.json`'s submit profile reads the same three `EXPO_ASC_*` variables. A
+key can't create an App Store Connect app; that one was made in the browser.
 
-To learn more about developing your project with Expo, look at the following resources:
+### A build
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Native changes (a package with native code, an SDK release, most of
+`app.json`) need a new build. TestFlight builds also expire after 90 days.
 
-## Join the community
+```sh
+npx eas-cli@latest build -p ios --profile production --auto-submit   # to TestFlight
+npx eas-cli@latest build -p ios --profile preview                    # keep preview on the same runtime
+```
 
-Join our community of developers creating universal apps.
+The build number rises by itself. Apple takes a few minutes to process an
+upload; then it's in TestFlight for the internal testers.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### An update
+
+JavaScript, styling and images can go out as an update, without a build. It
+goes to `preview` first, is checked in the preview build, then the same
+bundle is republished to `production`:
+
+```sh
+npx eas-cli@latest update -p ios --channel preview --environment preview --message "…"
+npx eas-cli@latest update:republish -p ios --group <update group id> --destination-channel production
+```
+
+`eas update` prints the update group id. (`update:republish --channel preview`
+picks the group interactively instead.)
+
+The preview build and the dev client share the bundle id, so the preview
+build goes on a simulator of its own:
+`npx eas-cli@latest build:run -p ios --profile preview --latest --simulator <name or UDID>`.
+
+A release build downloads an update in the background at launch and runs it
+from the next launch, so close it fully and open it again, up to twice.
+
+The runtime version is a fingerprint of everything native
+(`runtimeVersion.policy: fingerprint`). An update only reaches builds with
+the same fingerprint, so after a native change it reaches no one until there
+is a new build. `eas update` prints the runtime it published for. Check a
+build against the working tree with
+`npx eas-cli@latest fingerprint:compare --build-id <id>`, or two builds with
+two `--build-id`s.
