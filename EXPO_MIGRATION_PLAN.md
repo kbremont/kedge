@@ -53,8 +53,11 @@ Decisions made with the user:
 └── mobile/                   Expo app (create-expo-app default template, SDK 58)
     ├── package.json, package-lock.json, .nvmrc (24), tsconfig.json (strict, "@/*" → src/*)
     ├── app.json              the app's config; nothing in it is dynamic, so there's no app.config.ts
-    ├── eas.json, eslint.config.js
-    ├── jest.setup.ts         stands in for the keychain, SF Symbols and the SwiftUI views in tests
+    ├── eas.json              build profiles (development, preview, production) and the submit profile
+    ├── eslint.config.js
+    ├── jest.setup.ts         stands in for the keychain, the app's version, SF Symbols and the SwiftUI
+    │                         views in tests
+    ├── README.md             developing, and releasing: builds, Apple credentials, updates
     ├── AGENTS.md             from the template: points agents at the SDK-matched docs
     ├── assets/               kedge.icon (the app icon, Icon Composer), icon/ (its 1024 renders), splash/ (the
     │                         splash screen's mark), fonts/ (Sofia Sans Extra Condensed, with its OFL licence)
@@ -78,7 +81,8 @@ Decisions made with the user:
         │                     and the openapi-react-query hooks), schema.gen.ts (generated), fixtures/
         │                     (generated)
         ├── lib/              format.ts (the server's formatting rules), brand.ts (the app's name),
-        │                     connection.ts (server URL and session in the keychain), rest.ts (the rest clock)
+        │                     connection.ts (server URL and session in the keychain), rest.ts (the rest
+        │                     clock), build.ts (what the install runs, for Settings' App row)
         ├── __tests__/        screen tests, which can't sit in src/app, where every file is a route
         └── test-utils.tsx    the screen tests' harness: a stand-in server answering from the fixtures,
                               and routes rendered signed in to it
@@ -266,7 +270,7 @@ Every state in the table below is designed and built on the Career Line look, th
   - **PR target:** its corner was 3pt, outside `DESIGN.md`'s two corners; it now takes the 1pt chip corner (`radius.chip`), checked in the simulator on a completed session.
   - **Unused packages:** `expo-image`, `expo-web-browser` and `expo-device` went with the template's screens. The other packages nothing imports stay because something needs them: `expo-router` (`expo-glass-effect`, `expo-linking`, `expo-constants`, `react-native-screens`), the past estimates' swipe-to-delete (`react-native-reanimated` and `react-native-worklets`), the window's background behind sheets (`expo-system-ui`), and the web target `app.json` still configures (`react-dom`, `react-native-web`).
 
-The name, icon and splash screen are in `app.json`; the slug, scheme and bundle id follow in Phase 5.
+The name, icon and splash screen are in `app.json`; the slug, scheme and bundle id followed in Phase 5.
 
 Where the result differs from the plan below:
 
@@ -349,14 +353,75 @@ Where the result differs from the plan below:
 - **iOS settings in `app.config.ts`:** `NSAllowsLocalNetworking` plus the local-network permission text, HTTPS everywhere else, and `ITSAppUsesNonExemptEncryption: false`. *(They're in `app.json`, not `app.config.ts`: see above.)*
 - **Component tests:** carry over the intent of `pages_test` and `workout_test`: rest timer position, the rep picker's choices and highlighted targets, TM result cards and the decision form, skip offered only when allowed, chart edge cases, and the estimate error reopening the sheet.
 
-### 5. EAS and TestFlight
+### 5. EAS and TestFlight ✅ Complete
 
-- **Agent steps:** `mobile/eas.json` with `development` (simulator), `preview` and `production` profiles; `eas update:configure` with the runtime version set by `fingerprint`; bundle id `com.kbremont.kedge`, with the slug and scheme renamed to match.
-- **User steps** (Apple two-factor sign-in): `eas login`, then `eas build -p ios --profile production`, then `eas submit -p ios`.
-- **Updates:** `eas update --channel production` for JS-only changes; a rebuild for native changes or every 90 days.
+Kedge is an installable app now. It's the EAS project `@lyle15/kedge` with bundle id `sh.lyle.kedge`, it builds on EAS, it reached the owner's phone through TestFlight on 2026-11-01, and it takes over-the-air updates. Done in seven commits, plus the docs, each with `tsc`, `expo lint` and `jest` green.
+
+- **Profiles:** `eas.json` has three, plus a submit profile.
+  - `development`: the dev client, for the simulator.
+  - `preview`: a release build for the simulator, on the `preview` channel.
+  - `production`: for the App Store and TestFlight, on the `production` channel.
+
+  EAS keeps the build number (`appVersionSource: remote`) and raises it with each production build. Builds run on `.nvmrc`'s Node 24.
+- **Updates:** `expo-updates`, with the `fingerprint` runtime policy, so an update only reaches builds with the native code it was made for.
+  - An update goes to `preview` first and is checked in the preview build. That build runs in a simulator of its own, since it shares the bundle id with the dev client.
+  - The same update group is then republished to `production`.
+  - A release build downloads an update at launch and runs it from the next launch.
+- **The App row:** Settings' server rows gain App, after the server's Version.
+  - It shows the version and build (read from `expo-application`, since EAS keeps the build number), then `built in`, `update Nov 1` or `development`.
+  - The user approved it as the way to see whether a build has an update. It stacks like the other rows at accessibility sizes.
+- **Release notes:** `mobile/README.md` replaces the template's text. It covers developing, the Apple credentials, builds and updates.
+
+Verification:
+
+- **Checks:** all green.
+  - `tsc` and `expo lint` report nothing, and `jest` passes 204 tests in 14 suites.
+  - `expo-doctor` passes its 20 checks.
+  - `expo export --platform ios` bundles, and so does `expo export:embed --eager`, the bundle EAS makes before Xcode runs.
+  - `make check` passes.
+- **Simulator:**
+  - **Local dev client:** it runs as `sh.lyle.kedge`, and its App row reads `development` in light, dark and accessibility-medium.
+  - **EAS development build:** it loads the app from Metro, through its launcher's "Enter URL manually". Neither discovery nor the deep link reached Metro.
+  - **Preview build:** it signed in to `make demo` and showed Today, a finished session, History and Settings, reading `1.0.0 (1) · built in`.
+- **TestFlight:** build 1.0.0 (4) was submitted with the API key, and Apple processed it (valid, ready for internal testing). On the phone it signed in to `https://lift.lyle.sh` over Tailscale, worked, and read `built in`.
+- **Update:**
+  - An update published to `preview` reached the preview build after two cold launches, reading `update Nov 1`.
+  - The preview build, the production build and the working tree share the fingerprint `2d0e0815…`.
+  - The same update group, republished to `production`, reached the phone without a rebuild.
+- **Repo:** the shared `.git` stayed a full clone through every EAS upload.
+
+Where the result differs from the plan below:
+
+- **Bundle id:** `sh.lyle.kedge`, the reverse of the owner's domain `lyle.sh`, not `com.kbremont.kedge`. The slug and scheme are `kedge`.
+- **Apple sign-in:** the Apple account's only second factor is security keys, which EAS's Apple ID sign-in can't use.
+  - **The key:** EAS uses an App Store Connect team API key with Admin access instead, from `EXPO_ASC_API_KEY_PATH`, `EXPO_ASC_KEY_ID` and `EXPO_ASC_ISSUER_ID`, with `EXPO_APPLE_TEAM_ID` and `EXPO_APPLE_TEAM_TYPE`. It made the distribution certificate and provisioning profile, which EAS keeps, and registered the bundle id.
+  - **Nothing secret committed:** the key stays on the Mac. `eas.json`'s submit profile names the app (`6829543729`) and the team, and takes the key's three fields from the same variables, which `eas.json` substitutes.
+  - **The App Store Connect app:** an API key can't create one, so the user made it in the browser, where security keys work.
+  - **Build numbers:** 2 and 3 went to attempts that stopped before building.
+- **App Store name:** "Kedge" is taken in App Store Connect, most likely by an app that was never released, since Phase 3 found none on the store. The record has another name for now; the name on the home screen is still `app.json`'s Kedge.
+- **No web server in release builds:** the template's `web.output: "server"` turns on Expo Router's API routes.
+  - **The failure:** EAS's eager bundle also built the server side, which loads the SwiftUI views in a web environment and failed the first preview build.
+  - **The risk:** once the project was linked, it would also have deployed that server to EAS Hosting and written its address into the app.
+  - **The fix:** Kedge has no API routes, so the setting is gone.
+- **Node:** no pin in `eas.json`, because EAS reads `.nvmrc` by itself. On Node 24 the image's `sharp-cli` fails to install, and EAS falls back to plain JavaScript for prebuild's image work.
+- **SDK patches:** before the first build, the app took expo 58.0.22, expo-router 58.0.29, expo-dev-client 58.0.18 and @expo/ui 58.0.26. `expo-doctor` had started asking for them since Phase 4.
+- **`update:configure`:**
+  - It chose the `appVersion` runtime policy, which is now `fingerprint`.
+  - It also gave the dev client and an unused base profile channels, which were left out.
+- **A dev client and expo-updates:** a dev client reports expo-updates as enabled and on a bundle of its own, so the App row tells a development build by `__DEV__`.
+- **Republishing:** in non-interactive mode, `update:republish` takes the update group's id (`--group`), not `--channel`.
+- **TestFlight group:** the submit made the internal group "Team (Expo)".
+
+- **Agent steps:** `mobile/eas.json` with `development` (simulator), `preview` and `production` profiles; `eas update:configure` with the runtime version set by `fingerprint`; bundle id `com.kbremont.kedge`, with the slug and scheme renamed to match. *(The bundle id is `sh.lyle.kedge`: see above.)*
+- **User steps** (Apple two-factor sign-in): `eas login`, then `eas build -p ios --profile production`, then `eas submit -p ios`. *(Apple is reached through an App Store Connect API key, and the App Store Connect app was made in the browser: see above.)*
+- **Updates:** `eas update --channel production` for JS-only changes; a rebuild for native changes or every 90 days. *(Updates go to `preview` first and the same group is republished to `production`: see above and `mobile/README.md`.)*
 
 ### 6. Demo server and App Store
 
+- **From Phase 5:**
+  - **Name:** the App Store Connect app (`6829543729`) exists under a stand-in name, since "Kedge" is taken, so the listing needs its name.
+  - **Privacy:** `expo-updates` asks `u.expo.dev` for an update at every launch, with the build's runtime, its channel and an id for the install. That bears on the "Data Not Collected" label, and on PRODUCT.md's promise that the app sends nothing anywhere else.
+  - **The build:** a TestFlight build can go to App Review as it is, if it has the code to release.
 - **Demo server:** the same image with its own volume, seeded with `-seed-demo` and a demo password. It's public through Tailscale Funnel on a separate port, or a small VPS; the real server stays tailnet-only.
 - **Listing:**
   - original name; 5/3/1 in the subtitle and description, with "not affiliated with Jim Wendler"
