@@ -82,3 +82,22 @@ jest.mock('@expo/ui/swift-ui/modifiers', () =>
     },
   ),
 );
+
+// The navigation bar's buttons are drawn natively from the screen's options,
+// so a test can't press them. Stack.Toolbar draws its buttons where it
+// stands instead, each a plain pressable carrying its props and named by its
+// title: getByRole('button', { name: 'Save' }).
+jest.mock('expo-router', () => {
+  const router = jest.requireActual<typeof import('expo-router')>('expo-router');
+  const { createElement } = jest.requireActual<typeof import('react')>('react');
+  const { Pressable, Text, View } = jest.requireActual<typeof import('react-native')>('react-native');
+  const Toolbar = ({ children }: { children?: import('react').ReactNode }) => createElement(View, null, children);
+  Toolbar.Button = ({ children, disabled, ...props }: { children?: string; disabled?: boolean }) =>
+    createElement(
+      Pressable,
+      { ...props, accessibilityRole: 'button', accessibilityState: { disabled }, disabled },
+      createElement(Text, null, children),
+    );
+  Object.assign(router.Stack, { Toolbar });
+  return router;
+});

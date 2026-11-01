@@ -12,7 +12,7 @@ import type { Dashboard, Settings } from '@/api/schema.gen';
 import TabLayout from '@/app/(tabs)/_layout';
 import HistoryLayout from '@/app/(tabs)/(history)/_layout';
 import SettingsLayout from '@/app/(tabs)/(settings)/_layout';
-import SettingsScreen from '@/app/(tabs)/(settings)/settings';
+import SettingsScreen from '@/app/(tabs)/(settings)/settings/index';
 import TodayLayout from '@/app/(tabs)/(today)/_layout';
 import ConnectScreen from '@/app/connect';
 import { RootStack } from '@/components/root-stack';
@@ -41,7 +41,7 @@ const app = {
   '(tabs)/(history)/_layout': HistoryLayout,
   '(tabs)/(history)/history': stub('History'),
   '(tabs)/(settings)/_layout': SettingsLayout,
-  '(tabs)/(settings)/settings': SettingsScreen,
+  '(tabs)/(settings)/settings/index': SettingsScreen,
   connect: ConnectScreen,
   'setup/index': stub('Setup'),
   'setup/position': stub('Where are you?'),
