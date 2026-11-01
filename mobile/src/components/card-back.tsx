@@ -1,8 +1,22 @@
 // The Career Line building blocks: every screen is stock, ink, ruled stat
 // lines and a band in the lift's colour.
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { useEffect, useMemo, useRef, type ComponentRef, type ReactNode, type Ref } from 'react';
 import {
+  Children,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentRef,
+  type ReactNode,
+  type Ref,
+} from 'react';
+import {
+  AccessibilityInfo,
+  ActivityIndicator,
+  Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,7 +32,6 @@ import {
 } from 'react-native';
 
 import type { Tone } from '@/api/schema.gen';
-import { useOverrides } from '@/gallery/store';
 import { displayScaleCap, font, liftInk, radius, space, usePalette, type Palette } from '@/theme';
 
 const hairline = StyleSheet.hairlineWidth * 2;
@@ -169,6 +182,10 @@ function makeStyles(p: Palette) {
     noticeText: { flex: 1, fontSize: 15, fontWeight: '600', color: p.ink, lineHeight: 20 },
     tone: { width: 22, height: 22, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center' },
     intro: { fontSize: 15, lineHeight: 21, color: p.ink2 },
+    loading: { marginTop: 40 },
+    failed: { padding: 16 },
+    failedNotice: { paddingVertical: 0 },
+    failedButton: { marginTop: 14 },
   });
 }
 
@@ -180,6 +197,9 @@ export function useCardStyles() {
 export function Page({
   children,
   ref,
+  onScroll,
+  onLayout,
+  onContentSizeChange,
   ...props
 }: ScrollViewProps & {
   children: ReactNode;
@@ -187,16 +207,40 @@ export function Page({
 }) {
   const { s } = useCardStyles();
   const own = useRef<ComponentRef<typeof ScrollView>>(null);
-  // Gallery only: open a state partway down, to show what sits below the fold.
-  const { scrollY } = useOverrides().o;
+  // With automaticallyAdjustKeyboardInsets, RN's ScrollView re-applies its
+  // offset at every keyboard change in the app (in _keyboardWillChangeFrame),
+  // clamped to its own contentInset. That leaves out the insets automatic
+  // adjustment adds for the bars: a page at its top under a large title, at
+  // about -168, was snapped to 0, and one at its very end was pulled down by
+  // the tab bar's or home indicator's height. scrollToOverflowEnabled turns
+  // the clamp off, so a keyboard moves a page only to bring its field into
+  // view.
+  //
+  // Unclamped, a page can be left past its end: moved into the room the
+  // keyboard took, as the keyboard leaves. So it's settled then. A page at
+  // least as tall as its frame zooms to the rect it shows, which UIKit clamps
+  // to the page's real bounds, bars and all. A shorter one may have no room
+  // to scroll at all, so it goes back to where it was before the keyboard.
+  //
+  // The flag unclamps scrollTo too, so a page that scrolls itself towards
+  // its end keeps the clamp, with scrollToOverflowEnabled={false}.
+  const view = useRef({ y: 0, before: 0, width: 0, height: 0, contentHeight: 0 });
+  const settle = useCallback(() => {
+    const { y, before, width, height, contentHeight } = view.current;
+    if (Platform.OS !== 'ios' || !(y > before && y > contentHeight - height)) {
+      // The keyboard's room is gone, so where the page is now is without it.
+      view.current.before = y;
+    } else if (contentHeight >= height) {
+      own.current?.scrollResponderZoomTo({ x: 0, y, width, height, animated: true });
+    } else {
+      own.current?.scrollTo({ y: before });
+    }
+  }, []);
   useEffect(() => {
-    if (scrollY === undefined) return;
-    const id = setTimeout(() => {
-      if (scrollY === 'end') own.current?.scrollToEnd({ animated: false });
-      else own.current?.scrollTo({ y: scrollY, animated: false });
-    }, 350);
-    return () => clearTimeout(id);
-  }, [scrollY]);
+    const sub = Keyboard.addListener('keyboardWillHide', settle);
+    return () => sub.remove();
+  }, [settle]);
+
   return (
     <ScrollView
       ref={(node) => {
@@ -207,9 +251,27 @@ export function Page({
       style={s.page}
       contentInsetAdjustmentBehavior="automatic"
       automaticallyAdjustKeyboardInsets
+      scrollToOverflowEnabled
       keyboardDismissMode="interactive"
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={s.pageContent}
-      {...props}>
+      {...props}
+      onScroll={(e) => {
+        const { contentOffset, contentInset } = e.nativeEvent;
+        view.current.y = contentOffset.y;
+        // No keyboard room in the inset: where the page is without one.
+        if (contentInset.bottom <= (props.contentInset?.bottom ?? 0)) view.current.before = contentOffset.y;
+        onScroll?.(e);
+      }}
+      onLayout={(e) => {
+        view.current.width = e.nativeEvent.layout.width;
+        view.current.height = e.nativeEvent.layout.height;
+        onLayout?.(e);
+      }}
+      onContentSizeChange={(width, height) => {
+        view.current.contentHeight = height;
+        onContentSizeChange?.(width, height);
+      }}>
       {children}
     </ScrollView>
   );
@@ -322,9 +384,12 @@ export function Button({
 }) {
   const { p, s } = useCardStyles();
   const color = secondary ? p.ink : p.onButton;
+  // The label is read as written, not in the caps it's printed in, and
+  // without the icon's own name, such as the checkmark's "selected".
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
@@ -350,6 +415,7 @@ export function TextAction({
   icon,
   danger,
   muted,
+  disabled,
   onPress,
   style,
 }: {
@@ -357,16 +423,21 @@ export function TextAction({
   icon?: SFSymbol;
   danger?: boolean;
   muted?: boolean;
+  disabled?: boolean;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
   const { p, s } = useCardStyles();
   const color = danger ? p.danger : muted ? p.ink2 : p.ink;
+  // Read as its words alone, like Button.
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [s.textAction, pressed && s.pressed, style]}>
+      style={({ pressed }) => [s.textAction, pressed && s.pressed, disabled && s.disabled, style]}>
       {icon ? <SymbolView name={icon} tintColor={color} size={16} weight="semibold" /> : null}
       <Text style={[s.textActionText, { color }]}>{label}</Text>
     </Pressable>
@@ -469,6 +540,9 @@ export function Field({
 
 // A line of news under or over a form: an error in danger, a confirmation in
 // ink. Each carries its symbol, so colour is never the only signal.
+// VoiceOver reads it as one element, its words alone. iOS has no live
+// regions, so an error is announced as it appears and whenever it changes;
+// Android's live region reads it, and news, by itself.
 export function Notice({
   error,
   icon,
@@ -482,9 +556,16 @@ export function Notice({
 }) {
   const { p, s } = useCardStyles();
   const color = error ? p.danger : p.ink;
+  const text = Children.toArray(children)
+    .filter((c) => typeof c === 'string' || typeof c === 'number')
+    .join('');
+  useEffect(() => {
+    if (error && text && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(text);
+  }, [error, text]);
   return (
     <View
       style={[s.notice, style]}
+      accessible
       accessibilityRole={error ? 'alert' : undefined}
       accessibilityLiveRegion="polite">
       <SymbolView
@@ -492,6 +573,7 @@ export function Notice({
         tintColor={color}
         size={18}
         style={{ marginTop: 1 }}
+        accessibilityElementsHidden
       />
       <Text style={[s.noticeText, { color }]}>{children}</Text>
     </View>
@@ -525,4 +607,70 @@ export function ToneMark({ tone, size = 22, line = size }: { tone: Tone; size?: 
 export function Intro({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
   const { s } = useCardStyles();
   return <Text style={[s.intro, style]}>{children}</Text>;
+}
+
+// A screen's read, as a query hook returns it.
+type Loadable<D> = {
+  data: D | undefined;
+  error: Error | null;
+  isFetching: boolean;
+  refetch: () => unknown;
+};
+
+// A screen until its first load arrives, then the screen itself:
+//   <LoadState query={useHistory()}>{(h) => <History h={h} />}</LoadState>
+// A quick answer shows nothing meanwhile, so the spinner only appears after
+// a moment. A failed first load says why and offers to ask again. Once there
+// is data it stays on screen, even when a refetch fails: the query then
+// reports an error with its data still set, so data is checked first.
+export function LoadState<D>({
+  query,
+  keep,
+  children,
+}: {
+  query: Loadable<D>;
+  // The part of the screen that doesn't need this read, shown under a failed
+  // first load too: Settings keeps its server and Sign out there, so a lifter
+  // can still leave a server that can't be reached.
+  keep?: ReactNode;
+  children: (data: D) => ReactNode;
+}) {
+  const { p, s } = useCardStyles();
+  // Asking again clears the query's error until the answer comes, so the
+  // last one stays on screen meanwhile, over a button that says it's trying.
+  const [failure, setFailure] = useState<Error | null>(null);
+  if (query.error && query.error !== failure) setFailure(query.error);
+  const shown = query.error ?? failure;
+  const waiting = query.data === undefined && !shown;
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!waiting) return;
+    const id = setTimeout(() => setSlow(true), 400);
+    return () => clearTimeout(id);
+  }, [waiting]);
+
+  if (query.data !== undefined) return children(query.data);
+  if (shown) {
+    return (
+      <Page>
+        <Panel style={s.failed}>
+          <Notice error style={s.failedNotice}>
+            {shown.message}
+          </Notice>
+          <Button
+            label={query.isFetching ? 'Trying again…' : 'Try again'}
+            disabled={query.isFetching}
+            style={s.failedButton}
+            onPress={() => void query.refetch()}
+          />
+        </Panel>
+        {keep}
+      </Page>
+    );
+  }
+  return (
+    <Page>
+      {slow ? <ActivityIndicator size="large" color={p.ink2} accessibilityLabel="Loading" style={s.loading} /> : null}
+    </Page>
+  );
 }

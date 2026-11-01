@@ -1,34 +1,72 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Keyboard, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ApiError } from '@/api/client';
+import { useLogin } from '@/api/queries';
 import { Button, Field, Intro, Label, Notice, useCardStyles } from '@/components/card-back';
 import { PlateMark } from '@/components/plate-mark';
-import { useOverrides } from '@/gallery/store';
 import { appName } from '@/lib/brand';
+import { normalizeServerUrl, sessionEnded, useConnection } from '@/lib/connection';
 import { displayScaleCap, font, space } from '@/theme';
 
-// First run: the lifter's own server and its password. The app talks to
-// nothing else.
+// First run, and after a sign-out: the lifter's own server and its password.
+// The app talks to nothing else. Once the session is saved, the gate opens
+// onto Today or setup by itself.
 export default function ConnectScreen() {
-  const { version, o } = useOverrides();
-  return <Connect key={version} error={o.connectError} />;
-}
-
-function Connect({ error: errorAtStart }: { error?: string }) {
   const { p, s } = useCardStyles();
   const insets = useSafeAreaInsets();
-  const [url, setUrl] = useState(errorAtStart ? 'http://raspberrypi:3000' : '');
-  const [password, setPassword] = useState(errorAtStart ? 'wrong-password' : '');
-  // The server's message when it refuses, shown as it is.
-  const [error, setError] = useState(errorAtStart ?? '');
+  const connection = useConnection();
+  const login = useLogin();
+  // After a sign-out the address is the one the app last used.
+  const [url, setUrl] = useState(connection.url);
+  const [password, setPassword] = useState('');
+  // An address refused before anything is sent, such as plain http:// to a
+  // server out on the internet.
+  const [urlError, setUrlError] = useState('');
+  // Why the app signed out by itself stands until the lifter tries again;
+  // from then on the answer to that try speaks instead.
+  const [tried, setTried] = useState(false);
+  // A second tap can land before the button redraws disabled, and mustn't
+  // sign in twice.
+  const sending = useRef(false);
 
-  // Sample only: Phase 4 checks GET /info, then POST /login.
+  const failure = login.error;
+  const message = urlError || failure?.message || (tried ? '' : connection.reason);
+  // A session that ended is news, not a fault: the password is all it takes.
+  // Everything else here keeps Kedge from working until something changes.
+  const news = message === sessionEnded;
+  const badUrl = urlError !== '' || (failure instanceof ApiError && failure.notKedge);
+  const badPassword = failure instanceof ApiError && failure.status === 401;
+
+  // A refusal is shown as the server wrote it, with the field it's about
+  // outlined, until the lifter changes what they typed.
+  const edit = () => {
+    setUrlError('');
+    if (login.isError) login.reset();
+  };
+
   const connect = () => {
-    if (!url || !password) return;
-    setError('');
-    router.replace('/setup');
+    if (!url || !password || sending.current) return;
+    setTried(true);
+    const normalized = normalizeServerUrl(url);
+    if ('error' in normalized) {
+      setUrlError(normalized.error);
+      return;
+    }
+    sending.current = true;
+    // Today can open before the keyboard is gone, and a keyboard leaving
+    // over Today would leave it scrolled down from its large title.
+    Keyboard.dismiss();
+    // On success the gate closes Connect, so only a failure comes back here.
+    login.mutate(
+      { url: normalized.url, password },
+      {
+        onSettled: () => {
+          sending.current = false;
+        },
+      },
+    );
   };
 
   return (
@@ -52,7 +90,11 @@ function Connect({ error: errorAtStart }: { error?: string }) {
       <Field
         text
         value={url}
-        onChangeText={setUrl}
+        onChangeText={(v) => {
+          setUrl(v);
+          edit();
+        }}
+        invalid={badUrl}
         placeholder="http://raspberrypi:3000"
         keyboardType="url"
         textContentType="URL"
@@ -67,20 +109,26 @@ function Connect({ error: errorAtStart }: { error?: string }) {
         value={password}
         onChangeText={(v) => {
           setPassword(v);
-          setError('');
+          edit();
         }}
+        invalid={badPassword}
         secureTextEntry
         textContentType="password"
         returnKeyType="go"
         onSubmitEditing={connect}
         accessibilityLabel="Password"
       />
-      {error ? (
-        <Notice error style={local.error}>
-          {error}
+      {message ? (
+        <Notice error={!news} icon={news ? 'key.fill' : undefined} style={local.notice}>
+          {message}
         </Notice>
       ) : null}
-      <Button label="Connect" disabled={!url || !password} style={error ? local.afterError : local.connect} onPress={connect} />
+      <Button
+        label={login.isPending ? 'Connecting…' : 'Connect'}
+        disabled={!url || !password || login.isPending}
+        style={message ? local.afterNotice : local.connect}
+        onPress={connect}
+      />
       <Intro style={local.note}>
         The app talks only to this server, over Tailscale or your own network. Nothing you log is sent anywhere
         else.
@@ -102,8 +150,8 @@ const local = StyleSheet.create({
   },
   tagline: { fontSize: 17, fontWeight: '600', marginTop: 2 },
   label: { marginTop: 16, marginBottom: 6 },
-  error: { marginTop: 12, paddingBottom: 0 },
+  notice: { marginTop: 12, paddingBottom: 0 },
   connect: { marginTop: 24 },
-  afterError: { marginTop: 12 },
+  afterNotice: { marginTop: 12 },
   note: { marginTop: 18, fontSize: 13, lineHeight: 18 },
 });

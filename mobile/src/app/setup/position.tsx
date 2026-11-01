@@ -1,29 +1,40 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Button, Intro, Page, useCardStyles } from '@/components/card-back';
+import { keys, useSetupPosition } from '@/api/queries';
+import type { SetupPosition } from '@/api/schema.gen';
+import { Button, Intro, LoadState, Page, useCardStyles } from '@/components/card-back';
 import { timesIn } from '@/lib/format';
-import { sample } from '@/sample';
 
 // First run, step two: which cycle the lifter is on now. Anything before it
 // stays out of the block, so there is no old history to enter.
 export default function SetupPositionScreen() {
+  return <LoadState query={useSetupPosition()}>{(pos) => <Position pos={pos} />}</LoadState>;
+}
+
+function Position({ pos: { cycles } }: { pos: SetupPosition }) {
   const { p, s } = useCardStyles();
-  const { cycles } = sample.setupPosition;
+  const queryClient = useQueryClient();
   const [choice, setChoice] = useState<number | 'fresh'>('fresh');
   const options = [
     { key: 'fresh' as const, label: 'Starting fresh', detail: `At the start of ${cycles[0]?.label ?? 'the block'}` },
     ...cycles.map((c) => ({ key: c.index, label: c.label, detail: timesIn(c.detail) })),
   ];
 
-  // Sample only: starting fresh sends nothing; any other cycle goes on to its
-  // checklist, then POST /setup/history.
-  const next = () =>
-    choice === 'fresh'
-      ? router.dismissTo('/')
-      : router.push({ pathname: '/setup/history', params: { cycle: choice } });
+  // Starting fresh sends nothing: the block already starts at its first
+  // cycle. Today is asked again for its first session. Any other cycle
+  // goes on to its checklist, which saves the choice with it.
+  const next = () => {
+    if (choice === 'fresh') {
+      void queryClient.invalidateQueries({ queryKey: keys.dashboard() });
+      router.dismissTo('/');
+    } else {
+      router.push({ pathname: '/setup/history', params: { cycle: choice } });
+    }
+  };
 
   return (
     <Page>

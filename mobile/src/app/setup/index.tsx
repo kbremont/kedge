@@ -1,36 +1,60 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Keyboard, StyleSheet, Text, View } from 'react-native';
 
-import { Button, Field, Intro, LiftChip, Notice, Page, TableHead, useCardStyles } from '@/components/card-back';
-import { useOverrides } from '@/gallery/store';
+import { ApiError } from '@/api/client';
+import { useSaveSetup, useSetup } from '@/api/queries';
+import type { Setup } from '@/api/schema.gen';
+import {
+  Button,
+  Field,
+  Intro,
+  LiftChip,
+  LoadState,
+  Notice,
+  Page,
+  TableHead,
+  useCardStyles,
+} from '@/components/card-back';
 import { fmtWeight } from '@/lib/format';
-import { sample } from '@/sample';
 
 // First run, step one: a training max for each lift. Everything the app
 // prescribes follows from these.
 export default function SetupScreen() {
-  const { version, o } = useOverrides();
-  return <SetupTMs key={version} error={o.setupError} />;
+  return <LoadState query={useSetup()}>{(setup) => <SetupTMs setup={setup} />}</LoadState>;
 }
 
-function SetupTMs({ error: errorAtStart }: { error?: string }) {
+function SetupTMs({ setup }: { setup: Setup }) {
   const { s } = useCardStyles();
-  const setup = sample.setup;
+  const save = useSaveSetup();
+  // Running setup again starts from the training maxes already saved.
   const [values, setValues] = useState(() =>
-    Object.fromEntries(
-      setup.lifts.map((l) => [l.slug, l.value > 0 ? fmtWeight(l.value) : errorAtStart ? demoTMs[l.slug] : '']),
-    ),
+    Object.fromEntries(setup.lifts.map((l) => [l.slug, l.value > 0 ? fmtWeight(l.value) : ''])),
   );
-  // The server's message for a value it refused, shown as it is.
-  const [error, setError] = useState(errorAtStart ?? '');
+  // A second tap can land before the button redraws disabled, and mustn't
+  // save twice.
+  const sending = useRef(false);
+  // The server refuses a value that isn't positive, naming the first such
+  // lift; every field like it is outlined.
+  const refused = save.error instanceof ApiError && save.error.status === 400;
 
-  // Sample only: POST /setup, which answers a missing value with a 400 naming
-  // the lift.
+  // The server names the first lift it refuses. A field that isn't a number
+  // goes as 0, so it is refused as an empty one is, not as a bad body.
   const next = () => {
-    const missing = setup.lifts.find((l) => !(Number(values[l.slug]) > 0));
-    if (missing) setError(`Enter a positive training max for ${missing.name}.`);
-    else router.push('/setup/position');
+    if (sending.current) return;
+    sending.current = true;
+    // The keyboard would otherwise leave over the next screen.
+    Keyboard.dismiss();
+    const tms = Object.fromEntries(setup.lifts.map((l) => [l.slug, Number(values[l.slug]) || 0]));
+    save.mutate(
+      { tms },
+      {
+        onSuccess: () => router.push('/setup/position'),
+        onSettled: () => {
+          sending.current = false;
+        },
+      },
+    );
   };
 
   return (
@@ -55,28 +79,25 @@ function SetupTMs({ error: errorAtStart }: { error?: string }) {
             value={values[l.slug]}
             onChangeText={(v) => {
               setValues((x) => ({ ...x, [l.slug]: v }));
-              setError('');
+              // A refusal stands until the lifter changes what they typed.
+              if (save.isError) save.reset();
             }}
             keyboardType="decimal-pad"
             accessibilityLabel={`${l.name} training max, ${setup.unit}`}
-            invalid={error !== '' && !(Number(values[l.slug]) > 0)}
+            invalid={refused && !(Number(values[l.slug]) > 0)}
             style={local.field}
           />
         </View>
       ))}
-      {error ? (
+      {save.error ? (
         <Notice error style={local.error}>
-          {error}
+          {save.error.message}
         </Notice>
       ) : null}
-      <Button label="Continue" style={local.next} onPress={next} />
+      <Button label="Continue" disabled={save.isPending} style={local.next} onPress={next} />
     </Page>
   );
 }
-
-// Gallery only: the error state with three lifts filled in and squat left
-// empty.
-const demoTMs: Record<string, string> = { press: '115', deadlift: '365', bench: '205', squat: '' };
 
 const local = StyleSheet.create({
   head: { marginTop: 18 },

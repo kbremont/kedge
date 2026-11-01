@@ -1,13 +1,15 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { useRef, type ReactNode } from 'react';
+import { Alert, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
-import type { PastEstimate } from '@/api/schema.gen';
+import { useDeleteEstimate, useLift } from '@/api/queries';
+import type { Lift, PastEstimate } from '@/api/schema.gen';
 import {
   Heading,
   Intro,
+  LoadState,
   Page,
   Panel,
   Stat,
@@ -17,31 +19,51 @@ import {
   useCardStyles,
 } from '@/components/card-back';
 import { LiftChart } from '@/components/lift-chart';
-import { useOverrides } from '@/gallery/store';
 import { fmtWeight } from '@/lib/format';
-import { useLift } from '@/sample/use-screen';
 import { displayScaleCap, liftInk } from '@/theme';
 
 export default function LiftScreen() {
   const { slug, back } = useLocalSearchParams<{ slug: string; back?: string }>();
-  const { version } = useOverrides();
-  const l = useLift(slug);
+  const lift = useLift(slug);
   return (
     <>
-      <Stack.Screen options={{ title: l.name, headerBackTitle: back ?? 'Today' }} />
-      <LiftPage key={version} l={l} />
+      <Stack.Screen options={{ title: lift.data?.name ?? '', headerBackTitle: back ?? 'Today' }} />
+      <LoadState query={lift}>{(l) => <LiftPage slug={slug} l={l} />}</LoadState>
     </>
   );
 }
 
-function LiftPage({ l }: { l: ReturnType<typeof useLift> }) {
+// `slug` is the route's, so a change answers into the cache this page and
+// the add sheet read.
+function LiftPage({ slug, l }: { slug: string; l: Lift }) {
   const { p, s } = useCardStyles();
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale > 1.5;
-  // Sample only: DELETE /lifts/{slug}/estimates/{id} answers with the lift.
-  const [deleted, setDeleted] = useState<number[]>([]);
-  const estimates = l.pastEstimates.filter((e) => !deleted.includes(e.id));
   const best = l.bestE1rm > 0 ? fmtWeight(l.bestE1rm) : '—';
+
+  // One delete at a time. The answer is the whole lift, so a second delete
+  // sent meanwhile could land before the first and bring its row back.
+  // `isPending` stills every row once the page redraws, and a second tap
+  // can land before that, so while a request is out a tap sends nothing.
+  const remove = useDeleteEstimate(slug);
+  const sending = useRef(false);
+  const deleteEstimate = (e: PastEstimate, row?: SwipeableMethods) => {
+    if (sending.current) return;
+    sending.current = true;
+    remove.mutate(
+      { id: e.id },
+      {
+        // The row slides back over its Delete, and the alert says why.
+        onError: (error) => {
+          row?.close();
+          Alert.alert('Couldn’t delete the estimate', error.message);
+        },
+        onSettled: () => {
+          sending.current = false;
+        },
+      },
+    );
+  };
   return (
     <Page>
       <Panel>
@@ -73,12 +95,12 @@ function LiftPage({ l }: { l: ReturnType<typeof useLift> }) {
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Add a past estimate"
-            onPress={() => router.push(`/lift/${l.slug}/add-estimate`)}>
+            onPress={() => router.push(`/lift/${slug}/add-estimate`)}>
             <SymbolView name="plus.circle.fill" tintColor={p.ink} size={28} />
           </Pressable>
         }
       />
-      {estimates.length === 0 ? (
+      {l.pastEstimates.length === 0 ? (
         <View style={s.row}>
           <Text style={[s.name, s.muted]}>None yet.</Text>
         </View>
@@ -91,11 +113,16 @@ function LiftPage({ l }: { l: ReturnType<typeof useLift> }) {
           ]}
         />
       )}
-      {[...estimates].reverse().map((e) => {
+      {[...l.pastEstimates].reverse().map((e) => {
         const set = `${fmtWeight(e.weight)} × ${e.reps}`;
         const est = fmtWeight(e.estimate);
         return (
-          <SwipeToDelete key={e.id} e={e} unit={l.unit} onDelete={() => setDeleted((x) => [...x, e.id])}>
+          <SwipeToDelete
+            key={e.id}
+            e={e}
+            unit={l.unit}
+            busy={remove.isPending}
+            onDelete={(row) => deleteEstimate(e, row)}>
             {stacked ? (
               <View style={[local.stackedRow, { borderBottomColor: p.rule }]}>
                 <Text style={s.name}>{e.date}</Text>
@@ -138,29 +165,42 @@ function LiftPage({ l }: { l: ReturnType<typeof useLift> }) {
 }
 
 // A past estimate swipes left to a Delete printed in danger, as iOS lists do.
+// While a delete is on its way the rows hold still: none swipes, and no
+// Delete can be tapped, so nothing is sent twice. The row being deleted stays
+// open until the answer removes it.
 function SwipeToDelete({
   e,
   unit,
+  busy,
   onDelete,
   children,
 }: {
   e: PastEstimate;
   unit: string;
-  onDelete: () => void;
+  busy: boolean;
+  onDelete: (row?: SwipeableMethods) => void;
   children: ReactNode;
 }) {
-  const { p } = useCardStyles();
+  const { p, s } = useCardStyles();
   return (
     <Swipeable
+      enabled={!busy}
       friction={1.5}
       rightThreshold={40}
       overshootRight={false}
-      renderRightActions={() => (
+      renderRightActions={(_progress, _translation, row) => (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Delete the estimate of ${e.date}`}
-          onPress={onDelete}
-          style={({ pressed }) => [local.delete, { backgroundColor: p.danger }, pressed && { opacity: 0.8 }]}>
+          accessibilityState={{ disabled: busy }}
+          disabled={busy}
+          onPress={() => onDelete(row)}
+          style={({ pressed }) => [
+            local.delete,
+            { backgroundColor: p.danger },
+            pressed && { opacity: 0.8 },
+            busy && s.disabled,
+          ]}>
           <SymbolView name="trash" tintColor={p.ground} size={18} weight="semibold" />
           <Text style={[local.deleteText, { color: p.ground }]}>Delete</Text>
         </Pressable>

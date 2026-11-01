@@ -9,7 +9,16 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/kedge.icon",
-      "bundleIdentifier": "com.anonymous.mobile"
+      "bundleIdentifier": "com.anonymous.mobile",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "NSLocalNetworkUsageDescription": "Kedge connects to your 5/3/1 server on your own network."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +46,8 @@
             "image": "./assets/splash/splash-dark.png"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

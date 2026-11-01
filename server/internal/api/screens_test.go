@@ -14,9 +14,10 @@ import (
 	"github.com/kbremont/531-tracker/server/internal/db"
 )
 
-// The golden responses: one per screen state the app's gallery shows, kept in
-// testdata/ and copied into the app as fixtures by `make generate`. They pin
-// the wire format, so a change to it shows up as a diff here and in the app.
+// The golden responses: one per screen state the app shows, kept in
+// testdata/ and copied into the app by `make generate` as the fixtures its
+// tests render. They pin the wire format, so a change to it shows up as a
+// diff here and in the app.
 //
 //	go test ./internal/api -update
 //

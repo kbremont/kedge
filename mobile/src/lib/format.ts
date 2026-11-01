@@ -1,5 +1,3 @@
-import { useEffect, useState } from 'react';
-
 // The server's training.FormatWeight: no trailing ".0", one decimal otherwise.
 export function fmtWeight(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
@@ -56,20 +54,9 @@ export function times(summary: string): string {
   return summary.replace(' x ', ' × ');
 }
 
-// Seconds of rest left, counted against the clock so it stays right if the
-// phone sleeps. The rest began `startedAgo` seconds before mount; `restart`
-// begins a new one now.
-export function useRestClock(total: number, startedAgo: number) {
-  const [startedAt, setStartedAt] = useState(() => Date.now() - startedAgo * 1000);
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(id);
-  }, []);
-  const restart = () => {
-    const t = Date.now();
-    setStartedAt(t);
-    setNow(t);
-  };
-  return { left: Math.max(0, total - Math.floor((now - startedAt) / 1000)), restart };
+// A count or target of reps in words: "1 rep", "5 reps", "3+ reps". The
+// program's singles, such as the 1+ week's top set and the TM test's 90%,
+// take the singular.
+export function repsText(reps: number | string): string {
+  return `${reps} ${String(reps) === '1' ? 'rep' : 'reps'}`;
 }

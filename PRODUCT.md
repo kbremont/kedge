@@ -63,7 +63,8 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 - Separate rest times for warmups, main sets and supplemental work.
 - Plate math, with a warning when the plates run short.
 - Setting a training max directly at any time.
-- Downloading a backup, which goes to the iOS share sheet.
+
+**Backups:** not in the app. The server's web UI downloads one, and the API keeps `GET /backup`.
 
 **Units:** pounds only for now. The database has a unit column for later.
 
