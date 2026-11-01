@@ -52,6 +52,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "47f81a83-f706-4a1e-9cbe-9da23d35a071"
+      }
+    },
+    "owner": "lyle15"
   }
 }
