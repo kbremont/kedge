@@ -29,6 +29,7 @@ import {
   TextAction,
   useCardStyles,
 } from '@/components/card-back';
+import { setAppearance, useAppearance, type AppearanceChoice } from '@/lib/appearance';
 import { running, runningText } from '@/lib/build';
 import { signOut, useConnection } from '@/lib/connection';
 import { fmtClock, fmtWeight } from '@/lib/format';
@@ -37,7 +38,14 @@ import { displayScaleCap, font } from '@/theme';
 export default function SettingsScreen() {
   const settings = useSettings();
   return (
-    <LoadState query={settings} keep={<Server />}>
+    <LoadState
+      query={settings}
+      keep={
+        <>
+          <AppearanceSection />
+          <Server />
+        </>
+      }>
       {(s) => <SettingsForm settings={s} />}
     </LoadState>
   );
@@ -391,8 +399,40 @@ function SettingsForm({ settings }: { settings: Settings }) {
         />
       )}
 
+      <AppearanceSection />
       <Server />
     </Page>
+  );
+}
+
+const appearanceLabel: Record<AppearanceChoice, string> = { system: 'System', light: 'Light', dark: 'Dark' };
+
+// Light or dark for this phone. It applies the moment it's picked and is
+// kept on the phone, so it sits apart from the form the Save button sends,
+// and shows even when the settings can't be read.
+function AppearanceSection() {
+  const { p } = useCardStyles();
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const { choice } = useAppearance();
+  return (
+    <>
+      <Heading title="Appearance" />
+      <Intro style={local.intro}>System follows your iPhone’s setting.</Intro>
+      <View style={[local.block, { borderBottomColor: p.rule }]}>
+        <Host matchContents={{ vertical: true }} seedColor={p.ink} colorScheme={scheme}>
+          <Picker
+            selection={choice}
+            onSelectionChange={(c: AppearanceChoice) => void setAppearance(c)}
+            modifiers={[pickerStyle('segmented')]}>
+            {(['system', 'light', 'dark'] as const).map((c) => (
+              <SwiftText key={c} modifiers={[tag(c)]}>
+                {appearanceLabel[c]}
+              </SwiftText>
+            ))}
+          </Picker>
+        </Host>
+      </View>
+    </>
   );
 }
 
