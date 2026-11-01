@@ -323,7 +323,7 @@ Verification:
   - **Scratch database:** onboarding partway into the program, a failed TM test settled once with Lower and once with Keep, and an anchor finished through the deload skip and the block review, accepted with an edited value. The API fast-forwarded the sessions in between.
   - **Approximations:** the simulator can't be locked, so the rest timer was checked across 40 s in the background, and it had counted on against the clock. The foreground refetch was checked by changing data through the API rather than the web UI.
   - **Fixes it led to:** a single now reads "1 rep", and a session discarded elsewhere while open now says so instead of showing a bare "Not found." when logged.
-- **Real server:** the read-only comparison against `https://lift.lyle.sh` is still to do. It needs the server's password.
+- **Real server, read only:** once the Pi ran the image from `main` (build 9267774, API 1), the app signed in to `https://lift.lyle.sh` and nothing was logged. Today, History's 25 sessions, all four lift pages and five sessions from Oct 30 back to Sep 11 showed the same numbers as the web UI, set by set, and the API's answers matched the web pages in 84 checks. Both show a best estimated max of 125.999… as "126.0", the same rounding in `FormatWeight` and `fmtWeight`; it predates Phase 4.
 
 Where the result differs from the plan below:
 
