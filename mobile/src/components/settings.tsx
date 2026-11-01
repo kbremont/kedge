@@ -236,7 +236,7 @@ export const settingStyles = StyleSheet.create({
   stackedControl: { justifyContent: 'flex-end' },
   small: { width: 84, height: 46, fontSize: 24, textAlign: 'right' },
   block: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth * 2 },
-  problem: { paddingBottom: 0 },
+  problem: { paddingBottom: 18 },
 });
 
 const local = StyleSheet.create({
