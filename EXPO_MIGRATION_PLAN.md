@@ -447,6 +447,10 @@ Where the result differs from the plan below:
   - **mobile job** (on `mobile/**` changes): `npm ci`, `tsc --noEmit`, `expo lint`, `jest`, `npx expo-doctor`, `npx expo export --platform ios`.
   - **image job:** the existing smoke test, with the server as build context.
 - **`release.yml`:** builds the server image only, filtered to `server/**`.
+- **Publishing from GitHub:** connect EAS to the GitHub repo, so that GitHub workflows can publish over-the-air updates without the Mac. For example, `eas update --channel preview` on each merge to `main`, then a republish to `production` once it's checked.
+  - **GitHub Actions** needs only an `EXPO_TOKEN` secret (`expo/expo-github-action`).
+  - **EAS Workflows** run on EAS and are triggered by GitHub events. They also need the Expo GitHub App linked in the project's GitHub settings, with `mobile/` as the base directory.
+  - **Builds and submits** stay on the Mac unless an App Store Connect key is stored on EAS, because the key is kept local for now.
 - **Docs:** root `AGENTS.md`/`CLAUDE.md` with the repo map and conventions: logic lives in Go and the app only displays; API changes run `make generate`; the UI matches the approved contact sheets in `docs/mockups/`. The root README is an overview, with details in `server/README.md` and `mobile/README.md`.
 
 ## Verification
