@@ -67,7 +67,8 @@ Decisions made with the user:
         │   │                 the app in ApiProvider
         │   ├── connect.tsx
         │   ├── (tabs)/       _layout.tsx (NativeTabs); (today)/, (history)/ and (settings)/, each a
-        │   │                 stack for its large title
+        │   │                 stack for its large title; (settings)/settings/ holds the root and a page
+        │   │                 per section
         │   ├── workout/[id].tsx
         │   ├── lift/[slug]/  index.tsx, add-estimate.tsx (native sheet)
         │   └── setup/        index.tsx, position.tsx, history.tsx
@@ -76,14 +77,16 @@ Decisions made with the user:
         ├── components/       card-back.tsx (page, panel, lift band, stat line, headings, table head,
         │                     rest bar, totals, buttons, fields, notices, tone mark, load state),
         │                     lift-chart.tsx, plate-mark.tsx (the app's mark), root-stack.tsx (the root
-        │                     stack, its sign-in gate and the API version check), tab-stack.tsx
+        │                     stack, its sign-in gate and the API version check), tab-stack.tsx,
+        │                     settings.tsx (Settings' section rows, pages, Save and shared form)
         ├── api/              client.ts (openapi-fetch, Bearer, errors, timeout), queries.tsx (ApiProvider
         │                     and the openapi-react-query hooks), schema.gen.ts (generated), fixtures/
         │                     (generated)
         ├── lib/              format.ts (the server's formatting rules), brand.ts (the app's name),
         │                     connection.ts (server URL and session in the keychain), rest.ts (the rest
         │                     clock), build.ts (what the install runs, for Settings' App row),
-        │                     appearance.ts (System, Light or Dark, kept on the phone)
+        │                     appearance.ts (System, Light or Dark, kept on the phone),
+        │                     settings-form.ts (Settings' form as typed, and what PUT /settings takes)
         ├── __tests__/        screen tests, which can't sit in src/app, where every file is a route
         └── test-utils.tsx    the screen tests' harness: a stand-in server answering from the fixtures,
                               and routes rendered signed in to it
@@ -421,6 +424,19 @@ Where the result differs from the plan below:
 - **Agent steps:** `mobile/eas.json` with `development` (simulator), `preview` and `production` profiles; `eas update:configure` with the runtime version set by `fingerprint`; bundle id `com.kbremont.kedge`, with the slug and scheme renamed to match. *(The bundle id is `sh.lyle.kedge`: see above.)*
 - **User steps** (Apple two-factor sign-in): `eas login`, then `eas build -p ios --profile production`, then `eas submit -p ios`. *(Apple is reached through an App Store Connect API key, and the App Store Connect app was made in the browser: see above.)*
 - **Updates:** `eas update --channel production` for JS-only changes; a rebuild for native changes or every 90 days. *(Updates go to `preview` first and the same group is republished to `production`: see above and `mobile/README.md`.)*
+
+### 5a. Settings drill-down ✅ Complete
+
+Settings was one long page, about 2.7 screens at the default text size. It's an iOS-style drill-down now, built on its own branch after Phase 5 and approved at a design checkpoint.
+
+- **Root:** a Training heading over four rows, Training maxes, Loading, Rest and Supplemental, each saying what it's set to and opening its own page in the tab. Appearance and Server stay inline, and still show when the settings can't be read.
+- **Pages:** each has its own fields as before, and saves with a native Save in the navigation bar, which goes back to the root. Leaving with edits, by the back button or the swipe, asks "Discard changes?". The "Saved" notice is gone. Training maxes still save one at a time through their prompt, so that page has no Save.
+- **Sending:** a page sends its own fields over the other sections as last read, so a change made elsewhere meanwhile isn't undone.
+- **Code:** the form logic moved to `lib/settings-form.ts`, and the pages share `components/settings.tsx`. The Settings stack is anchored on its root, which the router would otherwise sort after Rest. Jest draws `Stack.Toolbar`'s buttons in place, so tests can press Save.
+- **Review:** Impeccable's finish review asked for two fixes: confirming the world's seed, which checks out from the workspace that rolled it, and more room under a refusal's Notice. Its verdict pass then said ship. `DESIGN.md` records the section row, the navigation bar's Save and the discard prompt.
+- **Shipping:** no API change and no native code, and the fingerprint still matches build 1.0.0 (4), so it goes out as an update: to `preview` first, then the same group to `production`.
+
+Verification: `tsc`, `expo lint`, `jest` (235 tests in 16 suites), `expo-doctor`, `expo export:embed --eager` and `make check` all pass. In the simulator against `make demo`, in light, dark and accessibility-medium, each page opened from its row with the saved values, a save came back to the root's new summary and agreed with the web UI, a refusal stayed on its page, the back button and the swipe both asked before discarding, and a training max saved through its prompt.
 
 ### 6. Demo server and App Store
 

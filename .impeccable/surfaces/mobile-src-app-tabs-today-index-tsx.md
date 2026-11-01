@@ -2,7 +2,7 @@
 version: 1
 slug: "mobile-src-app-tabs-today-index-tsx"
 primary_target: "mobile/src/app/(tabs)/(today)/index.tsx"
-related_targets: ["mobile/src/app/workout/[id].tsx","mobile/src/app/lift/[slug]/index.tsx","mobile/src/app/(tabs)/(history)/history.tsx","mobile/src/app/(tabs)/(settings)/settings.tsx","mobile/src/app/connect.tsx","mobile/src/app/setup/index.tsx"]
+related_targets: ["mobile/src/app/workout/[id].tsx","mobile/src/app/lift/[slug]/index.tsx","mobile/src/app/(tabs)/(history)/history.tsx","mobile/src/app/(tabs)/(settings)/settings/index.tsx","mobile/src/app/(tabs)/(settings)/settings/training-maxes.tsx","mobile/src/app/(tabs)/(settings)/settings/loading.tsx","mobile/src/app/(tabs)/(settings)/settings/rest.tsx","mobile/src/app/(tabs)/(settings)/settings/supplemental.tsx","mobile/src/app/connect.tsx","mobile/src/app/setup/index.tsx"]
 ---
 
 # iOS app: working screens
