@@ -82,7 +82,8 @@ Decisions made with the user:
         │                     (generated)
         ├── lib/              format.ts (the server's formatting rules), brand.ts (the app's name),
         │                     connection.ts (server URL and session in the keychain), rest.ts (the rest
-        │                     clock), build.ts (what the install runs, for Settings' App row)
+        │                     clock), build.ts (what the install runs, for Settings' App row),
+        │                     appearance.ts (System, Light or Dark, kept on the phone)
         ├── __tests__/        screen tests, which can't sit in src/app, where every file is a route
         └── test-utils.tsx    the screen tests' harness: a stand-in server answering from the fixtures,
                               and routes rendered signed in to it
@@ -371,6 +372,11 @@ Kedge is an installable app now. It's the EAS project `@lyle15/kedge` with bundl
   - It shows the version and build (read from `expo-application`, since EAS keeps the build number), then `built in`, `update Nov 1` or `development`.
   - The user approved it as the way to see whether a build has an update. It stacks like the other rows at accessibility sizes.
 - **Release notes:** `mobile/README.md` replaces the template's text. It covers developing, the Apple credentials, builds and updates.
+- **Appearance (added after the TestFlight check):** Settings gains an Appearance section, between Save settings and Server.
+  - It's a segmented System, Light and Dark. System, the default, follows the phone.
+  - A pick applies at once to the whole app, native chrome and alerts included, and is kept on the phone, not the server.
+  - It changes no native code, so it can reach the TestFlight build as an update.
+  - Settings is getting long, so the next piece of work is a drill-down: a short list of sections that open into their own pages, each with its own Save. It gets designed and approved before it's built, on its own branch.
 
 Verification:
 
