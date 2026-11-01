@@ -29,6 +29,7 @@ import {
   TextAction,
   useCardStyles,
 } from '@/components/card-back';
+import { running, runningText } from '@/lib/build';
 import { signOut, useConnection } from '@/lib/connection';
 import { fmtClock, fmtWeight } from '@/lib/format';
 import { displayScaleCap, font } from '@/theme';
@@ -395,8 +396,9 @@ function SettingsForm({ settings }: { settings: Settings }) {
   );
 }
 
-// The server the app is signed in to, and the way out of it. It needs
-// nothing from the settings read, so it shows even when that read fails.
+// The server the app is signed in to, what this install runs, and the way
+// out. It needs nothing from the settings read, so it shows even when that
+// read fails.
 function Server() {
   const { s } = useCardStyles();
   const { url } = useConnection();
@@ -424,6 +426,11 @@ function Server() {
         <Text style={[s.sub, local.value]} accessibilityLabel={info ? undefined : 'Unknown'}>
           {info ? `${info.version} · API ${info.apiVersion}` : '—'}
         </Text>
+      </Row>
+      {/* This install beside the server: its version and build, and whether
+          it runs the bundle it was built with or an update. */}
+      <Row label="App">
+        <Text style={[s.sub, local.value]}>{runningText(running())}</Text>
       </Row>
       <TextAction
         label="Sign out"
