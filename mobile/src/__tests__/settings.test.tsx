@@ -1,7 +1,8 @@
 import { focusManager } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
-import { Alert, type AlertButton } from 'react-native';
+import { Alert, Appearance, type AlertButton } from 'react-native';
 
 import settingsFixture from '@/api/fixtures/settings.json';
 import { keys, makeQueryClient } from '@/api/queries';
@@ -315,6 +316,29 @@ describe('training maxes', () => {
   });
 });
 
+describe('appearance', () => {
+  // The appearance picker comes after the four BBB pickers.
+  const appearancePicker = () => screen.getAllByTestId('Picker').at(-1)!;
+
+  test('a pick applies at once and is kept on the phone, with nothing sent to the server', async () => {
+    const setColorScheme = jest.spyOn(Appearance, 'setColorScheme').mockImplementation(() => {});
+    const { server } = await openSettings();
+    expect(appearancePicker()).toHaveProp('selection', 'system');
+
+    await fireEvent(appearancePicker(), 'selectionChange', 'dark');
+    expect(setColorScheme).toHaveBeenLastCalledWith('dark');
+    expect(appearancePicker()).toHaveProp('selection', 'dark');
+    expect(await SecureStore.getItemAsync('kedge.appearance')).toBe('dark');
+    // It isn't part of the form Save sends.
+    expect(sentTo(server, 'PUT /settings')).toEqual([]);
+    expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled();
+
+    await fireEvent(appearancePicker(), 'selectionChange', 'system');
+    expect(setColorScheme).toHaveBeenLastCalledWith('unspecified');
+    setColorScheme.mockRestore();
+  });
+});
+
 describe('first load', () => {
   test('a spinner appears only after a moment, then the form', async () => {
     const load = held<Settings>();
@@ -344,12 +368,14 @@ describe('first load', () => {
     expect(screen.queryByText(failure)).not.toBeOnTheScreen();
   });
 
-  test('a server that can’t be reached still shows its address and Sign out', async () => {
+  test('a server that can’t be reached still shows Appearance, its address and Sign out', async () => {
     await renderApp(routes, {
       server: fakeServer({ 'GET /settings': json({ error: 'Something went wrong. Check the server log.' }, 500) }),
     });
 
     expect(await screen.findByRole('button', { name: 'Try again' })).toBeOnTheScreen();
+    expect(screen.getByText('System follows your iPhone’s setting.')).toBeOnTheScreen();
+    expect(screen.getAllByTestId('Picker')).toHaveLength(1);
     expect(screen.getByText(testUrl)).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeOnTheScreen();
   });

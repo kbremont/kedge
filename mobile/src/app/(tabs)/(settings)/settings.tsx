@@ -29,6 +29,8 @@ import {
   TextAction,
   useCardStyles,
 } from '@/components/card-back';
+import { setAppearance, useAppearance, type AppearanceChoice } from '@/lib/appearance';
+import { running, runningText } from '@/lib/build';
 import { signOut, useConnection } from '@/lib/connection';
 import { fmtClock, fmtWeight } from '@/lib/format';
 import { displayScaleCap, font } from '@/theme';
@@ -36,7 +38,14 @@ import { displayScaleCap, font } from '@/theme';
 export default function SettingsScreen() {
   const settings = useSettings();
   return (
-    <LoadState query={settings} keep={<Server />}>
+    <LoadState
+      query={settings}
+      keep={
+        <>
+          <AppearanceSection />
+          <Server />
+        </>
+      }>
       {(s) => <SettingsForm settings={s} />}
     </LoadState>
   );
@@ -390,13 +399,46 @@ function SettingsForm({ settings }: { settings: Settings }) {
         />
       )}
 
+      <AppearanceSection />
       <Server />
     </Page>
   );
 }
 
-// The server the app is signed in to, and the way out of it. It needs
-// nothing from the settings read, so it shows even when that read fails.
+const appearanceLabel: Record<AppearanceChoice, string> = { system: 'System', light: 'Light', dark: 'Dark' };
+
+// Light or dark for this phone. It applies the moment it's picked and is
+// kept on the phone, so it sits apart from the form the Save button sends,
+// and shows even when the settings can't be read.
+function AppearanceSection() {
+  const { p } = useCardStyles();
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const { choice } = useAppearance();
+  return (
+    <>
+      <Heading title="Appearance" />
+      <Intro style={local.intro}>System follows your iPhone’s setting.</Intro>
+      <View style={[local.block, { borderBottomColor: p.rule }]}>
+        <Host matchContents={{ vertical: true }} seedColor={p.ink} colorScheme={scheme}>
+          <Picker
+            selection={choice}
+            onSelectionChange={(c: AppearanceChoice) => void setAppearance(c)}
+            modifiers={[pickerStyle('segmented')]}>
+            {(['system', 'light', 'dark'] as const).map((c) => (
+              <SwiftText key={c} modifiers={[tag(c)]}>
+                {appearanceLabel[c]}
+              </SwiftText>
+            ))}
+          </Picker>
+        </Host>
+      </View>
+    </>
+  );
+}
+
+// The server the app is signed in to, what this install runs, and the way
+// out. It needs nothing from the settings read, so it shows even when that
+// read fails.
 function Server() {
   const { s } = useCardStyles();
   const { url } = useConnection();
@@ -424,6 +466,11 @@ function Server() {
         <Text style={[s.sub, local.value]} accessibilityLabel={info ? undefined : 'Unknown'}>
           {info ? `${info.version} · API ${info.apiVersion}` : '—'}
         </Text>
+      </Row>
+      {/* This install beside the server: its version and build, and whether
+          it runs the bundle it was built with or an update. */}
+      <Row label="App">
+        <Text style={[s.sub, local.value]}>{runningText(running())}</Text>
       </Row>
       <TextAction
         label="Sign out"

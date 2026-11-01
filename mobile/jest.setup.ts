@@ -22,6 +22,14 @@ jest.mock('expo-secure-store', () => {
   };
 });
 
+// The app's version and build, which jest-expo's stand-in gives as "mock".
+// Tests run with __DEV__ set, so the App row reads as a development build.
+jest.mock('expo-application', () => ({
+  ...jest.requireActual('expo-application'),
+  nativeApplicationVersion: '1.0.0',
+  nativeBuildVersion: '1',
+}));
+
 // An SF Symbol draws nothing a test can read; a plain view keeps its props.
 jest.mock('expo-symbols', () => {
   const { createElement } = jest.requireActual<typeof import('react')>('react');

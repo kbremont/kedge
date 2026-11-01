@@ -8,10 +8,11 @@ The repo holds both halves:
 | Directory | What it is |
 |---|---|
 | [`server/`](server/README.md) | The Go server: the 5/3/1 engine, SQLite, and the web UI. All training logic lives here. Ships as a Docker image. |
-| [`mobile/`](mobile/README.md) | A native iOS app built with Expo, in progress. It only displays what the server computes. |
+| [`mobile/`](mobile/README.md) | Kedge, the native iOS app, built with Expo and shipped through TestFlight with EAS. It only displays what the server computes. |
 
 See [`server/README.md`](server/README.md) for the program, running and
-deploying the server, configuration, and backups.
+deploying the server, configuration, and backups, and
+[`mobile/README.md`](mobile/README.md) for building and releasing the app.
 
 ## Development
 

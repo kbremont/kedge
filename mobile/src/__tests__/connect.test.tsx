@@ -260,12 +260,14 @@ describe('the sign-in gate', () => {
     expect(getConnection().signedIn).toBe(true);
   });
 
-  test('Settings shows the server, and signing out there opens Connect with the address kept', async () => {
+  test('Settings shows the server and this install, and signing out there opens Connect with the address kept', async () => {
     const server = fakeServer({ 'GET /info': info, 'GET /dashboard': dashboardNext, 'GET /settings': settings });
     await renderApp(app, { server, queryClient: withSettings(), initialUrl: '/settings' });
 
     expect(screen.getByText(testUrl)).toBeOnTheScreen();
     expect(await screen.findByText('test · API 1')).toBeOnTheScreen();
+    // This install, beside the server: jest.setup.ts's build, under __DEV__.
+    expect(screen.getByText('1.0.0 (1) · development')).toBeOnTheScreen();
 
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     await fireEvent.press(screen.getByRole('button', { name: 'Sign out' }));
