@@ -18,6 +18,9 @@
           "NSAllowsLocalNetworking": true
         },
         "NSLocalNetworkUsageDescription": "Kedge connects to your 5/3/1 server on your own network."
+      },
+      "runtimeVersion": {
+        "policy": "fingerprint"
       }
     },
     "android": {
@@ -58,6 +61,9 @@
         "projectId": "47f81a83-f706-4a1e-9cbe-9da23d35a071"
       }
     },
-    "owner": "lyle15"
+    "owner": "lyle15",
+    "updates": {
+      "url": "https://u.expo.dev/47f81a83-f706-4a1e-9cbe-9da23d35a071"
+    }
   }
 }
