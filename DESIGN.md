@@ -244,6 +244,10 @@ components:
     textColor: "{colors.navy-ink}"
     typography: "{typography.body-name}"
     height: "64px"
+  section-row:
+    textColor: "{colors.navy-ink}"
+    typography: "{typography.body-name}"
+    height: "64px"
   lift-chip:
     backgroundColor: "{colors.bench-blue}"
     rounded: "{rounded.chip}"
@@ -345,7 +349,7 @@ A single scrolling column on the page ground, 16pt side margins, 8pt top and 48p
 
 Tables are built from rows, not cards: each row is a full-width line with a hairline rule below, roughly 10pt vertical padding, the name column flexible and numeric columns right-aligned at fixed widths (56 to 96pt). Stat rows divide their width equally with hairline column rules. Inside panels, content sits 14 to 16pt from the edge and buttons inset 12pt; a second button sits 8pt below the first.
 
-Setting rows are at least 64pt tall: the label and its sub on the left, the control on the right, 12pt apart. Single-choice and checklist rows are also 64pt and open under a 3pt ink rule. The connect screen runs without a header: 20pt side margins, the masthead 36pt below the safe area.
+Setting rows are at least 64pt tall: the label and its sub on the left, the control on the right, 12pt apart. Settings' section rows are 64pt too. Single-choice and checklist rows are also 64pt and open under a 3pt ink rule. The connect screen runs without a header: 20pt side margins, the masthead 36pt below the safe area.
 
 The career table is a grid inside the column: a 62pt round column, then four equal lift columns divided by hairlines, with the column heads pinned under the header while the rows scroll.
 
@@ -373,7 +377,7 @@ Solid, square-shouldered, printed in the ink colour.
 - **Primary:** navy ink fill with stock-coloured label in light; chipboard ink fill with night navy label in dark. Label in uppercase condensed 800 at 22pt; an optional 18pt bold SF Symbol leads it.
 - **Secondary:** the second of two choices ("Keep 205 lb"): transparent fill, a 2pt ink outline, the label and symbol in ink.
 - **Pressed:** opacity 0.8. No scale, no colour change.
-- **Disabled:** opacity 0.35, until the input is valid or something has changed ("Lower to …", "Accept training maxes", "Save settings", "Connect").
+- **Disabled:** opacity 0.35, until the input is valid or something has changed ("Lower to …", "Accept training maxes", "Connect").
 - **Text actions:** SF 600 at 16pt, centred, 44pt minimum height, an optional 16pt semibold SF Symbol before the label: ink for an alternative ("Skip it and start the next block", "Sign out"), soft ink for Cancel, danger for a destructive one (Discard, which confirms through a native destructive alert). Skip and Sign out confirm through native alerts too. Undo is the exception: condensed 800 uppercase in ink with an SF Symbol, 44pt minimum height.
 - **Swipe Delete:** a past estimate swipes left to a 96pt danger action with a `trash` symbol and "Delete" in SF 600 at 13pt, both in the ground colour; VoiceOver gets the same action.
 
@@ -394,17 +398,19 @@ Solid, square-shouldered, printed in the ink colour.
 ### Inputs / Fields
 - **Field:** a field printed on the card: stock on the ground, ground on a stock panel. Hairline rule-coloured border, 6pt corner, 52pt tall, 12pt side padding. Numbers in condensed 800 at 26pt tabular, capped at 1.3x; text such as an address in SF at 17pt, scaling fully. Placeholder in soft ink, the caret and selection in ink. A Label sits above it; a unit beside it is condensed 600 at 17pt in soft ink, lowercase. Numeric keyboard for numbers.
 - **Refused:** a field the server refused takes a 2pt danger outline, beside the error Notice that says why.
-- **Notice:** a line of news under or over a form, SF 600 at 15pt with an 18pt symbol before it: an error in danger with `exclamationmark.triangle.fill`, announced as an alert; a confirmation in ink with `checkmark.circle.fill` ("Saved. The next session uses these settings."). A Save button that has saved gives way to its Notice until something changes again.
+- **Notice:** a line of news under or over a form, SF 600 at 15pt with an 18pt symbol before it: an error in danger with `exclamationmark.triangle.fill`, announced as an alert; a confirmation in ink with `checkmark.circle.fill`. On a Settings section page the error heads the page, 18pt clear of the first line, so it reads as its own group above the form; the page stays open with what was typed.
 - **Native controls:** the SwiftUI DatePicker, Stepper (rest in 15s steps, beside an m:ss clock in condensed 800) and segmented Picker (the BBB mode, and Appearance's System, Light and Dark) are seeded with the ink colour and the current appearance. The Switch's on track takes the button colour and its knob the on-button colour; off, the track is the rule colour.
-- **Training max edits:** in Settings each training max is its own decision, edited one at a time through a native `Alert.prompt` with a decimal pad. The row shows the value in condensed 800 at 24pt with a soft unit and a `square.and.pencil` symbol.
+- **Training max edits:** on Settings' Training maxes page each training max is its own decision, edited one at a time through a native `Alert.prompt` with a decimal pad, so that page has no Save. The row shows the value in condensed 800 at 24pt with a soft unit and a `square.and.pencil` symbol.
+- **Unsaved edits:** leaving a Settings section page with edits, by the back button or the edge swipe, asks "Discard changes?" in a native alert ("These settings stay as they were."): Keep editing as its cancel, Discard as destructive. An untouched page, or one whose save is on its way, leaves at once.
 - **Choices:** a single-choice list marks its selection with a trailing 20pt bold ink `checkmark`. A checklist leads each row with a 26pt `checkmark.circle.fill` in ink when ticked and a `circle` in soft ink when not; a ticked row adds a small reps field when the cycle asks for one.
 - **Rep Picker:** a five-column grid of 52pt cells, 8pt gaps, ground fill, 2pt border. Cells that meet the target take the lift's line colour for border and number; others take the rule and ink. Pressed fills with the band and switches the number to on-band. One tap logs; there is no keyboard.
 
 ### Navigation
 - **Tab bar:** native tabs with SF Symbols, tinted ink.
 - **Tab root:** each tab is its own stack with the native large title in condensed 900 and the inline title in condensed 800, both ink, with no header shadow. The header background stays unset there, because a header background hides the large title on iOS 26; the page ground shows through.
-- **Stack header:** ground-coloured, no shadow, ink tint, title in condensed 800 at 20pt; the back title names the screen that opened it ("Today", "History", "Back" in setup).
-- **Rows that open something:** Recent rows, career cells, training max columns and History's column heads are tappable; rows and heads carry an 11pt bold `chevron.right` in soft ink.
+- **Stack header:** ground-coloured, no shadow, ink tint, title in condensed 800 at 20pt; the back title names the screen that opened it ("Today", "History", "Settings", "Back" in setup). A page pushed inside a tab, such as a Settings section, keeps the tab's unset header and the tab bar, with its title inline at the same 20pt and the large title off.
+- **Save in the navigation bar:** a Settings section page saves with a native `done` bar button on the right, filled with the ink. iOS sets its label against the fill (near-white on navy, night navy on chipboard ink), so the label takes no colour of ours: one of our own rendered grey on the fill. It stays disabled, the system's grey pill, until something has changed, reads "Saving…" while the request is out, and goes back to the root once it lands.
+- **Rows that open something:** Recent rows, career cells, training max columns, History's column heads and Settings' section rows are tappable; rows and heads carry an 11pt bold `chevron.right` in soft ink.
 - **Sheets:** native form sheet with grabber, ground background, a 6pt lift bar across the top, a 30pt black uppercase title.
 
 ### Lift Band (signature)
@@ -433,6 +439,9 @@ History as the back of a card: one line per round, newest first. The left column
 
 ### Setting Row
 A ruled settings line: the label in Body Name and an optional sub on the left, the control on the right (a field with its unit, a Stepper with its clock, a Switch, or a server value in Body Sub). Above a 1.5x font scale the label sits over the control. Settings closes with a centred footer in Body Sub, "Not affiliated with Jim Wendler."
+
+### Section Row
+Settings is a drill-down. Its root is three sections: Training, four section rows under the heading's 3pt ink rule; Appearance, its segmented picker inline; and Server, its rows, Sign out and the footer. A section row is a ruled 64pt line beside the setting row: the section's name in Body Name over what it's set to now in Body Sub, and the 11pt chevron. The summaries come from the settings as read: Training maxes prints each value after its lift chip; Loading reads "45 lb bar · rounds to 5 · warmups"; Rest the three clocks, "1:00 · 3:00 · 1:30"; Supplemental "Program", or the lifts that override it ("Deadlift 185 lb · Squat 55%"). VoiceOver reads each in full, lift names and rest labels included. A row opens its section's page in the tab: its own setting rows, any intro first, and Save in the navigation bar. When the settings can't be read, the root keeps Appearance and Server under the failure, so a lifter can still leave a server that has moved.
 
 ### Rest Bar
 Drawn to scale: the track (6pt, rule colour) is the full rest interval the server sent, and the fill in the lift's line colour drains in real seconds. "Rest" label at 18pt heavy, the clock at 30pt black.

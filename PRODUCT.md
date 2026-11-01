@@ -53,7 +53,7 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 | workout | current set, rest timer, AMRAP picker, 3–5 range picker, plates short, finish, completed |
 | history | list; empty |
 | lift | line, single point, empty, add sheet, error |
-| settings | default; saved |
+| settings | root (a row per section, Appearance, Server); a page per section; edited; refused; discard changes; can't load |
 | setup | TMs, position, leader history, anchor history |
 
 **Also:**
