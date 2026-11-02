@@ -26,12 +26,22 @@ const (
 	anchorSessions = 6
 )
 
+// The demo lifter is getting stronger: on every lift's chart each estimated
+// max beats the last, from the notebook through the TM test into the anchor.
+// TestSeed holds it to that.
+
 // testReps is each lift's 100% set on the TM test: all passes, so nothing is
 // held, and press strong enough to earn a bump at the end of the block.
-var testReps = map[string]int{"Overhead Press": 6, "Deadlift": 4, "Bench Press": 5, "Squat": 4}
+var testReps = map[string]int{"Overhead Press": 6, "Deadlift": 3, "Bench Press": 4, "Squat": 3}
 
-// prExtra is how far each lift beats its anchor PR set's target.
-var prExtra = map[string]int{"Overhead Press": 2, "Deadlift": 4, "Bench Press": 3, "Squat": 3}
+// prReps is what each lift does on its anchor PR sets, by the set's target:
+// 5+ in the first round, 3+ in the second, 1+ in the third.
+var prReps = map[string]map[int]int{
+	"Overhead Press": {5: 12, 3: 11, 1: 10},
+	"Deadlift":       {5: 10, 3: 8, 1: 7},
+	"Bench Press":    {5: 11, 3: 9, 1: 8},
+	"Squat":          {5: 10, 3: 8, 1: 7},
+}
 
 // pastEstimates are notebook numbers from the year before the app.
 var pastEstimates = []struct {
@@ -40,15 +50,15 @@ var pastEstimates = []struct {
 	weight       float64
 	reps         int
 }{
-	{"press", 4, 115, 5},
-	{"press", 1, 125, 3},
-	{"deadlift", 5, 365, 3},
-	{"deadlift", 2, 375, 4},
-	{"deadlift", 0, 395, 2},
-	{"bench", 4, 195, 6},
-	{"bench", 1, 215, 3},
-	{"squat", 3, 285, 6},
-	{"squat", 0, 305, 5},
+	{"press", 4, 105, 6},
+	{"press", 1, 115, 4},
+	{"deadlift", 5, 335, 3},
+	{"deadlift", 2, 345, 4},
+	{"deadlift", 0, 350, 4},
+	{"bench", 4, 185, 6},
+	{"bench", 1, 195, 5},
+	{"squat", 3, 275, 5},
+	{"squat", 0, 285, 5},
 }
 
 // Seed fills the database with the demo lifter's block, unless training maxes
@@ -118,8 +128,8 @@ func session(ctx context.Context, svc *training.Service) (int64, error) {
 		switch {
 		case set.IsAMRAP && w.Phase == "tm_test":
 			reps = testReps[w.LiftName]
-		case set.IsAMRAP:
-			reps += prExtra[w.LiftName]
+		case set.IsAMRAP && prReps[w.LiftName][set.TargetReps] > 0:
+			reps = prReps[w.LiftName][set.TargetReps]
 		}
 		if err := svc.LogSet(ctx, id, int64(set.Idx), reps); err != nil {
 			return 0, fmt.Errorf("log set %d of session %d: %w", set.Idx, id, err)
