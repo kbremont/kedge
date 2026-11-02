@@ -19,7 +19,7 @@ Decisions made with the user:
 ## Repository layout
 
 ```
-531-tracker/
+kedge/
 ├── README.md                 overview of both halves, links into server/ and mobile/
 ├── AGENTS.md, CLAUDE.md      repo map and conventions (CLAUDE.md = "@AGENTS.md", as in survivor)
 ├── PRODUCT.md, DESIGN.md     product context and the design system, read by the Impeccable plugin
@@ -30,7 +30,7 @@ Decisions made with the user:
 ├── .github/workflows/        ci.yml (server and mobile jobs, path-filtered), release.yml (server image)
 ├── docs/                     design overview screenshots, App Store listing text and review notes, privacy policy
 │
-├── server/                   Go module: github.com/kbremont/531-tracker/server
+├── server/                   Go module: github.com/kbremont/kedge/server
 │   ├── go.mod, go.sum        tool directives: templ, sqlc, oapi-codegen, staticcheck, oasdiff
 │   ├── README.md             the program, running, config, backups, Pi deploy (moved from today's README)
 │   ├── Dockerfile, .dockerignore, docker-compose.yml, .env.example

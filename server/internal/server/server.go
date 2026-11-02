@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/kbremont/531-tracker/server/internal/api"
-	"github.com/kbremont/531-tracker/server/internal/auth"
-	"github.com/kbremont/531-tracker/server/internal/training"
-	"github.com/kbremont/531-tracker/server/internal/web"
+	"github.com/kbremont/kedge/server/internal/api"
+	"github.com/kbremont/kedge/server/internal/auth"
+	"github.com/kbremont/kedge/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/web"
 )
 
 // Config holds everything the server needs from its environment.

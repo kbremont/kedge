@@ -12,7 +12,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/training"
 )
 
 // The lifter: training maxes from a couple of years of 5/3/1.

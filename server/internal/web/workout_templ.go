@@ -11,7 +11,7 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/training"
 )
 
 func Workout(w WorkoutPage) templ.Component {

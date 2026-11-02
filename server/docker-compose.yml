@@ -2,7 +2,7 @@ services:
   531:
     # `docker compose pull` fetches this; `docker compose up --build` builds
     # the working tree and tags it under the same name instead.
-    image: ghcr.io/kbremont/531-tracker:latest
+    image: ghcr.io/kbremont/kedge:latest
     build:
       context: .
       args:

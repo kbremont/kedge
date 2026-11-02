@@ -1,6 +1,6 @@
 # Kedge
 
-The iOS app for the 5/3/1 tracker, built with Expo (SDK 58). It shows what
+The iOS app, built with Expo (SDK 58). It shows what
 the Go server in [`../server`](../server/README.md) computes and keeps no
 training logic of its own. Bundle id `sh.lyle.kedge`; EAS project
 [`@lyle15/kedge`](https://expo.dev/accounts/lyle15/projects/kedge); App Store

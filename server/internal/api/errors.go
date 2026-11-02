@@ -12,7 +12,7 @@ import (
 	"github.com/getkin/kin-openapi/routers"
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/training"
 )
 
 // fail answers with the status and message for an error. Where the web

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/training"
 )
 
 // FmtWeight renders a weight. The rule lives in training, which writes

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/training"
 )
 
 // StartWorkout starts the next scheduled session, or resumes the one in

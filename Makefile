@@ -65,7 +65,7 @@ demo: generate
 docker:
 	docker buildx build --platform linux/arm64 \
 		--build-arg VERSION=$(VERSION) \
-		-t 531-tracker:$(VERSION) $(SERVER)
+		-t kedge:$(VERSION) $(SERVER)
 
 ## app: start the Expo dev server for the iOS app
 app:

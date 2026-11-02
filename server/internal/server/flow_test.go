@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kbremont/531-tracker/server/internal/auth"
-	"github.com/kbremont/531-tracker/server/internal/db"
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/auth"
+	"github.com/kbremont/kedge/server/internal/db"
+	"github.com/kbremont/kedge/server/internal/training"
 )
 
 // harness drives the real routes, auth included, over an in-memory database.

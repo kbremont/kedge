@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kbremont/531-tracker/server/internal/program"
+	"github.com/kbremont/kedge/server/internal/program"
 )
 
 // FormatWeight renders a weight without a trailing ".0", since almost every

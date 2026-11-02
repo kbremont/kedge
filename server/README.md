@@ -1,4 +1,4 @@
-# 5/3/1 Tracker: server
+# Kedge: server
 
 The Go server: the 5/3/1 engine, the SQLite database, and the web UI. Paths
 below are relative to this directory unless they say otherwise.
@@ -155,7 +155,7 @@ and the app's `mobile/src/api/schema.gen.ts` and `fixtures/`) are committed,
 so none of the generators is needed to build. CI fails if `make generate`
 changes anything.
 
-The Go module is `github.com/kbremont/531-tracker/server`, rooted here, so
+The Go module is `github.com/kbremont/kedge/server`, rooted here, so
 `go test ./...` run from this directory covers the whole server and nothing
 else.
 
@@ -295,7 +295,7 @@ image with `server -seed-demo` and its own volume and password.
 Let CI cross-build for arm64 and pull the image; building on the Pi itself is
 slow. `.github/workflows/release.yml` (at the repo root) publishes to GHCR on
 every push to `main` that changes `server/`. The compose file already points `image:` at
-`ghcr.io/kbremont/531-tracker:latest` and keeps the `build:` block alongside
+`ghcr.io/kbremont/kedge:latest` and keeps the `build:` block alongside
 it, so the same file works both ways:
 
 | Goal | Command |
