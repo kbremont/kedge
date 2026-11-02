@@ -1,13 +1,14 @@
 import { Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
 import { pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { router } from 'expo-router';
-import { Alert, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Alert, Linking, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { useInfo, useSettings } from '@/api/queries';
 import type { Settings } from '@/api/schema.gen';
 import { Heading, Intro, LiftChip, LoadState, Page, TextAction, useCardStyles } from '@/components/card-back';
 import { Row, SectionRow, settingStyles } from '@/components/settings';
 import { setAppearance, useAppearance, type AppearanceChoice } from '@/lib/appearance';
+import { privacyPolicyUrl } from '@/lib/brand';
 import { running, runningText } from '@/lib/build';
 import { signOut, useConnection } from '@/lib/connection';
 import { fmtClock, fmtWeight, shortName } from '@/lib/format';
@@ -126,9 +127,9 @@ function AppearanceSection() {
   );
 }
 
-// The server the app is signed in to, what this install runs, and the way
-// out. It needs nothing from the settings read, so it shows even when that
-// read fails.
+// The server the app is signed in to, what this install runs, the way out,
+// and the privacy policy, which opens in Safari. It needs nothing from the
+// settings read, so it shows even when that read fails.
 function Server() {
   const { s } = useCardStyles();
   const { url } = useConnection();
@@ -167,6 +168,12 @@ function Server() {
         icon="rectangle.portrait.and.arrow.right"
         onPress={confirmSignOut}
         style={local.signOut}
+      />
+      <TextAction
+        label="Privacy policy"
+        icon="hand.raised"
+        muted
+        onPress={() => void Linking.openURL(privacyPolicyUrl)}
       />
 
       <Text style={[s.sub, local.footer]}>Not affiliated with Jim Wendler.</Text>

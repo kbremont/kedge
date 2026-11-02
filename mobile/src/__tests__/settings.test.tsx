@@ -2,7 +2,7 @@ import { focusManager } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
-import { Alert, Appearance, type AlertButton } from 'react-native';
+import { Alert, Appearance, Linking, type AlertButton } from 'react-native';
 
 import settingsFixture from '@/api/fixtures/settings.json';
 import { keys, makeQueryClient } from '@/api/queries';
@@ -13,6 +13,7 @@ import LoadingScreen from '@/app/(tabs)/(settings)/settings/loading';
 import RestScreen from '@/app/(tabs)/(settings)/settings/rest';
 import SupplementalScreen from '@/app/(tabs)/(settings)/settings/supplemental';
 import TrainingMaxesScreen from '@/app/(tabs)/(settings)/settings/training-maxes';
+import { privacyPolicyUrl } from '@/lib/brand';
 import { fakeServer, json, renderApp, testUrl, type Routes } from '@/test-utils';
 
 // Settings against a stand-in server: the root's rows and what they say, each
@@ -528,5 +529,15 @@ describe('first load', () => {
     expect(screen.getAllByTestId('Picker')).toHaveLength(1);
     expect(screen.getByText(testUrl)).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Privacy policy' })).toBeOnTheScreen();
+  });
+
+  test('Privacy policy opens the policy in Safari', async () => {
+    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    await renderApp(routes, { server: fakeServer({ 'GET /settings': fixture }), initialUrl: '/settings' });
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Privacy policy' }));
+    expect(open).toHaveBeenCalledWith(privacyPolicyUrl);
+    open.mockRestore();
   });
 });
