@@ -9,7 +9,7 @@ Connect's.
 | Field | Value |
 |---|---|
 | Name (30) | Kedge Strength |
-| Subtitle (30) | 5/3/1 training, self-hosted |
+| Subtitle (30) | The self-hosted 5/3/1 logbook |
 | Primary category | Health & Fitness |
 | Secondary category | none |
 | Content rights | No third-party content |
