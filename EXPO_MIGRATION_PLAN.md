@@ -464,7 +464,7 @@ Decided with the user on 2026-11-01:
 - **Pages:**
   - **`docs/privacy.md` and `docs/support.md`,** read on GitHub. The repo goes public before submission.
   - **In the app:** Settings gains a "Privacy policy" link, as guideline 5.1.1(i) requires.
-  - **Social preview:** the loaded bar replaces the owner's avatar.
+  - **Social preview:** `docs/social-preview.png`, Connect's masthead, becomes the card for the repo's links shared elsewhere, in place of GitHub's generated one. GitHub takes it only from a public repo, so it's uploaded (Settings → General → Social preview) once the repo goes public. The repo page keeps the owner's avatar, since a repo has no image of its own.
 - **Listing:**
   - **Text:** the listing text, review notes and privacy answers live in `docs/app-store/`.
   - **Store fields:** Health & Fitness, free, "not a trader" for the EU.
