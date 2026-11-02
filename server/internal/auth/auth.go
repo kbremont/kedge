@@ -31,10 +31,9 @@ type Sessions struct {
 
 // New returns the sessions for a password. The signing secret is derived
 // from the password so that no second secret has to be configured, and so
-// that changing the password invalidates every session. The prefix keeps the
-// project's old name: changing it would sign everyone out as well.
+// that changing the password invalidates every session.
 func New(password string) *Sessions {
-	sum := sha256.Sum256([]byte("531-tracker/session/v1:" + password))
+	sum := sha256.Sum256([]byte("kedge/session/v1:" + password))
 	return &Sessions{secret: sum[:], password: password}
 }
 

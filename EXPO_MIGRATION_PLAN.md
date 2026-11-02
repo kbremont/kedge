@@ -444,8 +444,8 @@ Decided with the user on 2026-11-01:
 
 - **Names:**
   - **The repo:** renamed `kbremont/kedge`. The Go module is `github.com/kbremont/kedge/server`, and the image moves to `ghcr.io/kbremont/kedge`, because image names don't follow a rename.
+  - **The session secret's prefix** becomes `kedge/session/v1:`. That signed everyone out once, which the owner, the only one signed in, accepted.
   - **Kept for continuity:**
-    - the session secret's `531-tracker/session/v1:` prefix, since changing it would sign everyone out
     - the `s531` cookie
     - `531.db`
     - the web UI's "5/3/1" title

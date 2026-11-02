@@ -41,10 +41,11 @@ func TestTokens(t *testing.T) {
 	}
 }
 
-// TestTokenFormat pins the token to the format the server has always issued,
-// so signed-in browsers stay signed in across upgrades.
+// TestTokenFormat pins the token the server issues, so signed-in browsers and
+// apps stay signed in across upgrades. It changed once, on purpose, when the
+// secret's prefix took the name Kedge.
 func TestTokenFormat(t *testing.T) {
-	const want = "2000000000.4b4175492e77689dbe875a040005553898d5ef70bf72f1c41f992104346070d9"
+	const want = "2000000000.4c4ee6fef3c63708f17ee76d806d6d42c0bfe1d965f754421a25e043ddb0c13b"
 	if got := New("secret").Sign(time.Unix(2000000000, 0)); got != want {
 		t.Errorf("Sign = %q, want %q", got, want)
 	}
