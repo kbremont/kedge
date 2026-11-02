@@ -79,8 +79,11 @@ paths: the app links the privacy policy itself (`mobile/src/lib/brand.ts`).
 
 ## Screenshots
 
-iPhone 6.9" (1320×2868), from `screenshots/` in this folder. Kedge runs
-on iPhone only, so there's no iPad set.
+"iPhone with Dynamic Island (medium display)", the 6.1"/6.3" slot, at
+1206×2622, from `screenshots/` in this folder, in order. App Store Connect
+turned down 6.9" (1320×2868) images there, so the captures from the iPhone
+17 Pro Max simulator are scaled to fit (the two shapes differ by 0.07%).
+Kedge runs on iPhone only, so there's no iPad set.
 
 ## Also
 
