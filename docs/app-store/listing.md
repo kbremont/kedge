@@ -79,8 +79,28 @@ paths: the app links the privacy policy itself (`mobile/src/lib/brand.ts`).
 
 ## Screenshots
 
-iPhone 6.9" (1320×2868), from `screenshots/` in this folder. Kedge runs
-on iPhone only, so there's no iPad set.
+Upload these into "iPhone with Dynamic Island (medium display)", the
+6.1"/6.3" slot, at 1206×2622, from `screenshots/` in this folder, in order:
+
+| File | Caption | Screen |
+|---|---|---|
+| `1-session.png` | Every set, without the math | bench's session at its first main set, rest timer running |
+| `2-today.png` | Know what's next | Today, with bench's anchor session next |
+| `3-history.png` | Every round, every lift | History's career table |
+| `4-deadlift.png` | Watch your max climb | deadlift's chart of PR sets and past estimates |
+| `5-session-dark.png` | Light or dark | the session in dark |
+
+Each caption is set like the app's section headings, in black condensed
+caps over a heavy rule. Below it, the screen sits in a flat phone edge in
+the ink, on the chipboard ground (night navy for the dark one), so the
+chipboard screens don't blend into the page. The screens are 1320×2868
+captures from the preview build on the iPhone 17 Pro Max simulator, signed
+in to a server seeded with `-demo`: Today, History and deadlift's chart on
+the seed where every estimated max climbs (#22), and the two session shots
+on the public demo, whose bench session is the same on either seed. Each PNG
+records how it was made.
+
+Kedge runs on iPhone only, so there's no iPad set.
 
 ## Also
 
