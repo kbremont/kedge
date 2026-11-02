@@ -49,6 +49,7 @@ func healthcheck() int {
 func main() {
 	check := flag.Bool("healthcheck", false, "probe the running server's /healthz and exit")
 	seedDemo := flag.Bool("seed-demo", false, "fill an empty database with a realistic demo block before serving")
+	demoMode := flag.Bool("demo", false, "run as a public demo: -seed-demo, and keep no notes from visitors")
 	flag.Parse()
 	if *check {
 		os.Exit(healthcheck())
@@ -56,13 +57,13 @@ func main() {
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	if err := run(log, *seedDemo); err != nil {
+	if err := run(log, *seedDemo || *demoMode, *demoMode); err != nil {
 		log.Error("fatal", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(log *slog.Logger, seedDemo bool) error {
+func run(log *slog.Logger, seedDemo, demoMode bool) error {
 	password := os.Getenv("AUTH_PASSWORD")
 	if password == "" {
 		return errors.New("AUTH_PASSWORD is required; set it in the environment or compose file")
@@ -93,10 +94,14 @@ func run(log *slog.Logger, seedDemo bool) error {
 		}
 	}
 
+	if demoMode {
+		log.Info("running as a public demo: training max notes are dropped")
+	}
+
 	addr := envOr("ADDR", ":3000")
 	srv := &http.Server{
 		Addr:              announceAddr(addr),
-		Handler:           server.New(conn, log, server.Config{Password: password, Version: version}).Handler(),
+		Handler:           server.New(conn, log, server.Config{Password: password, Version: version, Demo: demoMode}).Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,

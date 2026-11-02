@@ -19,6 +19,9 @@ import (
 type Config struct {
 	Password string
 	Version  string
+	// Demo runs the server as a public demo, which keeps no free text from
+	// its visitors: a training max's note is dropped.
+	Demo bool
 }
 
 type Server struct {
@@ -32,6 +35,9 @@ type Server struct {
 func New(conn *sql.DB, log *slog.Logger, cfg Config) *Server {
 	sessions := auth.New(cfg.Password)
 	svc := training.New(conn, log)
+	if cfg.Demo {
+		svc = svc.WithoutNotes()
+	}
 	return &Server{
 		conn:     conn,
 		log:      log,

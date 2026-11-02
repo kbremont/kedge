@@ -125,6 +125,14 @@ want it on your LAN instead.
 | `ADDR` | `:3000` | Listen address. |
 | `TZ` | `UTC` | Zone for displayed dates; storage is always UTC. |
 
+The binary also takes three flags:
+
+| Flag | Purpose |
+|------|---------|
+| `-seed-demo` | Fill an empty database with a demo block before serving (see Demo data). |
+| `-demo` | Run as a public demo: `-seed-demo`, and keep no free text from visitors. |
+| `-healthcheck` | Probe the running server's `/healthz` and exit, for the container's health check. |
+
 ### Backups
 
 `Settings → Download backup` streams a `VACUUM INTO` snapshot, which is
@@ -287,8 +295,23 @@ fails while the generated files or the app's copies are out of date.
 serving: both leaders, a passed TM test, part of the anchor, and past
 estimates, dated over the weeks up to yesterday. A database with training
 maxes is left alone, so the flag is safe to leave on. `make demo` runs it
-against `server/data-demo`; the public demo server for App Review runs the
-image with `server -seed-demo` and its own volume and password.
+against `server/data-demo`.
+
+`-demo` is for a demo anyone can sign in to. It seeds the same way, and it
+drops the note on a training max set from settings, the one piece of free
+text a visitor could leave: everyone shares one lifter, so the next visitor
+would read it on the lift's page. The value is still saved, and the notes
+the server writes itself, such as "initial setup", are kept.
+
+Two copies run on the homelab's VPS, both with `-demo` and their database on
+a tmpfs, so a restart is a fresh seed:
+
+- `https://kedge-demo.lyle.sh`, password `demo`, for anyone trying Kedge
+  before running a server. It restarts every hour.
+- `https://kedge-review.lyle.sh`, App Review's, with a private password. It
+  restarts nightly.
+
+Only `/api/` is routed to them, so the web UI isn't served there.
 
 ### Deploying to the Pi
 
