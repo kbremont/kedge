@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/training"
 )
 
 // Each method is one operation in the spec. Success is the typed response

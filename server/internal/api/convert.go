@@ -3,7 +3,7 @@ package api
 import (
 	"math"
 
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/training"
 )
 
 // Converters from training's read models to the wire types generated from the

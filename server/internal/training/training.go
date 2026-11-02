@@ -15,7 +15,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/kbremont/531-tracker/server/internal/db"
+	"github.com/kbremont/kedge/server/internal/db"
 )
 
 // Service is the training rules over one database.

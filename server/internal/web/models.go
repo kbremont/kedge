@@ -1,6 +1,6 @@
 package web
 
-import "github.com/kbremont/531-tracker/server/internal/training"
+import "github.com/kbremont/kedge/server/internal/training"
 
 // Nav marks which top-level section is active.
 type Nav string

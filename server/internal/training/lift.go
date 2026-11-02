@@ -8,8 +8,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/kbremont/531-tracker/server/internal/db"
-	"github.com/kbremont/531-tracker/server/internal/program"
+	"github.com/kbremont/kedge/server/internal/db"
+	"github.com/kbremont/kedge/server/internal/program"
 )
 
 // The chart is drawn in a ChartWidth x ChartHeight viewBox, with the points

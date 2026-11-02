@@ -1,4 +1,4 @@
-# 5/3/1 Tracker
+# Kedge
 
 A self-hosted tracker for Jim Wendler's 5/3/1, built for one person and a
 phone at the gym.

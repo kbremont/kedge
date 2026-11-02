@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/kbremont/531-tracker/server/internal/db"
+	"github.com/kbremont/kedge/server/internal/db"
 )
 
 // Settings returns the settings screen.

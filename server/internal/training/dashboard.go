@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kbremont/531-tracker/server/internal/db"
-	"github.com/kbremont/531-tracker/server/internal/program"
+	"github.com/kbremont/kedge/server/internal/db"
+	"github.com/kbremont/kedge/server/internal/program"
 )
 
 const recentLimit = 8

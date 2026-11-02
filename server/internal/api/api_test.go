@@ -17,9 +17,9 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/kbremont/531-tracker/server/internal/auth"
-	"github.com/kbremont/531-tracker/server/internal/db"
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/auth"
+	"github.com/kbremont/kedge/server/internal/db"
+	"github.com/kbremont/kedge/server/internal/training"
 )
 
 // testNow is the harness's clock: the latest date a past estimate can have,

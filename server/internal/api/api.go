@@ -26,8 +26,8 @@ import (
 	"github.com/getkin/kin-openapi/routers/gorillamux"
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 
-	"github.com/kbremont/531-tracker/server/internal/auth"
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/auth"
+	"github.com/kbremont/kedge/server/internal/training"
 )
 
 // APIVersion is the version of the API under /api/v1, reported by info. It

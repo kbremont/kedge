@@ -19,9 +19,9 @@ import (
 	// which has no /usr/share/zoneinfo.
 	_ "time/tzdata"
 
-	"github.com/kbremont/531-tracker/server/internal/db"
-	"github.com/kbremont/531-tracker/server/internal/demo"
-	"github.com/kbremont/531-tracker/server/internal/server"
+	"github.com/kbremont/kedge/server/internal/db"
+	"github.com/kbremont/kedge/server/internal/demo"
+	"github.com/kbremont/kedge/server/internal/server"
 )
 
 // version is stamped at build time and used to bust static asset caches.

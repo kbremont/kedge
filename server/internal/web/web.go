@@ -12,8 +12,8 @@ import (
 
 	"github.com/a-h/templ"
 
-	"github.com/kbremont/531-tracker/server/internal/auth"
-	"github.com/kbremont/531-tracker/server/internal/training"
+	"github.com/kbremont/kedge/server/internal/auth"
+	"github.com/kbremont/kedge/server/internal/training"
 )
 
 // static holds the CSS and icons, so the compiled binary is the whole

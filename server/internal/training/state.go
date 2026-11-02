@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/kbremont/531-tracker/server/internal/db"
-	"github.com/kbremont/531-tracker/server/internal/program"
+	"github.com/kbremont/kedge/server/internal/db"
+	"github.com/kbremont/kedge/server/internal/program"
 )
 
 // blockState is everything the dashboard and the session routes need to know

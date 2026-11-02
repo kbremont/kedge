@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kbremont/531-tracker/server/internal/db"
+	"github.com/kbremont/kedge/server/internal/db"
 )
 
 func (h *harness) addPast(slug, date, weight, reps string) string {
