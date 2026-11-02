@@ -83,7 +83,7 @@ export default function ConnectScreen() {
           maxFontSizeMultiplier={displayScaleCap}>
           {appName}
         </Text>
-        <Text style={[local.tagline, { color: p.ink2 }]}>5/3/1, kept on your own server.</Text>
+        <Text style={[local.tagline, { color: p.ink2 }]}>The self-hosted 5/3/1 logbook.</Text>
       </View>
 
       <Label style={local.label}>Server address</Label>
