@@ -86,7 +86,7 @@ Upload these into "iPhone with Dynamic Island (medium display)", the
 |---|---|---|
 | `1-session.png` | Every set, without the math | bench's session at its first main set, rest timer running |
 | `2-today.png` | Know what's next | Today, with bench's anchor session next |
-| `3-history.png` | Every round, on the record | History's career table |
+| `3-history.png` | Every round, every lift | History's career table |
 | `4-deadlift.png` | Watch your max climb | deadlift's chart of PR sets and past estimates |
 | `5-session-dark.png` | Light or dark | the session in dark |
 
