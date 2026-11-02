@@ -34,6 +34,11 @@ type harness struct {
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
+	return newHarnessWith(t, Config{Password: "test"})
+}
+
+func newHarnessWith(t *testing.T, cfg Config) *harness {
+	t.Helper()
 	conn, err := sql.Open("sqlite", "file::memory:?_pragma=foreign_keys(1)")
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -45,7 +50,7 @@ func newHarness(t *testing.T) *harness {
 	}
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	s := New(conn, log, Config{Password: "test"})
+	s := New(conn, log, cfg)
 	return &harness{
 		t:      t,
 		h:      s.Handler(),

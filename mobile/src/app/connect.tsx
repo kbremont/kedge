@@ -83,7 +83,7 @@ export default function ConnectScreen() {
           maxFontSizeMultiplier={displayScaleCap}>
           {appName}
         </Text>
-        <Text style={[local.tagline, { color: p.ink2 }]}>5/3/1, kept on your own server.</Text>
+        <Text style={[local.tagline, { color: p.ink2 }]}>The self-hosted 5/3/1 logbook.</Text>
       </View>
 
       <Label style={local.label}>Server address</Label>
@@ -130,8 +130,7 @@ export default function ConnectScreen() {
         onPress={connect}
       />
       <Intro style={local.note}>
-        The app talks only to this server, over Tailscale or your own network. Nothing you log is sent anywhere
-        else.
+        Kedge reaches this server over your own network or a VPN. Nothing you log is sent anywhere else.
       </Intro>
     </ScrollView>
   );

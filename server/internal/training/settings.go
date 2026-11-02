@@ -140,10 +140,14 @@ func (s *Service) SaveSettings(ctx context.Context, in SettingsInput) error {
 
 // SetTrainingMax appends to the training max log. It never updates in place,
 // so past sessions keep the weights they were performed at. It returns
-// ErrNotFound for an unknown lift.
+// ErrNotFound for an unknown lift. A service made WithoutNotes keeps the
+// value and drops the note.
 func (s *Service) SetTrainingMax(ctx context.Context, slug string, value float64, note string) error {
 	if value <= 0 {
 		return inputError("Enter a positive training max.")
+	}
+	if s.dropNotes {
+		note = ""
 	}
 	if _, err := s.q.GetLift(ctx, slug); errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound

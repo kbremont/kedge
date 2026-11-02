@@ -20,10 +20,11 @@ import (
 
 // Service is the training rules over one database.
 type Service struct {
-	conn *sql.DB
-	q    *db.Queries
-	log  *slog.Logger
-	now  func() time.Time
+	conn      *sql.DB
+	q         *db.Queries
+	log       *slog.Logger
+	now       func() time.Time
+	dropNotes bool
 }
 
 // New returns the service for a migrated database.
@@ -37,6 +38,15 @@ func New(conn *sql.DB, log *slog.Logger) *Service {
 func (s *Service) WithClock(now func() time.Time) *Service {
 	c := *s
 	c.now = now
+	return &c
+}
+
+// WithoutNotes returns a copy of the service that keeps no note with a
+// training max set from settings. The public demo uses it: every visitor
+// shares one lifter, so a note one of them left would greet the next.
+func (s *Service) WithoutNotes() *Service {
+	c := *s
+	c.dropNotes = true
 	return &c
 }
 

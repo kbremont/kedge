@@ -10,11 +10,11 @@ The native iOS app in `mobile/` (Expo, SDK 58) is the product that design work s
 
 ## Users
 
-**Primary: the owner.** An experienced 5/3/1 lifter who runs the server on their own hardware (a Raspberry Pi, reached over Tailscale) and uses the app on their phone at the gym. Their main job is getting through a session: knowing what to lift next, loading the bar, logging each set, and resting. Away from the bar they review history and lift charts, change settings, and settle training max decisions.
+**Primary: the owner.** An experienced 5/3/1 lifter who runs the server on their own hardware (a Mac mini at home, reached over NetBird) and uses the app on their phone at the gym. Their main job is getting through a session: knowing what to lift next, loading the bar, logging each set, and resting. Away from the bar they review history and lift charts, change settings, and settle training max decisions.
 
 **Secondary: other self-hosters.** 5/3/1 lifters who install the app from the App Store and run their own server. They come second, but they should be able to connect, set up and train without help.
 
-**Incidental: Apple App Review**, which signs in to a public demo server seeded with a demo lifter's block.
+**Incidental: visitors to the public demo**, self-hosters trying Kedge before they run a server. They share one demo lifter, which resets hourly. **And Apple App Review**, which signs in to its own copy of the demo.
 
 ## Product Purpose
 
@@ -24,7 +24,7 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 
 ## Positioning
 
-- **Self-hosted and private.** The lifter's whole history is one SQLite file on their own server. There is no account and no third-party service, and the App Store privacy label is "Data Not Collected".
+- **Self-hosted and private.** The lifter's whole history is one SQLite file on their own server, and nothing they log goes anywhere else. There is no account. The one outside contact is Expo's update check, which sends an install id and, after a crash, its message; the App Store privacy label says so ("Data Not Linked to You").
 - **Training maxes only move when the lifter says so.** The app proposes changes after each TM test and at the start of each block, shows the evidence, lets every value be edited, and writes nothing until the lifter accepts. The block waits for that decision.
 - **Rounds, not calendar weeks.** A round is four sessions, one per lift, so a missed day never breaks the schedule.
 - **Start partway through.** On first run the lifter says which cycle they are on and which sessions they have done. There is no old history to key in and nothing invented to stand for it.
@@ -33,7 +33,7 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 ## Operating Context
 
 - **At the gym**, phone in hand between sets. Each set comes down to: read the weight and plates, lift, log the reps, rest. The rest timer counts down against the clock, so it stays right if the phone sleeps.
-- **Network required.** The app talks to the lifter's server over Tailscale (or their LAN), and there is no offline mode.
+- **Network required.** The app talks to the lifter's server over a VPN such as NetBird or Tailscale, or their LAN, and there is no offline mode.
 - **At block transitions**, the lifter makes a decision before training goes on: lowering or keeping a training max after a failed TM test, accepting the block review, or skipping the optional deload.
 - **First run:** connect to a server URL with the password, enter training maxes, then choose where in the program to start.
 - **Distribution:** EAS builds go out through TestFlight and the App Store, and JS-only changes ship as over-the-air updates.
@@ -79,7 +79,7 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 
 ## Brand Commitments
 
-- The app is called **Kedge**, with "5/3/1" in the subtitle and description and a note that the app is not affiliated with Jim Wendler. A kedge is a small anchor a ship drops ahead and hauls itself up to, the way the program moves a lifter forward. The PWA's "5/3/1" title is not the app name.
+- The app is called **Kedge** (listed on the App Store as "Kedge Strength", since "Kedge" was taken), with "5/3/1" in the subtitle and description and a note that the app is not affiliated with Jim Wendler. A kedge is a small anchor a ship drops ahead and hauls itself up to, the way the program moves a lifter forward. The PWA's "5/3/1" title is not the app name.
 - App Store category: Health & Fitness.
 - No visual commitments. The migration plan's look notes (dark only, an amber accent, Geist, lucide icons, the football-survivor palette) were a starting idea, not decisions. The design phase decides the look.
 
@@ -97,4 +97,4 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 2. **The bar comes first.** During a session, the next set and how to log it outrank everything else on screen. History, charts and settings can wait until the lifter is away from the bar.
 3. **Decisions belong to the lifter.** Show what's proposed and why, keep it editable, and write nothing until the lifter confirms.
 4. **Fit the lifter's real training.** Count rounds rather than weeks, start wherever they are, and never fill gaps with invented history.
-5. **Their data stays theirs.** The data lives on their own server, and the app sends nothing anywhere else.
+5. **Their data stays theirs.** The data lives on their own server, and nothing they log is sent anywhere else. The app's only other contact is Expo's update check, and the privacy label and policy say what it sends.
