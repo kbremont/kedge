@@ -438,7 +438,75 @@ Settings was one long page, about 2.7 screens at the default text size. It's an 
 
 Verification: `tsc`, `expo lint`, `jest` (235 tests in 16 suites), `expo-doctor`, `expo export:embed --eager` and `make check` all pass. In the simulator against `make demo`, in light, dark and accessibility-medium, each page opened from its row with the saved values, a save came back to the root's new summary and agreed with the web UI, a refusal stayed on its page, the back button and the swipe both asked before discarding, and a training max saved through its prompt.
 
-### 6. Demo server and App Store
+### 6. Demo server and App Store ✅ Submitted for review
+
+Kedge 1.0.0 (build 5) went to App Review on 2026-11-01 as **Kedge Strength**, set to release manually. It got there through PRs #16–#22 in this repo and kbremont/homelab#2:
+
+- **The repo:** renamed `kbremont/kedge` and made public under MIT, after gitleaks found nothing in the 108 commits of every pushed branch and pull request ref.
+  - **Module and image:** the Go module is `github.com/kbremont/kedge/server`, and the image moved to `ghcr.io/kbremont/kedge`, which the Mac mini now runs.
+  - **Licenses:** Expo's template notice stayed for the few files it covers, as `mobile/LICENSE-expo-template`.
+  - **README:** rewritten for self-hosters, with the app icon before the title. The repo's social preview is Connect's masthead (`docs/social-preview.png`).
+- **The demo:**
+  - **Where:** two copies on the homelab's VPS, behind the Traefik NetBird's quickstart installed (homelab `vps/kedge/`, `make kedge`, `make update-kedge`).
+  - **The copies:**
+    - `kedge-demo.lyle.sh`: password `demo`, published on the support page, reset hourly.
+    - `kedge-review.lyle.sh`: App Review's own, with a private passphrase, reset nightly.
+  - **How they run:** both on `-demo`, with the database on a tmpfs, as nobody with a read-only root, on their own Docker network. Only `/api/` is routed to them, with a rate limit and no access logs.
+- **The server:**
+  - **`-demo`:** seeds an empty database and drops a training max's note, the one free text a visitor could leave for the next.
+  - **The seed:** its lifter now gets stronger, and every lift's chart climbs from the notebook into the anchor. `TestSeed` holds it to that.
+  - **The session prefix:** now `kedge/session/v1:`, which signed everyone out once.
+- **The app:**
+  - **Settings** links the privacy policy (guideline 5.1.1(i)).
+  - **Connect's note** no longer claims the app talks only to the server.
+  - **The tagline** is "The self-hosted 5/3/1 logbook.", which is also the store subtitle.
+  - **Shipping:** all of it JS-only, published as an update to `preview`, checked in the preview build, then republished to `production`.
+- **The store:**
+  - **`docs/app-store/`** holds the listing, the App Privacy answers and App Review's notes.
+  - **Privacy policy and support page:** `docs/privacy.md` and `docs/support.md`, read on GitHub.
+  - **Screenshots:** five captioned shots at 1206×2622:
+    1. "Every set, without the math"
+    2. "Know what's next"
+    3. "Every round, every lift"
+    4. "Watch your max climb"
+    5. "Light or dark"
+- **The build:** 1.0.0 (5) is a fresh production build with `--auto-submit`, so a reviewer's first launch runs the shipping code. Its fingerprint (`2d0e0815…`) matches `main`, so updates still reach it.
+
+Verification:
+
+- **Checks:** `make check` and `make generate` pass with no diff. `tsc` and `expo lint` report nothing. Jest passes 236 tests and `expo-doctor` its 20 checks.
+- **Demo:**
+  - **The routing:** both copies answer `/api/v1/info` over Let's Encrypt with NetBird off. `/` is a 404 and a wrong password a 401, and `kedge-review` refuses `demo`.
+  - **The resets:** the hourly reset wiped a session started for the screenshots.
+  - **Nothing broken:** `netbird.lyle.sh` and `survivor.lyle.sh` still load.
+  - **The seed:** after `make update-kedge`, both copies run `b7158e8`, and the public demo's deadlift climbs from 368.5 to 418.
+- **Simulator:**
+  - **The dev client:** the Privacy policy link shows in light, dark and accessibility-medium, even when the server can't be reached, and opens Safari.
+  - **The preview build:** it ran the update and showed the new link and tagline.
+  - **Screenshots:** taken there against `-demo` servers.
+- **Public pages:** the privacy policy, support page and README icon load logged out. GitHub detects the MIT license and reports the custom social preview.
+
+Where the result differs from the plan below:
+
+- **A public demo too.** The plan had one demo, for App Review. Self-hosters can now try Kedge first.
+  - **The cost:** visitors share one lifter. The app already handles a session discarded elsewhere.
+  - **The fix:** so no visitor can leave text for the next, `-demo` drops training max notes.
+  - **App Review** gets a copy of its own.
+- **Repo and app wording:**
+  - **The repo was renamed and made public.** The privacy policy and support page are read on GitHub, so no static site was needed.
+  - **The session prefix changed after all.** The owner chose a one-time sign-out over keeping the old name.
+  - **New tagline:** Connect's tagline and the store subtitle are "The self-hosted 5/3/1 logbook." in place of "5/3/1, kept on your own server." and "5/3/1 training, self-hosted".
+- **Screenshots:**
+  - **The size:** App Store Connect's iPhone slot is now "iPhone with Dynamic Island (medium display)", which refused 6.9" (1320×2868) images. The screenshots are 1206×2622, scaled from 6.9" captures.
+  - **Captioned:** the owner chose captions over plain captures. Each caption is set like a section heading, over the screen in a flat ink phone edge.
+  - **The demo data:** the seed's charts fell after their best point, which "Watch your max climb" couldn't sit over, so the seed changed (#22).
+  - **Where they came from:** the public demo and a local `-demo` server, not the review copy.
+- **App Store Connect:**
+  - **The version** is `1.0.0`, to match the build, not the default `1.0`.
+  - **No iPad, Watch or iPhone Duo screenshots:** Kedge runs on iPhone only.
+- **The social preview** replaces GitHub's generated link card, not the avatar on the repo page, which is always the owner's. GitHub takes one only from a public repo, so it went up after the repo went public.
+
+Still to do: the TestFlight check of build 5 on the phone (`lift.lyle.sh` over NetBird, and both demo copies with NetBird off), the release once App Review approves, and the App Store link in the README.
 
 Decided with the user on 2026-11-01:
 
@@ -468,7 +536,7 @@ Decided with the user on 2026-11-01:
 - **Listing:**
   - **Text:** the listing text, review notes and privacy answers live in `docs/app-store/`.
   - **Store fields:** Health & Fitness, free, "not a trader" for the EU.
-  - **Screenshots:** 1320×2868, from the preview build signed in to the review copy.
+  - **Screenshots:** 1320×2868, from the preview build signed in to the review copy. *(1206×2622 and captioned: see above.)*
 - **Order:**
   1. the rename
   2. the demo and this repo's changes

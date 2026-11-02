@@ -96,3 +96,56 @@ is a new build. `eas update` prints the runtime it published for. Check a
 build against the working tree with
 `npx eas-cli@latest fingerprint:compare --build-id <id>`, or two builds with
 two `--build-id`s.
+
+## The App Store
+
+Kedge is listed as **Kedge Strength**, since "Kedge" was taken; the name
+under the icon stays Kedge. Everything App Store Connect holds lives in
+[`../docs/app-store/`](../docs/app-store/):
+
+- **`listing.md`:** every field of the listing.
+- **`privacy-label.md`:** the App Privacy answers, and why. Revisit them
+  before adding any package that sends data.
+- **`review-notes.md`:** App Review's sign-in and notes.
+- **`screenshots/`:** the captioned screenshots.
+
+The privacy policy and support page are
+[`../docs/privacy.md`](../docs/privacy.md) and
+[`../docs/support.md`](../docs/support.md), read on GitHub. Settings links
+the policy through `privacyPolicyUrl` in `src/lib/brand.ts`, so keep its
+path: a new one reaches installed apps only through an update.
+
+App Review signs in to its own demo server, `https://kedge-review.lyle.sh`,
+whose passphrase is in Vaultwarden and App Store Connect only. The public
+demo, `https://kedge-demo.lyle.sh` with the password `demo`, is for anyone
+trying Kedge. Both run on the homelab's VPS with `-demo` (see the homelab's
+`vps/README.md`).
+
+### A new version for review
+
+JavaScript reaches installed apps as an update. A new version is for
+native changes, or for changing the listing or screenshots, which belong
+to a version.
+
+1. **The version:** raise `version` in `app.json`. The version in App Store
+   Connect has to match it exactly (`1.0.0`, not `1.0`).
+2. **The demo:** from the homelab's `vps/`, run `make update-kedge`, so
+   App Review gets the server this build expects. Check
+   `curl https://kedge-review.lyle.sh/api/v1/info`.
+3. **The build:** export the Apple credentials above, with the issuer ID
+   from App Store Connect (Users and Access → Integrations), then run
+   `npx eas-cli@latest build -p ios --profile production --auto-submit`.
+4. **The phone:** check it on TestFlight. It should sign in to your own
+   server, and to `kedge-review` with NetBird off.
+5. **App Store Connect:** choose the build, update anything in
+   `docs/app-store/` that changed, add it for review, and release it by
+   hand once it's approved.
+
+**Screenshots:** they go in "iPhone with Dynamic Island (medium display)" at
+1206×2622, which refuses 6.9" (1320×2868) images. Retake them whenever a
+screen they show changes:
+1. **Capture:** run the preview build on the iPhone 17 Pro Max simulator,
+   signed in to a `-demo` server. Set the status bar with
+   `xcrun simctl status_bar <udid> override --time 9:41 …`.
+2. **Compose:** set each caption like a section heading, over the screen in
+   a flat ink phone edge. Each PNG records in its metadata how it was made.
