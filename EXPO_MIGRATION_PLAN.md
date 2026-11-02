@@ -440,20 +440,42 @@ Verification: `tsc`, `expo lint`, `jest` (235 tests in 16 suites), `expo-doctor`
 
 ### 6. Demo server and App Store
 
-- **From Phase 5:**
-  - **Name:** the App Store Connect app (`6829543729`) exists under a stand-in name, since "Kedge" is taken, so the listing needs its name.
-  - **Privacy:** `expo-updates` asks `u.expo.dev` for an update at every launch, with the build's runtime, its channel and an id for the install. That bears on the "Data Not Collected" label, and on PRODUCT.md's promise that the app sends nothing anywhere else.
-  - **The build:** a TestFlight build can go to App Review as it is, if it has the code to release.
-- **Demo server:** the same image with its own volume, seeded with `-seed-demo` and a demo password. It's public through Tailscale Funnel on a separate port, or a small VPS; the real server stays tailnet-only.
+Decided with the user on 2026-11-01:
+
+- **Names:**
+  - **The repo:** renamed `kbremont/kedge`. The Go module is `github.com/kbremont/kedge/server`, and the image moves to `ghcr.io/kbremont/kedge`, because image names don't follow a rename.
+  - **Kept for continuity:**
+    - the session secret's `531-tracker/session/v1:` prefix, since changing it would sign everyone out
+    - the `s531` cookie
+    - `531.db`
+    - the web UI's "5/3/1" title
+  - **The App Store name** is "Kedge Strength", since "Kedge" was taken. The home screen stays Kedge.
+- **Privacy label:**
+  - **What's sent:** `expo-updates` sends `u.expo.dev` an install id (`EAS-Client-ID`, a random UUID kept in UserDefaults, which also splits staged rollouts) on every check. After a crash, it also sends the crash's message (`Expo-Fatal-Error`). Expo keeps both for its insights.
+  - **The label:** Data Not Linked to You. Identifiers (Device ID), Usage Data (Product Interaction) and Diagnostics (Crash Data), for App Functionality and Analytics, with no tracking.
+  - **Copy to match:** `PRODUCT.md` and Connect's note say so. Training data still never leaves the lifter's server.
+- **Demo server: two copies on the VPS** (homelab `vps/kedge/`), each on tmpfs and seeded at start with a new `-demo` flag:
+  - **`kedge-demo.lyle.sh`:** public, password `demo`, resets hourly, so self-hosters can try Kedge first.
+  - **`kedge-review.lyle.sh`:** App Review's, with a private password, resets nightly.
+  - **Why the VPS:** it is the homelab's public box, with nothing private on it, and stays up when home is down.
+  - **Why Traefik:** the VPS already runs it for NetBird, so the demo goes behind it rather than Caddy. NetBird's Proxy needs Traefik's TLS passthrough.
+  - **Lockdown:** each runs as nobody, read-only, with no capabilities, on its own network, with `/api/` routed only, a rate limit and no access logs.
+  - **`-demo`:** also drops a training max's note, the one free text a visitor could leave for the next.
+- **Pages:**
+  - **`docs/privacy.md` and `docs/support.md`,** read on GitHub. The repo goes public before submission.
+  - **In the app:** Settings gains a "Privacy policy" link, as guideline 5.1.1(i) requires.
+  - **Social preview:** the loaded bar replaces the owner's avatar.
 - **Listing:**
-  - original name; 5/3/1 in the subtitle and description, with "not affiliated with Jim Wendler"
-  - Health & Fitness category
-  - privacy label "Data Not Collected" (check that nothing else in the app sends data)
-  - a privacy policy and support page
-  - screenshots at Apple's required sizes, taken from the simulator against demo data
-  - review notes with the demo URL and password
-  - the listing text kept in `docs/app-store/`
-- **Order:** TestFlight first, then App Review.
+  - **Text:** the listing text, review notes and privacy answers live in `docs/app-store/`.
+  - **Store fields:** Health & Fitness, free, "not a trader" for the EU.
+  - **Screenshots:** 1320×2868, from the preview build signed in to the review copy.
+- **Order:**
+  1. the rename
+  2. the demo and this repo's changes
+  3. the repo goes public
+  4. screenshots
+  5. a fresh production build to TestFlight
+  6. App Review, released manually
 
 ### 7. CI and docs
 
@@ -484,4 +506,4 @@ Verification: `tsc`, `expo lint`, `jest` (235 tests in 16 suites), `expo-doctor`
    - past estimates with good and bad input, and a delete
    - sharing a backup *(no longer applies: the app has no backup since Phase 4, and the web UI still downloads one)*
 5. **Parity:** point the server at a copy of the user's real database (a backup from the Pi). The app and the web UI show the same numbers on Today, History, each lift page and old workouts.
-6. **Ship:** the TestFlight build works on the phone over Tailscale; an `eas update` arrives without a rebuild; the demo server is reachable with Tailscale off.
+6. **Ship:** the TestFlight build works on the phone over Tailscale; an `eas update` arrives without a rebuild; the demo server is reachable with NetBird off.
