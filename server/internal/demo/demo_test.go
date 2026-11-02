@@ -62,6 +62,14 @@ func TestSeed(t *testing.T) {
 		if len(l.PastEstimates) < 2 || past != len(l.PastEstimates) || len(l.Points) <= past {
 			t.Errorf("%s: %d points, %d past estimates; want both, and logged points after them", slug, len(l.Points), len(l.PastEstimates))
 		}
+		// And it climbs: each estimated max beats the one before, which is
+		// what the demo, and the App Store screenshots taken from it, show.
+		// Y is in SVG space, so higher on the chart is a smaller Y.
+		for i := 1; i < len(l.Points); i++ {
+			if l.Points[i].Y >= l.Points[i-1].Y {
+				t.Errorf("%s: point %d (%s) isn't above point %d (%s)", slug, i, l.Points[i].Label, i-1, l.Points[i-1].Label)
+			}
+		}
 	}
 
 	// Every date is in the past.
