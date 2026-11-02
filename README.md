@@ -1,4 +1,4 @@
-# Kedge
+# <img src="docs/kedge-icon.png" alt="" width="40" height="40" align="absmiddle"> Kedge
 
 The self-hosted 5/3/1 logbook: an iOS app and a small server for Jim
 Wendler's 5/3/1.
