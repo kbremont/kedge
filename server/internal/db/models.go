@@ -44,16 +44,17 @@ type Program struct {
 }
 
 type Set struct {
-	WorkoutID   int64
-	Idx         int64
-	Kind        string
-	Weight      float64
-	Pct         float64
-	TargetReps  int64
-	IsAmrap     int64
-	ActualReps  sql.NullInt64
-	CompletedAt sql.NullString
-	MaxReps     int64
+	WorkoutID    int64
+	Idx          int64
+	Kind         string
+	Weight       float64
+	Pct          float64
+	TargetReps   int64
+	IsAmrap      int64
+	ActualReps   sql.NullInt64
+	CompletedAt  sql.NullString
+	MaxReps      int64
+	ActualWeight sql.NullFloat64
 }
 
 type Setting struct {

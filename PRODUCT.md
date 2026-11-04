@@ -32,7 +32,7 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 
 ## Operating Context
 
-- **At the gym**, phone in hand between sets. Each set comes down to: read the weight and plates, lift, log the reps, rest. The rest timer counts down against the clock, so it stays right if the phone sleeps.
+- **At the gym**, phone in hand between sets. Each set comes down to: read the weight and plates, lift, log the reps, rest. What was lifted can differ from what was suggested, so the current set's weight and reps can be changed as it's logged. A PR set or TM test keeps its weight, since the verdicts read its reps as done at it. The rest timer counts down against the clock, so it stays right if the phone sleeps.
 - **Network required.** The app talks to the lifter's server over a VPN such as NetBird or Tailscale, or their LAN, and there is no offline mode.
 - **At block transitions**, the lifter makes a decision before training goes on: lowering or keeping a training max after a failed TM test, accepting the block review, or skipping the optional deload.
 - **First run:** connect to a server URL with the password, enter training maxes, then choose where in the program to start.
@@ -40,7 +40,7 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 
 ## Capabilities and Constraints
 
-**Same functionality as the web UI, and all training logic stays in Go.** The app only shows what the server computes, and every screen's data arrives fully worked out from `/api/v1`. The OpenAPI spec at `server/api/openapi.yaml` is the contract. A change answers with the next screen's data, and an error is a message the app can show as it is. The database schema doesn't change.
+**Same functionality as the web UI, and all training logic stays in Go.** The app only shows what the server computes, and every screen's data arrives fully worked out from `/api/v1`. The OpenAPI spec at `server/api/openapi.yaml` is the contract. A change answers with the next screen's data, and an error is a message the app can show as it is. The database schema changes only by migration, and an older app keeps working against a newer server.
 
 **The program.** Each block is eleven rounds: Leader 1 and 2 (5's PRO with BBB 5×10), a 7th Week TM Test (100% AMRAP), Anchor (5/3/1 with PR sets and FSL 5×5), and an optional 7th Week Deload. Every round is four sessions: press, deadlift, bench and squat. Programs are data, so more templates may come.
 
@@ -50,7 +50,7 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 |---|---|
 | connect | default; error |
 | today | next up, in progress, TM test passed, TM test failed, block review, skip deload, blocked, empty |
-| workout | current set, rest timer, AMRAP picker, 3–5 range picker, plates short, finish, completed |
+| workout | current set, changed weight or reps, rest timer, AMRAP picker, 3–5 range picker, plates short, finish, completed |
 | history | list; empty |
 | lift | line, single point, empty, add sheet, error |
 | settings | root (a row per section, Appearance, Server); a page per section; edited; refused; discard changes; can't load |

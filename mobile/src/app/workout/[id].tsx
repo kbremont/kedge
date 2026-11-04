@@ -9,15 +9,18 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
   type LayoutChangeEvent,
   type StyleProp,
+  type TextInputProps,
+  type TextStyle,
   type ViewStyle,
 } from 'react-native';
 
 import { ApiError } from '@/api/client';
-import { useDiscardWorkout, useFinishWorkout, useLogSet, useUndoSet, useWorkout } from '@/api/queries';
+import { useDiscardWorkout, useFinishWorkout, useLogSet, usePlates, useUndoSet, useWorkout } from '@/api/queries';
 import type { Set, Workout } from '@/api/schema.gen';
 import {
   Button,
@@ -128,10 +131,10 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
   const undoError = undoSet.error && undoSet.variables?.idx === undoable?.idx ? undoSet.error : null;
 
   // A new set request replaces the news of the last one that failed.
-  const log = (set: Set, reps: number) =>
+  const log = (set: Set, reps: number, weight?: number) =>
     send((settled) => {
       undoSet.reset();
-      logSet.mutate({ idx: set.idx, reps }, settled);
+      logSet.mutate({ idx: set.idx, reps, weight }, settled);
     });
 
   const undo = (set: Set) =>
@@ -210,61 +213,16 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
               {undoable ? (
                 <Undo set={undoable} disabled={busy} error={undoError} onPress={() => undo(undoable)} />
               ) : null}
-              <View style={[local.current, { backgroundColor: p.stock }]}>
-                <View style={local.currentTop}>
-                  <Text
-                    style={[local.currentWeight, { color: p.ink }]}
-                    maxFontSizeMultiplier={displayScaleCap}
-                    accessibilityLabel={`${fmtWeight(set.weight)} ${w.unit}, ${repsText(set.repTarget)}`}>
-                    {fmtWeight(set.weight)}
-                    <Text style={[local.currentUnit, { color: p.ink2 }]}> {w.unit}</Text>
-                  </Text>
-                  <Text style={[local.currentReps, { color: p.ink }]} maxFontSizeMultiplier={displayScaleCap}>
-                    <Text style={[local.currentTimes, { color: p.ink2 }]}>× </Text>
-                    {set.repTarget}
-                  </Text>
-                </View>
-                <Text style={[local.currentMeta, { color: p.ink2 }]}>
-                  {set.tag} · {fmtPct(set.pct)} of training max
-                  {set.isAmrap ? ' · PR set' : ''}
-                </Text>
-                <View style={[local.plateRow, { borderTopColor: p.rule }]}>
-                  <Label>Per side</Label>
-                  <Text style={[local.plateText, { color: p.ink }]} maxFontSizeMultiplier={displayScaleCap}>
-                    {plateList(set.plates).join('  ·  ') || 'Empty bar'}
-                  </Text>
-                </View>
-                {set.unloadable > 0 ? (
-                  <Notice error style={local.short}>
-                    {fmtWeight(set.unloadable)} {w.unit} short: your plates can’t load {fmtWeight(set.weight)}{' '}
-                    {w.unit} exactly.
-                  </Notice>
-                ) : null}
-                {logError ? (
-                  <Notice error style={local.short}>
-                    {logError.message}
-                  </Notice>
-                ) : null}
-                {set.asksReps ? (
-                  <RepPicker
-                    set={set}
-                    slug={slug}
-                    bestE1rm={w.bestE1rm}
-                    unit={w.unit}
-                    disabled={busy}
-                    refused={logError instanceof ApiError && logError.status === 400 ? logSet.variables?.reps : undefined}
-                    onPick={(r) => log(set, r)}
-                  />
-                ) : (
-                  <Button
-                    icon="checkmark"
-                    label={`Log ${repsText(set.targetReps)}`}
-                    disabled={busy}
-                    style={local.log}
-                    onPress={() => log(set, set.targetReps)}
-                  />
-                )}
-              </View>
+              <CurrentSet
+                set={set}
+                slug={slug}
+                bestE1rm={w.bestE1rm}
+                unit={w.unit}
+                disabled={busy}
+                error={logError}
+                refused={logError instanceof ApiError && logError.status === 400 ? logSet.variables : undefined}
+                onLog={(reps, weight) => log(set, reps, weight)}
+              />
             </View>
           );
         }
@@ -482,6 +440,226 @@ function SetRow({
   );
 }
 
+// What's typed, as a number, or undefined until it is one, so a blank field
+// never logs as 0. How much is the server's to refuse, in its own words. A
+// decimal pad types a comma where the phone's region writes one.
+function typedWeight(text: string): number | undefined {
+  const t = text.trim().replace(',', '.');
+  return /^\d+(\.\d+)?$/.test(t) ? Number(t) : undefined;
+}
+
+function typedReps(text: string): number | undefined {
+  const t = text.trim();
+  return /^\d+$/.test(t) ? Number(t) : undefined;
+}
+
+// A number on the current set that can be changed, in the type it's read in. A
+// TextInput gives Yoga no baseline and doesn't size to its text, so a hidden
+// copy of the text does both, and the input lies over it. `drop` puts the
+// input's digits on the copy's baseline, since it centres them rather than
+// honouring a line height, and `rise` puts the underline just under them. Both
+// are in points at the base text size, and scale with the type.
+function DisplayEntry({
+  type,
+  drop = 0,
+  rise,
+  value,
+  disabled,
+  invalid,
+  ...props
+}: {
+  type: StyleProp<TextStyle>;
+  drop?: number;
+  rise: number;
+  value: string;
+  disabled: boolean;
+  invalid: boolean;
+} & Pick<TextInputProps, 'onChangeText' | 'keyboardType' | 'maxLength' | 'accessibilityLabel'>) {
+  const { p } = useCardStyles();
+  const { fontScale } = useWindowDimensions();
+  const scale = Math.min(fontScale, displayScaleCap);
+  return (
+    <View>
+      <Text
+        style={[type, local.entrySizer]}
+        numberOfLines={1}
+        maxFontSizeMultiplier={displayScaleCap}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants">
+        {value || '0'}
+      </Text>
+      <TextInput
+        {...props}
+        style={[type, local.entryInput, { color: p.ink, top: drop * scale, bottom: -drop * scale }]}
+        value={value}
+        editable={!disabled}
+        selectTextOnFocus
+        selectionColor={p.ink}
+        // A number pad has no return key, and with the field above the keyboard
+        // the plates and Log can be under it. On iOS this adds a bar with Done.
+        returnKeyType="done"
+        maxFontSizeMultiplier={displayScaleCap}
+      />
+      <View
+        testID={`${props.accessibilityLabel} line`}
+        pointerEvents="none"
+        style={[local.entryLine, { bottom: rise * scale, backgroundColor: invalid ? p.danger : p.rule }]}
+      />
+    </View>
+  );
+}
+
+// The set at the bar. Its weight and reps start as suggested and can be changed
+// on the spot, and nothing is saved until it's logged. It's drawn afresh for
+// each set, so an edit never reaches the next one, and undoing a set goes back
+// to its suggestion. A PR set or TM test keeps its weight, as the server says,
+// because the verdicts read its reps as done at that weight.
+function CurrentSet({
+  set,
+  slug,
+  bestE1rm,
+  unit,
+  disabled,
+  error,
+  refused,
+  onLog,
+}: {
+  set: Set;
+  slug: string;
+  bestE1rm: number;
+  unit: string;
+  disabled: boolean;
+  error: Error | null;
+  // What the server just refused, outlined only while it's still typed.
+  refused?: { reps: number; weight?: number };
+  onLog: (reps: number, weight?: number) => void;
+}) {
+  const { p } = useCardStyles();
+  const { fontScale } = useWindowDimensions();
+  const [weightText, setWeightText] = useState(String(set.weight));
+  const [repsDraft, setRepsDraft] = useState(String(set.targetReps));
+  const weight = set.weightEditable ? typedWeight(weightText) : set.weight;
+  const reps = typedReps(repsDraft);
+  const changed = weight !== set.weight;
+
+  // The suggestion comes with its plates. Any other weight waits for the
+  // server's, and shows none until they're for this weight.
+  const asked = usePlates(changed ? weight : undefined);
+  const load = changed ? asked.data : set;
+
+  const logAt = (count: number) => {
+    Keyboard.dismiss();
+    onLog(count, changed ? weight : undefined);
+  };
+
+  return (
+    <View style={[local.current, { backgroundColor: p.stock }]}>
+      {/* The weight's line sets this height. Stated, because on first layout
+          the baseline of a DisplayEntry leaves the row taller until it's edited. */}
+      <View style={[local.currentTop, { height: weightLine * Math.min(fontScale, displayScaleCap) }]}>
+        {set.weightEditable ? (
+          <View style={local.weightEntry}>
+            <DisplayEntry
+              type={local.currentWeight}
+              drop={-8}
+              rise={21}
+              value={weightText}
+              onChangeText={setWeightText}
+              keyboardType="decimal-pad"
+              maxLength={7}
+              accessibilityLabel={`Weight, ${unit}`}
+              disabled={disabled}
+              invalid={changed && weight !== undefined && refused?.weight === weight}
+            />
+            <Text style={[local.currentUnit, { color: p.ink2 }]} maxFontSizeMultiplier={displayScaleCap}>
+              {' '}
+              {unit}
+            </Text>
+          </View>
+        ) : (
+          <Text
+            style={[local.currentWeight, { color: p.ink }]}
+            maxFontSizeMultiplier={displayScaleCap}
+            accessibilityLabel={`${fmtWeight(set.weight)} ${unit}, ${repsText(set.repTarget)}`}>
+            {fmtWeight(set.weight)}
+            <Text style={[local.currentUnit, { color: p.ink2 }]}> {unit}</Text>
+          </Text>
+        )}
+        {set.asksReps ? (
+          <Text style={[local.currentReps, { color: p.ink }]} maxFontSizeMultiplier={displayScaleCap}>
+            <Text style={[local.currentTimes, { color: p.ink2 }]}>× </Text>
+            {set.repTarget}
+          </Text>
+        ) : (
+          <View style={local.repsEntry}>
+            <Text style={[local.currentTimes, { color: p.ink2 }]} maxFontSizeMultiplier={displayScaleCap}>
+              ×{' '}
+            </Text>
+            <DisplayEntry
+              type={local.currentReps}
+              rise={13}
+              value={repsDraft}
+              onChangeText={setRepsDraft}
+              keyboardType="number-pad"
+              maxLength={3}
+              accessibilityLabel="Reps"
+              disabled={disabled}
+              invalid={reps !== undefined && reps !== set.targetReps && refused?.reps === reps}
+            />
+          </View>
+        )}
+      </View>
+      <Text style={[local.currentMeta, { color: p.ink2 }]}>
+        {set.tag} · {fmtPct(set.pct)} of training max
+        {set.isAmrap ? ' · PR set' : ''}
+        {changed ? ` · suggested ${fmtWeight(set.weight)}` : ''}
+      </Text>
+      <View style={[local.plateRow, { borderTopColor: p.rule }]}>
+        <Label>Per side</Label>
+        <Text style={[local.plateText, { color: p.ink }]} maxFontSizeMultiplier={displayScaleCap}>
+          {load ? plateList(load.plates).join('  ·  ') || 'Empty bar' : '–'}
+        </Text>
+      </View>
+      {load && load.unloadable > 0 && weight !== undefined ? (
+        <Notice error style={local.short}>
+          {fmtWeight(load.unloadable)} {unit} short: your plates can’t load {fmtWeight(weight)} {unit} exactly.
+        </Notice>
+      ) : null}
+      {!asked.data && asked.error ? (
+        <Notice error style={local.short}>
+          {asked.error.message}
+        </Notice>
+      ) : null}
+      {error ? (
+        <Notice error style={local.short}>
+          {error.message}
+        </Notice>
+      ) : null}
+      {set.asksReps ? (
+        <RepPicker
+          set={set}
+          slug={slug}
+          bestE1rm={bestE1rm}
+          unit={unit}
+          disabled={disabled || weight === undefined}
+          refused={refused?.reps}
+          onPick={logAt}
+        />
+      ) : (
+        <Button
+          icon="checkmark"
+          label={reps === undefined ? 'Log' : `Log ${repsText(reps)}`}
+          disabled={disabled || weight === undefined || reps === undefined}
+          style={local.log}
+          onPress={() => {
+            if (reps !== undefined) logAt(reps);
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
 // One tap per plausible answer, with the answers that meet the prescription
 // printed in the lift's colour, and a field for any other: a PR set can beat
 // every choice, or fall short of the first.
@@ -506,9 +684,7 @@ function RepPicker({
   const { p, s } = useCardStyles();
   const ink = liftInk(p, slug);
   const [typed, setTyped] = useState('');
-  // Whole digits only, so a blank field never logs as 0. How many is the
-  // server's to refuse, in its own words.
-  const valid = /^\d+$/.test(typed.trim());
+  const count = typedReps(typed);
   const perRow = 5;
   const rows = Array.from({ length: Math.ceil(set.repChoices.length / perRow) }, (_, i) =>
     set.repChoices.slice(i * perRow, (i + 1) * perRow),
@@ -566,21 +742,22 @@ function RepPicker({
           maxLength={3}
           accessibilityLabel="Reps"
           editable={!disabled}
-          invalid={valid && Number(typed.trim()) === refused}
+          invalid={count !== undefined && count === refused}
         />
         <Button
           label="Log"
-          disabled={disabled || !valid}
+          disabled={disabled || count === undefined}
           style={local.typedLog}
           onPress={() => {
-            Keyboard.dismiss();
-            onPick(Number(typed.trim()));
+            if (count !== undefined) onPick(count);
           }}
         />
       </View>
     </View>
   );
 }
+
+const weightLine = 92;
 
 const local = StyleSheet.create({
   band: { borderRadius: radius.panel, paddingHorizontal: 14, paddingTop: 9, paddingBottom: 7, marginBottom: 2 },
@@ -606,10 +783,15 @@ const local = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
   },
-  currentWeight: { fontFamily: font.black, fontSize: 88, lineHeight: 92 },
+  currentWeight: { fontFamily: font.black, fontSize: 88, lineHeight: weightLine },
   currentUnit: { fontFamily: font.heavy, fontSize: 24 },
   currentReps: { fontFamily: font.black, fontSize: 56 },
   currentTimes: { fontFamily: font.semi, fontSize: 32 },
+  weightEntry: { flexDirection: 'row', alignItems: 'baseline', flexShrink: 1 },
+  repsEntry: { flexDirection: 'row', alignItems: 'baseline' },
+  entrySizer: { opacity: 0, minWidth: 28, paddingRight: 2 },
+  entryInput: { ...StyleSheet.absoluteFill, padding: 0, lineHeight: undefined },
+  entryLine: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth * 2 },
   loggedRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

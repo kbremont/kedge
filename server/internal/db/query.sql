@@ -139,14 +139,17 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 -- name: ListSets :many
 SELECT * FROM sets WHERE workout_id = ? ORDER BY idx;
 
+-- name: GetSet :one
+SELECT * FROM sets WHERE workout_id = ? AND idx = ?;
+
 -- name: LogSet :exec
 UPDATE sets
-SET actual_reps = ?, completed_at = datetime('now')
+SET actual_reps = ?, actual_weight = ?, completed_at = datetime('now')
 WHERE workout_id = ? AND idx = ?;
 
 -- name: ClearSet :exec
 UPDATE sets
-SET actual_reps = NULL, completed_at = NULL
+SET actual_reps = NULL, actual_weight = NULL, completed_at = NULL
 WHERE workout_id = ? AND idx = ?;
 
 -- name: CountRemainingSets :one
@@ -154,6 +157,7 @@ SELECT COUNT(*) FROM sets WHERE workout_id = ? AND completed_at IS NULL;
 
 -- ListAMRAPSets feeds the progress chart and PR list. Leader cycles run 5's
 -- PRO, so this only yields data from anchor rounds and the TM test's 100% set.
+-- An AMRAP set's weight can't be changed, so s.weight is what was lifted.
 --
 -- name: ListAMRAPSets :many
 SELECT s.weight, s.actual_reps, w.completed_at, w.training_max

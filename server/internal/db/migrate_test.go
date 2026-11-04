@@ -293,3 +293,24 @@ func TestTMTestAMRAPUpgradesEarlierTests(t *testing.T) {
 		t.Error("the upgraded set's weight or reps changed")
 	}
 }
+
+// TestActualWeightLeavesLoggedSetsAlone: a set logged before the column went
+// by its suggestion, so it stays NULL and the set keeps its weight and reps.
+func TestActualWeightLeavesLoggedSetsAlone(t *testing.T) {
+	conn := openBefore(t, "0006_actual_weight.sql")
+	mustExec(t, conn, `INSERT INTO programs (id, name, config) VALUES (1, 'p', '{}')`)
+	mustExec(t, conn, `INSERT INTO blocks (id, program_id, number) VALUES (1, 1, 1)`)
+	mustExec(t, conn, `INSERT INTO workouts (id, block_id, lift_slug, cycle_index, cycle_label, phase, round_number, training_max)
+		VALUES (1, 1, 'squat', 0, 'Leader 1', 'leader', 1, 300)`)
+	mustExec(t, conn, `INSERT INTO sets (workout_id, idx, kind, weight, pct, target_reps, actual_reps, completed_at)
+		VALUES (1, 0, 'main', 195, 0.65, 5, 5, datetime('now'))`)
+
+	if err := Migrate(conn); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+
+	if n := count(t, conn, `SELECT COUNT(*) FROM sets WHERE workout_id = 1 AND idx = 0
+		AND weight = 195 AND actual_reps = 5 AND actual_weight IS NULL`); n != 1 {
+		t.Error("the migration changed a logged set")
+	}
+}

@@ -170,7 +170,7 @@ paths:
     put:
       operationId: logSet
       tags: [workouts]
-      summary: Log the reps done on a set
+      summary: Log the reps done on a set, and the weight if it changed
       description: The session it answers with carries the rest to time before the next set.
       requestBody:
         required: true
@@ -229,6 +229,34 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /plates:
+    get:
+      operationId: getPlates
+      tags: [workouts]
+      summary: How to load the bar for a weight
+      description: For a weight being typed on a set. It writes nothing.
+      parameters:
+        - name: weight
+          in: query
+          required: true
+          description: The weight to load.
+          schema:
+            type: number
+            format: double
+      responses:
+        "200":
+          description: The plates for that weight.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plates"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -1051,6 +1079,7 @@ components:
         - idx
         - tag
         - weight
+        - weightEditable
         - pct
         - targetReps
         - maxReps
@@ -1071,10 +1100,17 @@ components:
         weight:
           type: number
           format: double
+          description: The weight suggested, or once the set is logged, the weight lifted.
+        weightEditable:
+          type: boolean
+          description: |
+            The set can be logged with a weight other than `weight`. Not so on
+            a PR set or TM test, whose reps the verdicts read as done at the
+            weight suggested.
         pct:
           type: number
           format: double
-          description: Of the training max, as a fraction.
+          description: Of the training max, as a fraction, as `weight` is.
         targetReps:
           type: integer
         maxReps:
@@ -1109,6 +1145,22 @@ components:
           description: Empty unless `asksReps` is set.
           items:
             $ref: "#/components/schemas/RepChoice"
+
+    Plates:
+      type: object
+      description: How to load the bar for a weight.
+      required: [plates, plateLine, unloadable]
+      properties:
+        plates:
+          type: string
+          description: Per side, such as "45, 25, 5".
+        plateLine:
+          type: string
+          description: 'How to load the bar: "Bar + 45, 25 per side".'
+        unloadable:
+          type: number
+          format: double
+          description: How far short the bar falls when it cannot be loaded exactly, or 0.
 
     RepChoice:
       type: object
@@ -1428,11 +1480,16 @@ components:
       type: object
       description: |
         Logs the reps done on a set. `reps` is required: 0 is a set failed,
-        so a body without it is refused rather than read as 0.
+        so a body without it is refused rather than read as 0. `weight` is
+        left out for the weight suggested, and only a set with
+        `weightEditable` takes any other.
       required: [reps]
       properties:
         reps:
           type: integer
+        weight:
+          type: number
+          format: double
 
     PastEstimateInput:
       type: object

@@ -131,7 +131,7 @@ func session(ctx context.Context, svc *training.Service) (int64, error) {
 		case set.IsAMRAP && prReps[w.LiftName][set.TargetReps] > 0:
 			reps = prReps[w.LiftName][set.TargetReps]
 		}
-		if err := svc.LogSet(ctx, id, int64(set.Idx), reps); err != nil {
+		if err := svc.LogSet(ctx, id, int64(set.Idx), reps, nil); err != nil {
 			return 0, fmt.Errorf("log set %d of session %d: %w", set.Idx, id, err)
 		}
 	}

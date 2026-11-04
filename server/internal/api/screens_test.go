@@ -197,6 +197,10 @@ var screens = []struct {
 		w := h.start(firstMain)
 		return http.MethodGet, fmt.Sprintf("/api/v1/workouts/%d", w.ID), nil
 	}},
+	{name: "plates", prepare: func(h *harness) (string, string, any) {
+		h.setupDone(0)
+		return http.MethodGet, "/api/v1/plates?weight=187.5", nil
+	}},
 	{name: "workout-finish", prepare: func(h *harness) (string, string, any) {
 		h.setupDone(0)
 		w := h.start(nil)

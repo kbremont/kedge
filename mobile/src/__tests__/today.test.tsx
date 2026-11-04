@@ -74,7 +74,7 @@ describe('starting a session', () => {
     await fireEvent.press(screen.getByRole('button', { name: label }));
     await waitFor(() => expect(screen).toHavePathname(`/workout/${current.id}`));
     expect(sentTo(server, 'POST /workouts')).toHaveLength(1);
-    expect(await screen.findByLabelText('65 lb, 5 reps')).toBeOnTheScreen();
+    expect(await screen.findByLabelText('Weight, lb')).toHaveProp('value', '65');
   });
 
   test('a second tap before the button redraws asks for one session, and opens it', async () => {

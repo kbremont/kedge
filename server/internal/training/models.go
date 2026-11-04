@@ -116,17 +116,24 @@ type Workout struct {
 
 // Set is one row on the session screen.
 type Set struct {
-	Idx        int
-	Tag        string // Warmup, Main, BBB, FSL
-	Weight     float64
-	Pct        float64
-	TargetReps int
-	MaxReps    int // top of a rep range such as 3-5, or 0
-	IsAMRAP    bool
+	Idx            int
+	Tag            string  // Warmup, Main, BBB, FSL
+	Weight         float64 // suggested, or once logged, as lifted
+	WeightEditable bool    // the lifter can change it as they log; not on a PR set or TM test
+	Pct            float64 // of the training max, as Weight is
+	TargetReps     int
+	MaxReps        int // top of a rep range such as 3-5, or 0
+	IsAMRAP        bool
+	Plates         string  // "45, 25, 5" per side
+	Unloadable     float64 // non-zero when the bar cannot be loaded exactly
+	Done           bool
+	ActualReps     int
+}
+
+// Plates says how to load the bar for a weight.
+type Plates struct {
 	Plates     string  // "45, 25, 5" per side
 	Unloadable float64 // non-zero when the bar cannot be loaded exactly
-	Done       bool
-	ActualReps int
 }
 
 // History is the history list.

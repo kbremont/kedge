@@ -145,19 +145,25 @@ func (s *Service) Workout(ctx context.Context, id int64) (*Workout, error) {
 	}
 
 	for _, set := range sets {
-		pairs, unloadable := program.PlatesFor(set.Weight, settings)
+		// A weight changed at the bar is what the set was, in every figure.
+		weight, pct := liftedWeight(set), set.Pct
+		if set.ActualWeight.Valid {
+			pct = weight / workout.TrainingMax
+		}
+		pairs, unloadable := program.PlatesFor(weight, settings)
 		w.Sets = append(w.Sets, Set{
-			Idx:        int(set.Idx),
-			Tag:        setTag(program.SetKind(set.Kind), suppKind),
-			Weight:     set.Weight,
-			Pct:        set.Pct,
-			TargetReps: int(set.TargetReps),
-			MaxReps:    int(set.MaxReps),
-			IsAMRAP:    set.IsAmrap != 0,
-			Plates:     formatPlates(pairs),
-			Unloadable: unloadable,
-			Done:       set.CompletedAt.Valid,
-			ActualReps: int(set.ActualReps.Int64),
+			Idx:            int(set.Idx),
+			Tag:            setTag(program.SetKind(set.Kind), suppKind),
+			Weight:         weight,
+			WeightEditable: set.IsAmrap == 0,
+			Pct:            pct,
+			TargetReps:     int(set.TargetReps),
+			MaxReps:        int(set.MaxReps),
+			IsAMRAP:        set.IsAmrap != 0,
+			Plates:         formatPlates(pairs),
+			Unloadable:     unloadable,
+			Done:           set.CompletedAt.Valid,
+			ActualReps:     int(set.ActualReps.Int64),
 		})
 		if w.CurrentIdx < 0 && !set.CompletedAt.Valid {
 			w.CurrentIdx = int(set.Idx)
@@ -174,22 +180,89 @@ func (s *Service) Workout(ctx context.Context, id int64) (*Workout, error) {
 	return w, nil
 }
 
-// maxLoggedReps bounds the reps a set can be logged with.
-const maxLoggedReps = 500
+// maxLoggedReps and maxLoggedWeight bound what a set can be logged with.
+const (
+	maxLoggedReps   = 500
+	maxLoggedWeight = 2000
+)
 
-// LogSet records the reps done on a set.
-func (s *Service) LogSet(ctx context.Context, workoutID, idx int64, reps int) error {
+// liftedWeight is the weight a set was lifted at: the one the lifter changed
+// it to, or else the one suggested.
+func liftedWeight(set db.Set) float64 {
+	if set.ActualWeight.Valid {
+		return set.ActualWeight.Float64
+	}
+	return set.Weight
+}
+
+func checkWeight(weight float64) error {
+	if !(weight >= minEstimateWeight && weight <= maxLoggedWeight) { // the negation also catches NaN
+		return inputError(fmt.Sprintf("Weight must be between %d and %d.", minEstimateWeight, maxLoggedWeight))
+	}
+	return nil
+}
+
+// LogSet records the reps done on a set, and the weight they were done at
+// when that isn't the one suggested. A nil weight means the suggested one.
+func (s *Service) LogSet(ctx context.Context, workoutID, idx int64, reps int, weight *float64) error {
 	if reps < 0 || reps > maxLoggedReps {
 		return inputError(fmt.Sprintf("Reps must be between 0 and %d.", maxLoggedReps))
 	}
+	changed, err := s.changedWeight(ctx, workoutID, idx, weight)
+	if err != nil {
+		return err
+	}
 	if err := s.q.LogSet(ctx, db.LogSetParams{
-		ActualReps: sql.NullInt64{Int64: int64(reps), Valid: true},
-		WorkoutID:  workoutID,
-		Idx:        idx,
+		ActualReps:   sql.NullInt64{Int64: int64(reps), Valid: true},
+		ActualWeight: changed,
+		WorkoutID:    workoutID,
+		Idx:          idx,
 	}); err != nil {
 		return fmt.Errorf("log set %d of workout %d: %w", idx, workoutID, err)
 	}
 	return nil
+}
+
+// changedWeight is what to store as a set's actual weight: NULL unless it
+// differs from the suggestion, so a value there always means it was changed.
+// A PR set or TM test keeps its weight, since the verdicts read its reps as
+// done at that weight.
+func (s *Service) changedWeight(ctx context.Context, workoutID, idx int64, weight *float64) (sql.NullFloat64, error) {
+	if weight == nil {
+		return sql.NullFloat64{}, nil
+	}
+	set, err := s.q.GetSet(ctx, db.GetSetParams{WorkoutID: workoutID, Idx: idx})
+	if errors.Is(err, sql.ErrNoRows) {
+		return sql.NullFloat64{}, ErrNotFound
+	}
+	if err != nil {
+		return sql.NullFloat64{}, fmt.Errorf("load set %d of workout %d: %w", idx, workoutID, err)
+	}
+	if *weight == set.Weight {
+		return sql.NullFloat64{}, nil
+	}
+	if set.IsAmrap != 0 {
+		return sql.NullFloat64{}, inputError("The weight of a PR set or TM test can't be changed.")
+	}
+	if err := checkWeight(*weight); err != nil {
+		return sql.NullFloat64{}, err
+	}
+	return sql.NullFloat64{Float64: *weight, Valid: true}, nil
+}
+
+// PlatesFor says how to load the bar for a weight the lifter is typing, so a
+// change at the bar is loaded by the same math as a suggestion. It writes
+// nothing.
+func (s *Service) PlatesFor(ctx context.Context, weight float64) (*Plates, error) {
+	if err := checkWeight(weight); err != nil {
+		return nil, err
+	}
+	_, settings, err := s.loadSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pairs, unloadable := program.PlatesFor(weight, settings)
+	return &Plates{Plates: formatPlates(pairs), Unloadable: unloadable}, nil
 }
 
 // UndoSet clears a logged set.

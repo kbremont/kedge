@@ -40,6 +40,7 @@ const reads = ($api: OpenapiQueryClient<paths>) => ({
   info: () => $api.queryOptions('get', '/info'),
   dashboard: () => $api.queryOptions('get', '/dashboard'),
   workout: (id: number) => $api.queryOptions('get', '/workouts/{id}', { params: { path: { id } } }),
+  plates: (weight: number) => $api.queryOptions('get', '/plates', { params: { query: { weight } } }),
   history: () => $api.queryOptions('get', '/history'),
   lift: (slug: string) => $api.queryOptions('get', '/lifts/{slug}', { params: { path: { slug } } }),
   settings: () => $api.queryOptions('get', '/settings'),
@@ -65,6 +66,7 @@ export const keys = {
   info: () => tag(named.info()),
   dashboard: () => tag(named.dashboard()),
   workout: (id: number) => tag(named.workout(id)),
+  plates: (weight: number) => tag(named.plates(weight)),
   history: () => tag(named.history()),
   lift: (slug: string) => tag(named.lift(slug)),
   settings: () => tag(named.settings()),
@@ -274,11 +276,30 @@ export function useStartWorkout() {
 }
 
 // Logs a set and starts the rest the server gives for it, timed from the tap.
+// How to load the bar for a weight being typed, or nothing to ask while
+// `weight` is undefined. Each keystroke isn't worth asking about, so it waits
+// for the typing to settle, and until the answer is for this very weight there
+// is no answer: a load for another weight is worse than none.
+export function usePlates(weight: number | undefined) {
+  const { read } = useApi();
+  const [settled, setSettled] = useState(weight);
+  useEffect(() => {
+    const wait = setTimeout(() => setSettled(weight), 300);
+    return () => clearTimeout(wait);
+  }, [weight]);
+  const current = settled === weight;
+  const { queryKey, queryFn } = read.plates(settled ?? 0);
+  const query = useQuery({ queryKey, queryFn, enabled: current && weight !== undefined });
+  return current && weight !== undefined ? { data: query.data, error: query.error } : { data: undefined, error: null };
+}
+
 export function useLogSet(id: number) {
   return useChange(
-    async (api, { idx, reps }: { idx: number; reps: number }) => {
+    async (api, { idx, reps, weight }: { idx: number; reps: number; weight?: number }) => {
       const tapped = Date.now();
-      const w = await answer(api.PUT('/workouts/{id}/sets/{idx}', { params: { path: { id, idx } }, body: { reps } }));
+      const w = await answer(
+        api.PUT('/workouts/{id}/sets/{idx}', { params: { path: { id, idx } }, body: { reps, weight } }),
+      );
       startRest(id, w.restSeconds, tapped);
       return w;
     },

@@ -11,6 +11,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -874,6 +875,195 @@ func TestLogSetAnswers(t *testing.T) {
 	if got = get[Workout](h, fmt.Sprintf("/api/v1/workouts/%d", w.ID)); !got.Completed {
 		t.Error("a finished session is not marked completed")
 	}
+}
+
+// actualWeight reads what a set stored as its changed weight, NULL if none.
+func (h *harness) actualWeight(workout int64, idx int) sql.NullFloat64 {
+	h.t.Helper()
+	var got sql.NullFloat64
+	if err := h.conn.QueryRow(`SELECT actual_weight FROM sets WHERE workout_id = ? AND idx = ?`, workout, idx).Scan(&got); err != nil {
+		h.t.Fatalf("read actual_weight: %v", err)
+	}
+	return got
+}
+
+// TestLogSetWeight logs a set at a weight other than the one suggested. The
+// session answers with that weight in every figure, and undoing the set goes
+// back to the suggestion.
+func TestLogSetWeight(t *testing.T) {
+	h := newHarness(t)
+	h.setup(startingTMs, 0)
+	w := send[Workout](h, http.MethodPost, "/api/v1/workouts", nil)
+	i := slices.IndexFunc(w.Sets, firstMain)
+	suggested := w.Sets[i]
+	path := fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, suggested.Idx)
+	if !suggested.WeightEditable {
+		t.Fatalf("a plain set's weight isn't editable: %+v", suggested)
+	}
+
+	changed := suggested.Weight + 10
+	got := send[Workout](h, http.MethodPut, path, LogSetInput{Reps: 4, Weight: &changed}).Sets[i]
+	if got.Weight != changed || got.ActualReps != 4 || !got.Done {
+		t.Errorf("logged at %v: %+v", changed, got)
+	}
+	if want := changed / w.TrainingMax; got.Pct != want {
+		t.Errorf("pct = %v, want %v", got.Pct, want)
+	}
+	if got.Plates == suggested.Plates {
+		t.Errorf("plates stayed %q for %v", got.Plates, changed)
+	}
+	if stored := h.actualWeight(w.ID, suggested.Idx); stored.Float64 != changed {
+		t.Errorf("actual_weight = %+v", stored)
+	}
+
+	back := send[Workout](h, http.MethodDelete, path, nil).Sets[i]
+	if back.Weight != suggested.Weight || back.Pct != suggested.Pct || back.Plates != suggested.Plates {
+		t.Errorf("undone: %+v, want the suggestion %+v", back, suggested)
+	}
+	if stored := h.actualWeight(w.ID, suggested.Idx); stored.Valid {
+		t.Errorf("undo left actual_weight = %+v", stored)
+	}
+
+	// The suggestion sent back is no change, and neither is leaving it out.
+	same := suggested.Weight
+	for _, body := range []LogSetInput{{Reps: 5, Weight: &same}, {Reps: 5}} {
+		if got := send[Workout](h, http.MethodPut, path, body).Sets[i]; got.Weight != suggested.Weight {
+			t.Errorf("%+v: weight %v", body, got.Weight)
+		}
+		if stored := h.actualWeight(w.ID, suggested.Idx); stored.Valid {
+			t.Errorf("%+v stored actual_weight = %+v", body, stored)
+		}
+	}
+	send[Workout](h, http.MethodDelete, path, nil)
+
+	for _, bad := range []float64{0, -5, 0.5, 2000.5} {
+		msg := h.fails(http.StatusBadRequest, http.MethodPut, path, LogSetInput{Reps: 5, Weight: &bad})
+		if msg != "Weight must be between 1 and 2000." {
+			t.Errorf("weight %v: %q", bad, msg)
+		}
+	}
+	if got := get[Workout](h, fmt.Sprintf("/api/v1/workouts/%d", w.ID)).Sets[i]; got.Done {
+		t.Error("a refused weight logged the set")
+	}
+
+	h.fails(http.StatusNotFound, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/99", w.ID), LogSetInput{Reps: 5, Weight: &changed})
+}
+
+// TestPRSetWeightIsLocked keeps a PR set or TM test at its suggested weight,
+// since the verdicts read its reps as done at that weight. Its reps still log.
+func TestPRSetWeightIsLocked(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		cycle int
+	}{
+		{"TM test", 2},
+		{"anchor PR set", 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			h.setup(startingTMs, tc.cycle)
+			w := send[Workout](h, http.MethodPost, "/api/v1/workouts", nil)
+			i := slices.IndexFunc(w.Sets, func(s Set) bool { return s.IsAMRAP })
+			if i < 0 {
+				t.Fatalf("no PR set in %+v", w.Sets)
+			}
+			set := w.Sets[i]
+			if set.WeightEditable {
+				t.Errorf("weight is editable: %+v", set)
+			}
+			path := fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, set.Idx)
+
+			lighter := set.Weight - 10
+			msg := h.fails(http.StatusBadRequest, http.MethodPut, path, LogSetInput{Reps: 8, Weight: &lighter})
+			if msg != "The weight of a PR set or TM test can't be changed." {
+				t.Errorf("refusal: %q", msg)
+			}
+			if got := get[Workout](h, fmt.Sprintf("/api/v1/workouts/%d", w.ID)).Sets[i]; got.Done {
+				t.Error("a refused weight logged the set")
+			}
+
+			same := set.Weight
+			if got := send[Workout](h, http.MethodPut, path, LogSetInput{Reps: 8, Weight: &same}).Sets[i]; !got.Done || got.ActualReps != 8 {
+				t.Errorf("logged at its own weight: %+v", got)
+			}
+		})
+	}
+}
+
+// TestRangeSetWeightIsEditable: the deload's 3-5 set asks for its reps but no
+// verdict reads it, so its weight can change.
+func TestRangeSetWeightIsEditable(t *testing.T) {
+	h := newHarness(t)
+	h.setup(startingTMs, 4)
+	w := send[Workout](h, http.MethodPost, "/api/v1/workouts", nil)
+	i := slices.IndexFunc(w.Sets, func(s Set) bool { return s.AsksReps })
+	if i < 0 {
+		t.Fatalf("no set asks for its reps in %+v", w.Sets)
+	}
+	if !w.Sets[i].WeightEditable || w.Sets[i].IsAMRAP {
+		t.Fatalf("range set: %+v", w.Sets[i])
+	}
+	changed := w.Sets[i].Weight - 5
+	got := send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, w.Sets[i].Idx), LogSetInput{Reps: 3, Weight: &changed})
+	if got.Sets[i].Weight != changed {
+		t.Errorf("logged at %v: %+v", changed, got.Sets[i])
+	}
+}
+
+// TestRecentSummaryUsesLiftedWeight: a session is remembered by what was
+// lifted, in the heaviest main set's place and its figures.
+func TestRecentSummaryUsesLiftedWeight(t *testing.T) {
+	h := newHarness(t)
+	h.setup(startingTMs, 0)
+	w := send[Workout](h, http.MethodPost, "/api/v1/workouts", nil)
+	var mains []Set
+	for _, s := range w.Sets {
+		if s.Tag == "Main" {
+			mains = append(mains, s)
+		}
+	}
+	if len(mains) < 2 {
+		t.Fatalf("main sets: %+v", mains)
+	}
+	first := mains[0]
+	heaviest := mains[len(mains)-1].Weight + 15
+	for _, s := range w.Sets {
+		body := LogSetInput{Reps: s.TargetReps}
+		if s.Idx == first.Idx {
+			body = LogSetInput{Reps: 4, Weight: &heaviest}
+		}
+		send[Workout](h, http.MethodPut, fmt.Sprintf("/api/v1/workouts/%d/sets/%d", w.ID, s.Idx), body)
+	}
+	d := send[Dashboard](h, http.MethodPost, fmt.Sprintf("/api/v1/workouts/%d/finish", w.ID), nil)
+	want := fmt.Sprintf("%s x 4", training.FormatWeight(heaviest))
+	if len(d.Recent) != 1 || d.Recent[0].Summary != want {
+		t.Errorf("recent = %+v, want summary %q", d.Recent, want)
+	}
+}
+
+// TestPlates loads the bar for a weight being typed, by the same math and
+// settings as a suggestion, and writes nothing.
+func TestPlates(t *testing.T) {
+	h := newHarness(t)
+	h.setup(startingTMs, 0)
+	send[Settings](h, http.MethodPut, "/api/v1/settings", SettingsInput{Plates: []float64{45, 25, 10}, Warmups: true, BBB: map[string]BBBInput{}})
+
+	got := get[Plates](h, "/api/v1/plates?weight=185")
+	if got.Plates != "45, 25" || got.PlateLine != "Bar + 45, 25 per side" || got.Unloadable != 0 {
+		t.Errorf("185: %+v", got)
+	}
+	if got = get[Plates](h, "/api/v1/plates?weight=45"); got.Plates != "" || got.PlateLine != "Empty bar" {
+		t.Errorf("empty bar: %+v", got)
+	}
+	if got = get[Plates](h, "/api/v1/plates?weight=190"); got.Unloadable != 5 {
+		t.Errorf("190 with no 2.5s: %+v", got)
+	}
+
+	if msg := h.fails(http.StatusBadRequest, http.MethodGet, "/api/v1/plates?weight=2001", nil); msg != "Weight must be between 1 and 2000." {
+		t.Errorf("too heavy: %q", msg)
+	}
+	h.fails(http.StatusBadRequest, http.MethodGet, "/api/v1/plates", nil)
+	h.fails(http.StatusBadRequest, http.MethodGet, "/api/v1/plates?weight=lots", nil)
 }
 
 // TestPastEstimates adds an estimate and deletes it, each answering with the

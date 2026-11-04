@@ -35,11 +35,12 @@ func (s *Server) workout(ctx context.Context, id int64) (Workout, error) {
 	return toWorkout(w), nil
 }
 
-// LogSet records the reps done on a set. The session it answers with carries
-// the rest to time before the next set. The spec makes reps required: 0 is a
-// set failed, so a body without it is refused rather than read as 0.
+// LogSet records the reps done on a set, and the weight when it isn't the one
+// suggested. The session it answers with carries the rest to time before the
+// next set. The spec makes reps required: 0 is a set failed, so a body without
+// it is refused rather than read as 0.
 func (s *Server) LogSet(ctx context.Context, req LogSetRequestObject) (LogSetResponseObject, error) {
-	if err := s.svc.LogSet(ctx, req.ID, req.Idx, req.Body.Reps); err != nil {
+	if err := s.svc.LogSet(ctx, req.ID, req.Idx, req.Body.Reps, req.Body.Weight); err != nil {
 		return nil, err
 	}
 	w, err := s.workout(ctx, req.ID)
@@ -47,6 +48,15 @@ func (s *Server) LogSet(ctx context.Context, req LogSetRequestObject) (LogSetRes
 		return nil, err
 	}
 	return LogSet200JSONResponse(w), nil
+}
+
+// GetPlates says how to load the bar for a weight being typed.
+func (s *Server) GetPlates(ctx context.Context, req GetPlatesRequestObject) (GetPlatesResponseObject, error) {
+	p, err := s.svc.PlatesFor(ctx, req.Params.Weight)
+	if err != nil {
+		return nil, err
+	}
+	return GetPlates200JSONResponse(toPlates(p)), nil
 }
 
 func (s *Server) UndoSet(ctx context.Context, req UndoSetRequestObject) (UndoSetResponseObject, error) {

@@ -146,12 +146,12 @@ func topSetSummary(sets []db.Set) string {
 			best, found = set, true
 		case set.IsAmrap != 0 && best.IsAmrap == 0:
 			best = set
-		case set.IsAmrap == best.IsAmrap && set.Weight > best.Weight:
+		case set.IsAmrap == best.IsAmrap && liftedWeight(set) > liftedWeight(best):
 			best = set
 		}
 	}
 	if !found {
 		return ""
 	}
-	return fmt.Sprintf("%s x %d", FormatWeight(best.Weight), best.ActualReps.Int64)
+	return fmt.Sprintf("%s x %d", FormatWeight(liftedWeight(best)), best.ActualReps.Int64)
 }

@@ -24,7 +24,8 @@
       "tag": "Warmup",
       "targetReps": 5,
       "unloadable": 0,
-      "weight": 45
+      "weight": 45,
+      "weightEditable": true
     },
     {
       "actualReps": 5,
@@ -41,7 +42,8 @@
       "tag": "Warmup",
       "targetReps": 5,
       "unloadable": 0,
-      "weight": 50
+      "weight": 50,
+      "weightEditable": true
     },
     {
       "actualReps": 5,
@@ -58,7 +60,8 @@
       "tag": "Warmup",
       "targetReps": 5,
       "unloadable": 0,
-      "weight": 60
+      "weight": 60,
+      "weightEditable": true
     },
     {
       "actualReps": 5,
@@ -75,7 +78,8 @@
       "tag": "Main",
       "targetReps": 5,
       "unloadable": 0,
-      "weight": 65
+      "weight": 65,
+      "weightEditable": true
     },
     {
       "actualReps": 5,
@@ -92,7 +96,8 @@
       "tag": "Main",
       "targetReps": 5,
       "unloadable": 0,
-      "weight": 75
+      "weight": 75,
+      "weightEditable": true
     },
     {
       "actualReps": 5,
@@ -109,7 +114,8 @@
       "tag": "Main",
       "targetReps": 5,
       "unloadable": 0,
-      "weight": 85
+      "weight": 85,
+      "weightEditable": true
     },
     {
       "actualReps": 10,
@@ -126,7 +132,8 @@
       "tag": "BBB",
       "targetReps": 10,
       "unloadable": 0,
-      "weight": 50
+      "weight": 50,
+      "weightEditable": true
     },
     {
       "actualReps": 10,
@@ -143,7 +150,8 @@
       "tag": "BBB",
       "targetReps": 10,
       "unloadable": 0,
-      "weight": 50
+      "weight": 50,
+      "weightEditable": true
     },
     {
       "actualReps": 10,
@@ -160,7 +168,8 @@
       "tag": "BBB",
       "targetReps": 10,
       "unloadable": 0,
-      "weight": 50
+      "weight": 50,
+      "weightEditable": true
     },
     {
       "actualReps": 10,
@@ -177,7 +186,8 @@
       "tag": "BBB",
       "targetReps": 10,
       "unloadable": 0,
-      "weight": 50
+      "weight": 50,
+      "weightEditable": true
     },
     {
       "actualReps": 10,
@@ -194,7 +204,8 @@
       "tag": "BBB",
       "targetReps": 10,
       "unloadable": 0,
-      "weight": 50
+      "weight": 50,
+      "weightEditable": true
     }
   ],
   "trainingMax": 100,

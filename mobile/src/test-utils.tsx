@@ -13,7 +13,7 @@ export const testUrl = 'http://kedge.local';
 export const testToken = 'test-token';
 
 // A request as the stand-in server saw it, its path without /api/v1.
-export type Sent = { method: string; path: string; body: unknown; auth: string | null };
+export type Sent = { method: string; path: string; query: string; body: unknown; auth: string | null };
 
 // A fixture is sent as JSON with a 200, a Response as it is. A function
 // answers from the request, or later: return a promise the test settles to
@@ -34,6 +34,7 @@ export function fakeServer(routes: Routes) {
     const s: Sent = {
       method: request.method,
       path,
+      query: new URL(request.url).search,
       body: text ? JSON.parse(text) : undefined,
       auth: request.headers.get('Authorization'),
     };
