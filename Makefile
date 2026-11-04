@@ -2,7 +2,7 @@ SERVER  := server
 BINARY  := bin/531
 VERSION := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
-.PHONY: all generate golden build test run demo fmt vet lint check icons docker app clean
+.PHONY: all generate golden build test run demo fmt vet lint check icons docker app dev dev-install clean
 
 all: check build
 
@@ -70,6 +70,15 @@ docker:
 ## app: start the Expo dev server for the iOS app
 app:
 	cd mobile && npx expo start
+
+## dev: test this workspace on your phone: the demo server and Metro, for Kedge Dev
+dev:
+	./scripts/dev.sh run
+
+## dev-install: build Kedge Dev and install it on a plugged-in phone, the first
+## time and after native changes. DEVICE=<name or UDID> skips the device prompt.
+dev-install:
+	./scripts/dev.sh install
 
 clean:
 	rm -rf $(SERVER)/bin
