@@ -80,10 +80,19 @@ func (s Set) RepTarget() string {
 // "Bar + 45, 25 per side". When it cannot be loaded exactly, Unloadable says
 // by how much it falls short.
 func (s Set) PlateLine() string {
-	if s.Plates == "" {
+	return plateLine(s.Plates)
+}
+
+// PlateLine is the same line for a weight on its own.
+func (p Plates) PlateLine() string {
+	return plateLine(p.Plates)
+}
+
+func plateLine(plates string) string {
+	if plates == "" {
 		return "Empty bar"
 	}
-	return "Bar + " + s.Plates + " per side"
+	return "Bar + " + plates + " per side"
 }
 
 // AsksReps reports whether a set needs its reps entered rather than ticked

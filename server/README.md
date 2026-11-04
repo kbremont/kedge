@@ -240,8 +240,9 @@ unless it also changes `info.version` and `APIVersion`.
 | `GET dashboard` | | `Dashboard`, with `needsSetup` before training maxes are entered |
 | `POST workouts` | | the `Workout` started, or the one in progress |
 | `GET workouts/{id}` | | `Workout` |
-| `PUT workouts/{id}/sets/{idx}` | `{reps}`, required (0 is a failed set) | `Workout`; `restSeconds` starts the rest timer |
+| `PUT workouts/{id}/sets/{idx}` | `{reps, weight?}`; `reps` required (0 is a failed set), `weight` only if it isn't the one suggested, and not on a PR set or TM test | `Workout`; `restSeconds` starts the rest timer |
 | `DELETE workouts/{id}/sets/{idx}` | | `Workout` |
+| `GET plates?weight=` | | `Plates`, for a weight being typed; writes nothing |
 | `POST workouts/{id}/finish` | | `Dashboard` |
 | `DELETE workouts/{id}` | | `Dashboard` |
 | `GET history` | | `History` |

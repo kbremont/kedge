@@ -58,7 +58,7 @@ func (h *Handler) LogSet(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, back, http.StatusSeeOther)
 		return
 	}
-	err = h.svc.LogSet(r.Context(), workoutID, idx, reps)
+	err = h.svc.LogSet(r.Context(), workoutID, idx, reps, nil)
 	var input *training.InputError
 	switch {
 	case errors.As(err, &input):

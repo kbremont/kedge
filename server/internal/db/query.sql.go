@@ -21,7 +21,7 @@ func (q *Queries) ActivateProgram(ctx context.Context, id int64) error {
 
 const clearSet = `-- name: ClearSet :exec
 UPDATE sets
-SET actual_reps = NULL, completed_at = NULL
+SET actual_reps = NULL, actual_weight = NULL, completed_at = NULL
 WHERE workout_id = ? AND idx = ?
 `
 
@@ -238,6 +238,34 @@ func (q *Queries) GetLift(ctx context.Context, slug string) (Lift, error) {
 		&i.DayOrder,
 		&i.BbbMode,
 		&i.BbbValue,
+	)
+	return i, err
+}
+
+const getSet = `-- name: GetSet :one
+SELECT workout_id, idx, kind, weight, pct, target_reps, is_amrap, actual_reps, completed_at, max_reps, actual_weight FROM sets WHERE workout_id = ? AND idx = ?
+`
+
+type GetSetParams struct {
+	WorkoutID int64
+	Idx       int64
+}
+
+func (q *Queries) GetSet(ctx context.Context, arg GetSetParams) (Set, error) {
+	row := q.db.QueryRowContext(ctx, getSet, arg.WorkoutID, arg.Idx)
+	var i Set
+	err := row.Scan(
+		&i.WorkoutID,
+		&i.Idx,
+		&i.Kind,
+		&i.Weight,
+		&i.Pct,
+		&i.TargetReps,
+		&i.IsAmrap,
+		&i.ActualReps,
+		&i.CompletedAt,
+		&i.MaxReps,
+		&i.ActualWeight,
 	)
 	return i, err
 }
@@ -523,6 +551,7 @@ type ListAMRAPSetsRow struct {
 
 // ListAMRAPSets feeds the progress chart and PR list. Leader cycles run 5's
 // PRO, so this only yields data from anchor rounds and the TM test's 100% set.
+// An AMRAP set's weight can't be changed, so s.weight is what was lifted.
 func (q *Queries) ListAMRAPSets(ctx context.Context, liftSlug string) ([]ListAMRAPSetsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAMRAPSets, liftSlug)
 	if err != nil {
@@ -786,7 +815,7 @@ func (q *Queries) ListRecentWorkouts(ctx context.Context, limit int64) ([]ListRe
 }
 
 const listSets = `-- name: ListSets :many
-SELECT workout_id, idx, kind, weight, pct, target_reps, is_amrap, actual_reps, completed_at, max_reps FROM sets WHERE workout_id = ? ORDER BY idx
+SELECT workout_id, idx, kind, weight, pct, target_reps, is_amrap, actual_reps, completed_at, max_reps, actual_weight FROM sets WHERE workout_id = ? ORDER BY idx
 `
 
 func (q *Queries) ListSets(ctx context.Context, workoutID int64) ([]Set, error) {
@@ -809,6 +838,7 @@ func (q *Queries) ListSets(ctx context.Context, workoutID int64) ([]Set, error) 
 			&i.ActualReps,
 			&i.CompletedAt,
 			&i.MaxReps,
+			&i.ActualWeight,
 		); err != nil {
 			return nil, err
 		}
@@ -982,18 +1012,24 @@ func (q *Queries) ListWorkoutsInBlock(ctx context.Context, blockID int64) ([]Wor
 
 const logSet = `-- name: LogSet :exec
 UPDATE sets
-SET actual_reps = ?, completed_at = datetime('now')
+SET actual_reps = ?, actual_weight = ?, completed_at = datetime('now')
 WHERE workout_id = ? AND idx = ?
 `
 
 type LogSetParams struct {
-	ActualReps sql.NullInt64
-	WorkoutID  int64
-	Idx        int64
+	ActualReps   sql.NullInt64
+	ActualWeight sql.NullFloat64
+	WorkoutID    int64
+	Idx          int64
 }
 
 func (q *Queries) LogSet(ctx context.Context, arg LogSetParams) error {
-	_, err := q.db.ExecContext(ctx, logSet, arg.ActualReps, arg.WorkoutID, arg.Idx)
+	_, err := q.db.ExecContext(ctx, logSet,
+		arg.ActualReps,
+		arg.ActualWeight,
+		arg.WorkoutID,
+		arg.Idx,
+	)
 	return err
 }
 

@@ -122,7 +122,7 @@ export interface paths {
         };
         get?: never;
         /**
-         * Log the reps done on a set
+         * Log the reps done on a set, and the weight if it changed
          * @description The session it answers with carries the rest to time before the next set.
          */
         put: operations["logSet"];
@@ -148,6 +148,26 @@ export interface paths {
         put?: never;
         /** Mark a session complete */
         post: operations["finishWorkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/plates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How to load the bar for a weight
+         * @description For a weight being typed on a set. It writes nothing.
+         */
+        get: operations["getPlates"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -625,11 +645,20 @@ export interface components {
         Set: {
             idx: number;
             tag: components["schemas"]["SetTag"];
-            /** Format: double */
-            weight: number;
             /**
              * Format: double
-             * @description Of the training max, as a fraction.
+             * @description The weight suggested, or once the set is logged, the weight lifted.
+             */
+            weight: number;
+            /**
+             * @description The set can be logged with a weight other than `weight`. Not so on
+             *     a PR set or TM test, whose reps the verdicts read as done at the
+             *     weight suggested.
+             */
+            weightEditable: boolean;
+            /**
+             * Format: double
+             * @description Of the training max, as a fraction, as `weight` is.
              */
             pct: number;
             targetReps: number;
@@ -656,6 +685,18 @@ export interface components {
             asksReps: boolean;
             /** @description Empty unless `asksReps` is set. */
             repChoices: components["schemas"]["RepChoice"][];
+        };
+        /** @description How to load the bar for a weight. */
+        Plates: {
+            /** @description Per side, such as "45, 25, 5". */
+            plates: string;
+            /** @description How to load the bar: "Bar + 45, 25 per side". */
+            plateLine: string;
+            /**
+             * Format: double
+             * @description How far short the bar falls when it cannot be loaded exactly, or 0.
+             */
+            unloadable: number;
         };
         /** @description One answer on the rep picker. `target` marks the answers that meet the prescription. */
         RepChoice: {
@@ -830,10 +871,14 @@ export interface components {
         };
         /**
          * @description Logs the reps done on a set. `reps` is required: 0 is a set failed,
-         *     so a body without it is refused rather than read as 0.
+         *     so a body without it is refused rather than read as 0. `weight` is
+         *     left out for the weight suggested, and only a set with
+         *     `weightEditable` takes any other.
          */
         LogSetInput: {
             reps: number;
+            /** Format: double */
+            weight?: number;
         };
         /** @description Adds an estimate from before the app. */
         PastEstimateInput: {
@@ -1006,6 +1051,7 @@ export type TMReview = components['schemas']['TMReview'];
 export type TMReviewRow = components['schemas']['TMReviewRow'];
 export type Workout = components['schemas']['Workout'];
 export type Set = components['schemas']['Set'];
+export type Plates = components['schemas']['Plates'];
 export type RepChoice = components['schemas']['RepChoice'];
 export type History = components['schemas']['History'];
 export type HistoryItem = components['schemas']['HistoryItem'];
@@ -1270,6 +1316,32 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlates: {
+        parameters: {
+            query: {
+                /** @description The weight to load. */
+                weight: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plates for that weight. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plates"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             500: components["responses"]["InternalError"];
         };
     };

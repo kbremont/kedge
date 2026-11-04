@@ -103,23 +103,32 @@ func toWorkout(w *training.Workout) Workout {
 	return out
 }
 
+func toPlates(p *training.Plates) Plates {
+	return Plates{
+		Plates:     p.Plates,
+		PlateLine:  p.PlateLine(),
+		Unloadable: p.Unloadable,
+	}
+}
+
 func toSet(s training.Set) Set {
 	out := Set{
-		Idx:        s.Idx,
-		Tag:        SetTag(s.Tag),
-		Weight:     s.Weight,
-		Pct:        s.Pct,
-		TargetReps: s.TargetReps,
-		MaxReps:    s.MaxReps,
-		IsAMRAP:    s.IsAMRAP,
-		RepTarget:  s.RepTarget(),
-		Plates:     s.Plates,
-		PlateLine:  s.PlateLine(),
-		Unloadable: s.Unloadable,
-		Done:       s.Done,
-		ActualReps: s.ActualReps,
-		AsksReps:   s.AsksReps(),
-		RepChoices: []RepChoice{},
+		Idx:            s.Idx,
+		Tag:            SetTag(s.Tag),
+		Weight:         s.Weight,
+		WeightEditable: s.WeightEditable,
+		Pct:            s.Pct,
+		TargetReps:     s.TargetReps,
+		MaxReps:        s.MaxReps,
+		IsAMRAP:        s.IsAMRAP,
+		RepTarget:      s.RepTarget(),
+		Plates:         s.Plates,
+		PlateLine:      s.PlateLine(),
+		Unloadable:     s.Unloadable,
+		Done:           s.Done,
+		ActualReps:     s.ActualReps,
+		AsksReps:       s.AsksReps(),
+		RepChoices:     []RepChoice{},
 	}
 	if out.AsksReps {
 		for _, r := range s.RepChoices() {

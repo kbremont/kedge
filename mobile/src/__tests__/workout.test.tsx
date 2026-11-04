@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import { act, fireEvent, screen, waitFor } from 'expo-router/testing-library';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import { unreachable } from '@/api/client';
 import dashboardInProgress from '@/api/fixtures/dashboard-in-progress.json';
@@ -10,11 +10,12 @@ import workoutCompleted from '@/api/fixtures/workout-completed.json';
 import workoutCurrent from '@/api/fixtures/workout-current.json';
 import workoutFinish from '@/api/fixtures/workout-finish.json';
 import workoutRange from '@/api/fixtures/workout-range.json';
+import platesAnswer from '@/api/fixtures/plates.json';
 import { keys, makeQueryClient } from '@/api/queries';
 import type { Dashboard, Workout } from '@/api/schema.gen';
 import TodayScreen from '@/app/(tabs)/(today)/index';
 import WorkoutScreen from '@/app/workout/[id]';
-import { repsText } from '@/lib/format';
+import { plateList } from '@/lib/format';
 import { clearRest } from '@/lib/rest';
 import { fakeServer, json, renderApp, type Routes } from '@/test-utils';
 
@@ -61,6 +62,16 @@ async function resume(w: Workout, routes: Routes = {}) {
   return server;
 }
 
+// The current set's inputs, and that they read as this set's.
+const weightInput = () => screen.getByLabelText('Weight, lb');
+const repsInput = () => screen.getByLabelText('Reps');
+async function atSet(weight: number, reps: number) {
+  await waitFor(() => {
+    expect(weightInput()).toHaveProp('value', String(weight));
+    expect(repsInput()).toHaveProp('value', String(reps));
+  });
+}
+
 // Holds a request in flight until the test answers it.
 function held<T extends object>() {
   let answer: (reply: T) => void = () => {};
@@ -73,7 +84,7 @@ beforeEach(() => clearRest(id));
 describe('rest timer', () => {
   test('a session opened fresh shows no rest', async () => {
     await openSession(current);
-    expect(screen.getByLabelText('65 lb, 5 reps')).toBeOnTheScreen();
+    await atSet(65, 5);
     expect(screen.queryByLabelText(/^Rest/)).not.toBeOnTheScreen();
   });
 
@@ -90,7 +101,8 @@ describe('rest timer', () => {
     // The bar opens the new current set's block, over the set it precedes.
     const block = bar.parent!;
     expect(block.children[0]).toBe(bar);
-    expect(block).toContainElement(screen.getByLabelText('75 lb, 5 reps'));
+    await atSet(75, 5);
+    expect(block).toContainElement(weightInput());
 
     await act(() => jest.advanceTimersByTime(30_000));
     expect(screen.getByLabelText('Rest, 1:30 left')).toBeOnTheScreen();
@@ -148,7 +160,7 @@ describe('rep picker', () => {
 
     await put.answer(logged(w, idx, pick));
     const next = w.sets[idx + 1];
-    expect(await screen.findByLabelText(`${next.weight} lb, ${repsText(next.repTarget)}`)).toBeOnTheScreen();
+    await atSet(next.weight, next.targetReps);
   });
 
   describe('the field beside the choices', () => {
@@ -173,7 +185,7 @@ describe('rep picker', () => {
         ),
       );
       const next = w.sets[idx + 1];
-      expect(await screen.findByLabelText(`${next.weight} lb, ${repsText(next.repTarget)}`)).toBeOnTheScreen();
+      await atSet(next.weight, next.targetReps);
     });
 
     test('logs a count below the first choice, down to a failed set', async () => {
@@ -255,6 +267,249 @@ describe('rep picker', () => {
   });
 });
 
+describe('changing the set at the bar', () => {
+  const put = `PUT /workouts/${id}/sets/3`;
+  const log = (name = 'Log 5 reps') => screen.getByRole('button', { name });
+
+  test('starts as suggested, and logging it unchanged sends only the reps', async () => {
+    const server = await openSession(current, { [put]: logged(current, 3, 5) });
+    await atSet(65, 5);
+    expect(screen.queryByText(/suggested/)).not.toBeOnTheScreen();
+
+    await fireEvent.press(log());
+
+    await waitFor(() => expect(server.sent).toContainEqual(expect.objectContaining({ method: 'PUT', body: { reps: 5 } })));
+    expect(server.sent.filter((x) => x.path === '/plates')).toEqual([]);
+  });
+
+  test('logs what was typed, and the next set starts from its own suggestion', async () => {
+    const server = await openSession(current, { [put]: logged(current, 3, 4) });
+
+    await fireEvent.changeText(weightInput(), '67.5');
+    await fireEvent.changeText(repsInput(), '4');
+    expect(screen.getByText(/suggested 65/)).toBeOnTheScreen();
+    await fireEvent.press(log('Log 4 reps'));
+
+    await waitFor(() =>
+      expect(server.sent).toContainEqual(expect.objectContaining({ method: 'PUT', body: { reps: 4, weight: 67.5 } })),
+    );
+    await atSet(75, 5);
+  });
+
+  test('a decimal comma is a decimal point', async () => {
+    const server = await openSession(current, { [put]: logged(current, 3, 5) });
+
+    await fireEvent.changeText(weightInput(), '67,5');
+    await fireEvent.press(log());
+
+    await waitFor(() => expect(server.sent).toContainEqual(expect.objectContaining({ body: { reps: 5, weight: 67.5 } })));
+  });
+
+  test('typing the suggestion back is no change', async () => {
+    const server = await openSession(current, { [put]: logged(current, 3, 5) });
+
+    await fireEvent.changeText(weightInput(), '70');
+    await fireEvent.changeText(weightInput(), '65');
+    await fireEvent.press(log());
+
+    await waitFor(() => expect(server.sent).toContainEqual(expect.objectContaining({ method: 'PUT', body: { reps: 5 } })));
+  });
+
+  test.each(['', ' ', '1.2.3', 'abc', '.'])('won’t log a weight of %j', async (text) => {
+    await openSession(current);
+    await fireEvent.changeText(weightInput(), text);
+    expect(log()).toBeDisabled();
+  });
+
+  test.each(['', ' ', '1.5'])('won’t log reps of %j', async (text) => {
+    await openSession(current);
+    await fireEvent.changeText(repsInput(), text);
+    expect(log('Log')).toBeDisabled();
+  });
+
+  test('a typed 0 is a failed set', async () => {
+    const server = await openSession(current, { [put]: logged(current, 3, 0) });
+    await fireEvent.changeText(repsInput(), '0');
+    await fireEvent.press(log('Log 0 reps'));
+    await waitFor(() => expect(server.sent).toContainEqual(expect.objectContaining({ body: { reps: 0 } })));
+  });
+
+  describe('its plates', () => {
+    // A load nothing else on the screen reads as.
+    const session = { ...current, sets: current.sets.map((x) => (x.idx === 3 ? { ...x, plates: '25, 5' } : x)) };
+    const suggested = '25  ·  5';
+    const answered = plateList(platesAnswer.plates).join('  ·  ');
+
+    test('come from the server for the weight typed, and from the set for its own', async () => {
+      const server = await openSession(session, { 'GET /plates': platesAnswer });
+      expect(screen.getByText(suggested)).toBeOnTheScreen();
+
+      await fireEvent.changeText(weightInput(), '187.5');
+      expect(screen.queryByText(suggested)).not.toBeOnTheScreen();
+
+      expect(await screen.findByText(answered)).toBeOnTheScreen();
+      expect(server.sent).toContainEqual(expect.objectContaining({ path: '/plates', query: '?weight=187.5' }));
+
+      const asked = server.sent.length;
+      await fireEvent.changeText(weightInput(), '65');
+      expect(screen.getByText(suggested)).toBeOnTheScreen();
+      expect(screen.queryByText(answered)).not.toBeOnTheScreen();
+      await act(() => jest.advanceTimersByTime(1000));
+      expect(server.sent.slice(asked).filter((x) => x.path === '/plates')).toEqual([]);
+    });
+
+    test('wait for the typing to settle', async () => {
+      const server = await openSession(session, { 'GET /plates': platesAnswer });
+
+      await fireEvent.changeText(weightInput(), '1');
+      await act(() => jest.advanceTimersByTime(100));
+      await fireEvent.changeText(weightInput(), '18');
+      await act(() => jest.advanceTimersByTime(100));
+      await fireEvent.changeText(weightInput(), '187.5');
+
+      await screen.findByText(answered);
+      expect(server.sent.filter((x) => x.path === '/plates').map((x) => x.query)).toEqual(['?weight=187.5']);
+    });
+
+    test('for another weight are never shown', async () => {
+      const first = held<object>();
+      await openSession(session, {
+        'GET /plates': (sent) => (sent.query === '?weight=70' ? first.reply() : { ...platesAnswer, plates: '35, 5' }),
+      });
+
+      await fireEvent.changeText(weightInput(), '70');
+      await act(() => jest.advanceTimersByTime(300));
+      await fireEvent.changeText(weightInput(), '80');
+      await first.answer({ ...platesAnswer, plates: '10, 2.5' });
+      expect(screen.queryByText('10  ·  2.5')).not.toBeOnTheScreen();
+
+      expect(await screen.findByText('35  ·  5')).toBeOnTheScreen();
+      expect(screen.queryByText('10  ·  2.5')).not.toBeOnTheScreen();
+    });
+
+    test('say when they run short', async () => {
+      await openSession(session, { 'GET /plates': platesAnswer });
+      await fireEvent.changeText(weightInput(), '187.5');
+      const short = `${platesAnswer.unloadable} lb short: your plates can’t load 187.5 lb exactly.`;
+      expect(await screen.findByText(short)).toBeOnTheScreen();
+    });
+
+    test('that can’t be worked out say why, and the set can still be logged', async () => {
+      const refusal = 'Weight must be between 1 and 2000.';
+      await openSession(session, { 'GET /plates': () => json({ error: refusal }, 400) });
+
+      await fireEvent.changeText(weightInput(), '2500');
+
+      expect(await screen.findByText(refusal)).toBeOnTheScreen();
+      expect(screen.queryByText(suggested)).not.toBeOnTheScreen();
+      expect(log()).toBeEnabled();
+    });
+  });
+
+  describe('a set whose weight is fixed', () => {
+    test('a PR set has no weight input, and logs only its reps', async () => {
+      const amrap = workoutAmrap as Workout;
+      const server = await openSession(amrap, { [`PUT /workouts/${amrap.id}/sets/5`]: logged(amrap, 5, 8) });
+
+      expect(screen.queryByLabelText('Weight, lb')).not.toBeOnTheScreen();
+      expect(screen.getByLabelText('85 lb, 5+ reps')).toBeOnTheScreen();
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Log 8 reps' }));
+      await waitFor(() => expect(server.sent).toContainEqual(expect.objectContaining({ method: 'PUT', body: { reps: 8 } })));
+    });
+
+    test('so is any on a server too old to say otherwise', async () => {
+      const older = {
+        ...current,
+        sets: current.sets.map(({ weightEditable: _, ...x }) => x),
+      } as unknown as Workout;
+      const server = await openSession(older, { [put]: logged(current, 3, 4) });
+
+      expect(screen.queryByLabelText('Weight, lb')).not.toBeOnTheScreen();
+      await fireEvent.changeText(repsInput(), '4');
+      await fireEvent.press(log('Log 4 reps'));
+
+      await waitFor(() => expect(server.sent).toContainEqual(expect.objectContaining({ method: 'PUT', body: { reps: 4 } })));
+    });
+  });
+
+  test('a 3–5 set’s choices log at the weight typed', async () => {
+    const range = workoutRange as Workout;
+    const server = await openSession(range, { [`PUT /workouts/${range.id}/sets/4`]: logged(range, 4, 4) });
+
+    await fireEvent.changeText(weightInput(), '75');
+    await fireEvent.press(screen.getByRole('button', { name: 'Log 4 reps, meets the target' }));
+
+    await waitFor(() => expect(server.sent).toContainEqual(expect.objectContaining({ body: { reps: 4, weight: 75 } })));
+  });
+
+  test('a blank weight holds back a 3–5 set’s choices too', async () => {
+    await openSession(workoutRange as Workout);
+    await fireEvent.changeText(weightInput(), '');
+    expect(screen.getByRole('button', { name: 'Log 4 reps, meets the target' })).toBeDisabled();
+  });
+
+  test('a refused weight says why and stays to be fixed, outlined alone', async () => {
+    const refusal = 'Weight must be between 1 and 2000.';
+    await openSession(current, {
+      [put]: () => json({ error: refusal }, 400),
+      'GET /plates': platesAnswer,
+    });
+    const line = (name: string) => StyleSheet.flatten(screen.getByTestId(`${name} line`).props.style).backgroundColor;
+
+    await fireEvent.changeText(weightInput(), '2500');
+    await fireEvent.press(log());
+
+    expect(await screen.findByText(refusal)).toBeOnTheScreen();
+    expect(weightInput()).toHaveProp('value', '2500');
+    expect(line('Weight, lb')).not.toBe(line('Reps'));
+
+    // Being fixed, it's no longer the weight that was refused.
+    await fireEvent.changeText(weightInput(), '250');
+    expect(line('Weight, lb')).toBe(line('Reps'));
+  });
+
+  test('a network failure leaves what was typed', async () => {
+    await openSession(current, {
+      [put]: () => Promise.reject(new TypeError('Network request failed')),
+      'GET /plates': platesAnswer,
+    });
+
+    await fireEvent.changeText(weightInput(), '70');
+    await fireEvent.changeText(repsInput(), '4');
+    await fireEvent.press(log('Log 4 reps'));
+
+    expect(await screen.findByText(unreachable)).toBeOnTheScreen();
+    await atSet(70, 4);
+  });
+
+  test('an undone set goes back to its suggestion', async () => {
+    const after = logged(current, 3, 4);
+    await openSession(current, {
+      [put]: { ...after, sets: after.sets.map((x) => (x.idx === 3 ? { ...x, weight: 70 } : x)) },
+      [`DELETE /workouts/${id}/sets/3`]: current,
+    });
+
+    await fireEvent.changeText(weightInput(), '70');
+    await fireEvent.changeText(repsInput(), '4');
+    await fireEvent.press(log('Log 4 reps'));
+    await fireEvent.press(await screen.findByRole('button', { name: 'Undo 70 × 4' }));
+
+    await atSet(65, 5);
+  });
+
+  test('in flight, neither input can be changed', async () => {
+    const reply = held<Workout>();
+    await openSession(current, { [put]: reply.reply });
+
+    await fireEvent.press(log());
+
+    await waitFor(() => expect(weightInput()).toHaveProp('editable', false));
+    expect(repsInput()).toHaveProp('editable', false);
+    await reply.answer(logged(current, 3, 5));
+  });
+});
+
 test('a failed log says why beside the Log button and leaves the set to log', async () => {
   await openSession(current, {
     [`PUT /workouts/${id}/sets/3`]: () => Promise.reject(new TypeError('Network request failed')),
@@ -266,18 +521,18 @@ test('a failed log says why beside the Log button and leaves the set to log', as
   // The Notice sits in the current set's panel, with the button it is about.
   expect(message.parent!.parent).toContainElement(log);
   expect(log).toBeEnabled();
-  expect(screen.getByLabelText('65 lb, 5 reps')).toBeOnTheScreen();
+  await atSet(65, 5);
   expect(screen.queryByLabelText(/^Rest/)).not.toBeOnTheScreen();
 });
 
-test('a single is one rep, on the button and to VoiceOver', async () => {
+test('a single is one rep, on the button', async () => {
   const single = {
     ...current,
     sets: current.sets.map((x) => (x.idx === current.currentIdx ? { ...x, targetReps: 1, repTarget: '1' } : x)),
   };
   await openSession(single);
   expect(screen.getByRole('button', { name: 'Log 1 rep' })).toBeOnTheScreen();
-  expect(screen.getByLabelText('65 lb, 1 rep')).toBeOnTheScreen();
+  await atSet(65, 1);
 });
 
 test('a session discarded somewhere else says so, and goes back', async () => {
@@ -308,7 +563,7 @@ test('Undo takes back the set just logged, and its rest', async () => {
   await fireEvent.press(screen.getByRole('button', { name: 'Undo 65 × 5' }));
   await waitFor(() => expect(screen.queryByLabelText(/^Rest/)).not.toBeOnTheScreen());
   expect(server.sent.at(-1)).toMatchObject({ method: 'DELETE', path: `/workouts/${id}/sets/3` });
-  expect(screen.getByLabelText('65 lb, 5 reps')).toBeOnTheScreen();
+  await atSet(65, 5);
 });
 
 test('once every set is logged, the last one can still be taken back', async () => {
@@ -340,7 +595,7 @@ describe('a failure is shown only beside the set it was about', () => {
 
     // The set was logged after all, as a refetch shows.
     await act(async () => queryClient.setQueryData(keys.workout(id), logged(current, 3, 5)));
-    expect(await screen.findByLabelText('75 lb, 5 reps')).toBeOnTheScreen();
+    await atSet(75, 5);
     expect(screen.queryByText(unreachable)).not.toBeOnTheScreen();
   });
 
@@ -365,7 +620,7 @@ test('a second tap on Log before the screen redraws sends nothing more', async (
   await fireEvent.press(log);
 
   await put.answer(logged(current, 3, 5));
-  expect(await screen.findByLabelText('75 lb, 5 reps')).toBeOnTheScreen();
+  await atSet(75, 5);
   expect(server.sent.filter((x) => x.method === 'PUT')).toHaveLength(1);
 });
 
