@@ -16,10 +16,43 @@ npx tsc --noEmit && npx expo lint && npx jest
 ```
 
 `ios/` is generated (Continuous Native Generation) and ignored: configure
-native behaviour in `app.json`. After adding a package with native code, or
+native behaviour in `app.json`. (`app.config.ts` only makes it Kedge Dev,
+below.) After adding a package with native code, or
 taking a new SDK release, rebuild the dev client with
 `npx expo prebuild --clean -p ios` and `npx expo run:ios`. Restart Metro
 with `--clear` after `npx expo install` changes packages under it.
+
+## On your phone
+
+**Kedge Dev** is an app of its own, for testing a workspace on a real phone
+before it's merged. It has its own name and bundle id
+(`sh.lyle.kedge.dev`), so it sits beside the production app rather than
+replacing it, and signs in separately. From the repo's root:
+
+```sh
+make dev           # the demo server and Metro, from this workspace
+make dev-install   # build it and install it on a plugged-in phone
+```
+
+`make dev` is the everyday one. Open Kedge Dev on the same Wi-Fi as the Mac,
+and what you save appears on the phone, with no cable and nothing published.
+It stops anything left on ports 8081 and 3000 by another workspace, so the
+last workspace to run it is the one the phone shows. It prints the server's
+address and password, which is `dev`; each workspace has its own demo data,
+so a new one may ask for the password again.
+
+`make dev-install` is for the first time and after native changes. `make dev`
+compares the workspace's fingerprint with the installed one and says when one
+is needed, since Metro itself won't: without a rebuild, a native change shows
+up as a crash or a missing module. The first install needs Developer Mode on
+the phone and the Apple account signed in to Xcode. It leaves Kedge Dev's
+project in that workspace's `ios/`, so run `npx expo prebuild --clean -p ios`
+before going back to `npx expo run:ios` there.
+
+Kedge Dev is a Debug build, so it needs Metro on the Mac and won't load without
+it. It's built only with these targets: EAS builds and updates don't set
+`APP_VARIANT`, and `app.config.ts` leaves `app.json` untouched without it, so
+production's fingerprint doesn't change.
 
 ## Release
 
