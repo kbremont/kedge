@@ -1,9 +1,10 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { SymbolView } from 'expo-symbols';
-import { useRef, type ComponentRef } from 'react';
+import { useRef, useState, type ComponentRef } from 'react';
 import {
   Alert,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,7 +19,18 @@ import {
 import { ApiError } from '@/api/client';
 import { useDiscardWorkout, useFinishWorkout, useLogSet, useUndoSet, useWorkout } from '@/api/queries';
 import type { Set, Workout } from '@/api/schema.gen';
-import { Button, Label, LoadState, Notice, Page, Panel, RestBar, Totals, useCardStyles } from '@/components/card-back';
+import {
+  Button,
+  Field,
+  Label,
+  LoadState,
+  Notice,
+  Page,
+  Panel,
+  RestBar,
+  Totals,
+  useCardStyles,
+} from '@/components/card-back';
 import { cycleText, fmtClock, fmtPct, fmtWeight, plateList, repsText, times } from '@/lib/format';
 import { useRest } from '@/lib/rest';
 import { displayScaleCap, font, liftInk, radius } from '@/theme';
@@ -75,6 +87,7 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
   const stacked = fontScale > 1.5;
   const headerHeight = useHeaderHeight();
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const frame = useRef({ width: 0, height: 0 });
 
   const logSet = useLogSet(w.id);
   const undoSet = useUndoSet(w.id);
@@ -138,19 +151,28 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
 
   // Keeps the current set and its Log button on screen as the session moves
   // down the table: once they would end below the fold, the table scrolls to
-  // put the rest bar under the header.
+  // put the rest bar under the header. Near the end of the table that aims
+  // past the page's end, and Page leaves scrollTo unclamped for the keyboard,
+  // so this zooms to the rect instead, which UIKit keeps within the page.
   const keepInView = (e: LayoutChangeEvent) => {
     const { y, height } = e.nativeEvent.layout;
     if (y + height > windowHeight - headerHeight - 40) {
-      scroll.current?.scrollTo({ y: Math.max(0, y - headerHeight - 8) });
+      scroll.current?.scrollResponderZoomTo({
+        x: 0,
+        y: Math.max(0, y - headerHeight - 8),
+        width: frame.current.width,
+        height: frame.current.height,
+        animated: true,
+      });
     }
   };
 
-  // keepInView's scrollTo near the end of the table aims past the page's
-  // end, which RN's clamp stops; Page turns the clamp off for the keyboard.
-  // This page has no fields, so it keeps the clamp.
   return (
-    <Page ref={scroll} scrollToOverflowEnabled={false}>
+    <Page
+      ref={scroll}
+      onLayout={(e) => {
+        frame.current = e.nativeEvent.layout;
+      }}>
       <View style={[local.band, { backgroundColor: ink.band }]}>
         <View style={local.bandTop}>
           <Text style={[local.bandText, { color: ink.onBand }]} maxFontSizeMultiplier={displayScaleCap}>
@@ -230,6 +252,7 @@ function Session({ w, rest }: { w: Workout; rest: { left: number; total: number 
                     bestE1rm={w.bestE1rm}
                     unit={w.unit}
                     disabled={busy}
+                    refused={logError instanceof ApiError && logError.status === 400 ? logSet.variables?.reps : undefined}
                     onPick={(r) => log(set, r)}
                   />
                 ) : (
@@ -459,14 +482,16 @@ function SetRow({
   );
 }
 
-// One tap per plausible answer instead of a keyboard; the answers that meet
-// the prescription are printed in the lift's colour.
+// One tap per plausible answer, with the answers that meet the prescription
+// printed in the lift's colour, and a field for any other: a PR set can beat
+// every choice, or fall short of the first.
 function RepPicker({
   set,
   slug,
   bestE1rm,
   unit,
   disabled,
+  refused,
   onPick,
 }: {
   set: Set;
@@ -474,10 +499,16 @@ function RepPicker({
   bestE1rm: number;
   unit: string;
   disabled: boolean;
+  // The count the server just refused, outlined only while it's still typed.
+  refused?: number;
   onPick: (reps: number) => void;
 }) {
   const { p, s } = useCardStyles();
   const ink = liftInk(p, slug);
+  const [typed, setTyped] = useState('');
+  // Whole digits only, so a blank field never logs as 0. How many is the
+  // server's to refuse, in its own words.
+  const valid = /^\d+$/.test(typed.trim());
   const perRow = 5;
   const rows = Array.from({ length: Math.ceil(set.repChoices.length / perRow) }, (_, i) =>
     set.repChoices.slice(i * perRow, (i + 1) * perRow),
@@ -522,7 +553,31 @@ function RepPicker({
           </View>
         ))}
       </View>
-
+      <Label style={local.typedLabel}>Ran out of buttons?</Label>
+      {/* Log sits beside the field because a number pad has no return key:
+          whatever brings the field above the keyboard brings Log with it. */}
+      <View style={local.typedRow}>
+        <Field
+          onPanel
+          style={local.typedField}
+          value={typed}
+          onChangeText={setTyped}
+          keyboardType="number-pad"
+          maxLength={3}
+          accessibilityLabel="Reps"
+          editable={!disabled}
+          invalid={valid && Number(typed.trim()) === refused}
+        />
+        <Button
+          label="Log"
+          disabled={disabled || !valid}
+          style={local.typedLog}
+          onPress={() => {
+            Keyboard.dismiss();
+            onPick(Number(typed.trim()));
+          }}
+        />
+      </View>
     </View>
   );
 }
@@ -594,6 +649,10 @@ const local = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  typedLabel: { marginTop: 14 },
+  typedRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  typedField: { flex: 1 },
+  typedLog: { width: 96, height: 52 },
   discard: { alignItems: 'center', paddingVertical: 18, marginTop: 12 },
   discardText: { fontSize: 16, fontWeight: '600' },
   finish: { marginTop: 20 },
