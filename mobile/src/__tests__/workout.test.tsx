@@ -150,6 +150,109 @@ describe('rep picker', () => {
     const next = w.sets[idx + 1];
     expect(await screen.findByLabelText(`${next.weight} lb, ${repsText(next.repTarget)}`)).toBeOnTheScreen();
   });
+
+  describe('the field beside the choices', () => {
+    const amrap = workoutAmrap as Workout;
+    const prIdx = 5;
+    const field = () => screen.getByLabelText('Reps');
+    const logTyped = () => screen.getByRole('button', { name: 'Log' });
+
+    test.each([
+      { name: 'a PR set', fixture: workoutAmrap, idx: prIdx },
+      { name: 'a 3–5 set', fixture: workoutRange, idx: 4 },
+    ])('$name logs a count past every choice', async ({ fixture, idx }) => {
+      const w = fixture as Workout;
+      const server = await openSession(w, { [`PUT /workouts/${w.id}/sets/${idx}`]: logged(w, idx, 15) });
+
+      await fireEvent.changeText(field(), '15');
+      await fireEvent.press(logTyped());
+
+      await waitFor(() =>
+        expect(server.sent).toContainEqual(
+          expect.objectContaining({ method: 'PUT', path: `/workouts/${w.id}/sets/${idx}`, body: { reps: 15 } }),
+        ),
+      );
+      const next = w.sets[idx + 1];
+      expect(await screen.findByLabelText(`${next.weight} lb, ${repsText(next.repTarget)}`)).toBeOnTheScreen();
+    });
+
+    test('logs a count below the first choice, down to a failed set', async () => {
+      const server = await openSession(amrap, { [`PUT /workouts/${amrap.id}/sets/${prIdx}`]: logged(amrap, prIdx, 0) });
+
+      await fireEvent.changeText(field(), '0');
+      await fireEvent.press(logTyped());
+
+      await waitFor(() => expect(server.sent).toContainEqual(expect.objectContaining({ body: { reps: 0 } })));
+    });
+
+    test.each([
+      { name: 'blank', text: '' },
+      { name: 'only spaces', text: '  ' },
+      { name: 'not a whole number', text: '1.5' },
+    ])('won’t log $name', async ({ text }) => {
+      await openSession(amrap);
+      await fireEvent.changeText(field(), text);
+      expect(logTyped()).toBeDisabled();
+    });
+
+    test('a count the server refuses says why and stays to be fixed', async () => {
+      const refusal = 'Reps must be between 0 and 500.';
+      await openSession(amrap, {
+        [`PUT /workouts/${amrap.id}/sets/${prIdx}`]: () => json({ error: refusal }, 400),
+      });
+
+      await fireEvent.changeText(field(), '501');
+      await fireEvent.press(logTyped());
+
+      expect(await screen.findByText(refusal)).toBeOnTheScreen();
+      expect(field()).toHaveProp('value', '501');
+      expect(field()).toHaveStyle({ borderWidth: 2 });
+      expect(logTyped()).toBeEnabled();
+
+      // Being fixed, it's no longer the count that was refused.
+      await fireEvent.changeText(field(), '50');
+      expect(field()).not.toHaveStyle({ borderWidth: 2 });
+    });
+
+    test('a network failure says so without blaming the count', async () => {
+      await openSession(amrap, {
+        [`PUT /workouts/${amrap.id}/sets/${prIdx}`]: () => Promise.reject(new TypeError('Network request failed')),
+      });
+
+      await fireEvent.changeText(field(), '11');
+      await fireEvent.press(logTyped());
+
+      expect(await screen.findByText(unreachable)).toBeOnTheScreen();
+      expect(field()).toHaveProp('value', '11');
+      expect(field()).not.toHaveStyle({ borderWidth: 2 });
+    });
+
+    test('in flight, it can’t log the set again', async () => {
+      const put = held<Workout>();
+      await openSession(amrap, { [`PUT /workouts/${amrap.id}/sets/${prIdx}`]: put.reply });
+
+      await fireEvent.changeText(field(), '11');
+      await fireEvent.press(logTyped());
+
+      await waitFor(() => expect(logTyped()).toBeDisabled());
+      expect(field()).toHaveProp('editable', false);
+      await put.answer(logged(amrap, prIdx, 11));
+    });
+
+    test('starts empty again once a set is undone', async () => {
+      await openSession(amrap, {
+        [`PUT /workouts/${amrap.id}/sets/${prIdx}`]: logged(amrap, prIdx, 11),
+        [`DELETE /workouts/${amrap.id}/sets/${prIdx}`]: amrap,
+      });
+
+      await fireEvent.changeText(field(), '11');
+      await fireEvent.press(logTyped());
+      const set = amrap.sets[prIdx];
+      await fireEvent.press(await screen.findByRole('button', { name: `Undo ${set.weight} × 11` }));
+
+      await waitFor(() => expect(field()).toHaveProp('value', ''));
+    });
+  });
 });
 
 test('a failed log says why beside the Log button and leaves the set to log', async () => {

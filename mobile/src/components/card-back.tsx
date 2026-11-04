@@ -223,7 +223,8 @@ export function Page({
   // to scroll at all, so it goes back to where it was before the keyboard.
   //
   // The flag unclamps scrollTo too, so a page that scrolls itself towards
-  // its end keeps the clamp, with scrollToOverflowEnabled={false}.
+  // its end does so with scrollResponderZoomTo, as settle does, which UIKit
+  // clamps.
   const view = useRef({ y: 0, before: 0, width: 0, height: 0, contentHeight: 0 });
   const settle = useCallback(() => {
     const { y, before, width, height, contentHeight } = view.current;
