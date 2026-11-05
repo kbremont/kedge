@@ -1,14 +1,9 @@
 name: ci
 
 on:
+  # No paths filter: a required check that a filter skips stays pending, which
+  # would block the PR.
   pull_request:
-    paths:
-      - "server/**"
-      - "mobile/src/api/**"
-      - "mobile/package.json"
-      - "mobile/package-lock.json"
-      - "Makefile"
-      - ".github/workflows/ci.yml"
   workflow_dispatch:
 
 concurrency:
@@ -60,6 +55,27 @@ jobs:
       # git diff alone would miss a new fixture, which is untracked.
       - run: git status --porcelain && test -z "$(git status --porcelain)"
         working-directory: .
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: mobile/.nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      # Writes the gitignored .expo/types and expo-env.d.ts, which Metro would
+      # otherwise generate. Without them tsc still passes, but a link to a
+      # route that doesn't exist goes unnoticed.
+      - run: npx expo customize tsconfig.json
+      - run: npx tsc --noEmit
+      - run: npx expo lint
+      - run: npx jest --ci
 
   # An installed app is not updated along with the server, so a change to the
   # API must not break it. oasdiff compares the spec with the base branch's
