@@ -49,7 +49,7 @@ function Loading({ settings }: { settings: Settings }) {
       </Row>
       <View style={[settingStyles.block, { borderBottomColor: p.rule }]}>
         <Text style={s.name}>Plates, per side</Text>
-        <Text style={s.sub}>The plates you have, heaviest first.</Text>
+        <Text style={s.sub}>The plates you have, heaviest first. Write a fraction with a point, as in 1.25.</Text>
         <Field
           value={form.plates}
           onChangeText={(plates) => edit({ plates })}

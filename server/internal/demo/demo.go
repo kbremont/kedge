@@ -73,7 +73,7 @@ func Seed(ctx context.Context, conn *sql.DB, log *slog.Logger) (seeded bool, err
 	}
 
 	svc := training.New(conn, log)
-	if err := svc.SaveSetup(ctx, trainingMaxes); err != nil {
+	if err := svc.SaveSetup(ctx, trainingMaxes, ""); err != nil {
 		return false, fmt.Errorf("enter training maxes: %w", err)
 	}
 	if err := svc.SaveSetupHistory(ctx, 0, nil); err != nil {

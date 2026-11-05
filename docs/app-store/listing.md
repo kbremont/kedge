@@ -54,7 +54,7 @@ The name under the icon stays Kedge (`app.json`).
 > YOUR SERVER, YOUR DATA
 > Kedge connects to a server you run: one small Docker image, with your whole history in a single SQLite file. There's no account, and nothing you log goes anywhere else. Want to try it first? The support page has a public demo server.
 >
-> Weights are in pounds.
+> Train in pounds or kilograms.
 >
 > Kedge is not affiliated with or endorsed by Jim Wendler. 5/3/1 is his training program.
 

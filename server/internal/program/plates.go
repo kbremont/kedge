@@ -34,13 +34,15 @@ func PlatesFor(target float64, s Settings) ([]PlatePair, float64) {
 		perSide -= float64(n) * p
 	}
 
-	// Floating point noise accumulates across subtractions of 2.5s; anything
-	// under a hundredth of a pound is not a real remainder.
-	perSide = roundTo(perSide, 0.01)
-	if math.Abs(perSide) < 0.01 {
-		perSide = 0
+	// Floating point noise accumulates across subtractions of 2.5s; round it
+	// away, but no further, since a remainder such as 1.125 kg a side is real.
+	// Dividing by the power of ten lands on the nearest double, so 2.25 stays
+	// exactly 2.25 for the display.
+	short := math.Round(perSide*2*1e4) / 1e4
+	if math.Abs(short) < 1e-4 {
+		short = 0
 	}
-	return out, perSide * 2
+	return out, short
 }
 
 // Epley1RM estimates a one-rep max from a set taken to failure. This is the

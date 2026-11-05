@@ -94,7 +94,7 @@ func (s *Service) SaveSettings(ctx context.Context, in SettingsInput) error {
 	}
 
 	params := db.UpdateSettingsParams{
-		Unit:              raw.Unit, // pounds only for now; the column exists for later
+		Unit:              raw.Unit, // chosen in setup, never here
 		Rounding:          positiveOr(in.Rounding, raw.Rounding),
 		BarWeight:         positiveOr(in.BarWeight, raw.BarWeight),
 		Plates:            string(encoded),

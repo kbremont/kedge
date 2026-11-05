@@ -34,7 +34,7 @@ import {
   Totals,
   useCardStyles,
 } from '@/components/card-back';
-import { cycleText, fmtClock, fmtPct, fmtWeight, plateList, repsText, times } from '@/lib/format';
+import { cycleText, fmtClock, fmtPct, fmtWeight, parseDecimal, plateList, repsText, times } from '@/lib/format';
 import { useRest } from '@/lib/rest';
 import { displayScaleCap, font, liftInk, radius } from '@/theme';
 
@@ -441,11 +441,10 @@ function SetRow({
 }
 
 // What's typed, as a number, or undefined until it is one, so a blank field
-// never logs as 0. How much is the server's to refuse, in its own words. A
-// decimal pad types a comma where the phone's region writes one.
+// never logs as 0. How much is the server's to refuse, in its own words.
 function typedWeight(text: string): number | undefined {
-  const t = text.trim().replace(',', '.');
-  return /^\d+(\.\d+)?$/.test(t) ? Number(t) : undefined;
+  const n = parseDecimal(text);
+  return Number.isFinite(n) ? n : undefined;
 }
 
 function typedReps(text: string): number | undefined {

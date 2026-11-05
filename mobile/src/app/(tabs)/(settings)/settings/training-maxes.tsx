@@ -6,7 +6,7 @@ import { useSetTrainingMax, useSettings } from '@/api/queries';
 import type { Settings } from '@/api/schema.gen';
 import { Intro, LiftChip, LoadState, Page, useCardStyles } from '@/components/card-back';
 import { SectionTitle, settingStyles, useSendOnce } from '@/components/settings';
-import { fmtWeight } from '@/lib/format';
+import { fmtWeight, parseDecimal, weightField } from '@/lib/format';
 import { displayScaleCap, font } from '@/theme';
 
 export default function TrainingMaxesScreen() {
@@ -41,7 +41,7 @@ function TrainingMaxes({ settings }: { settings: Settings }) {
           text: 'Save',
           isPreferred: true,
           onPress: (v?: string) => {
-            const n = Number(v);
+            const n = parseDecimal(v ?? '');
             if (!(n > 0)) return;
             send((settled) =>
               setTM.mutate(
@@ -59,7 +59,7 @@ function TrainingMaxes({ settings }: { settings: Settings }) {
         },
       ],
       'plain-text',
-      fmtWeight(value),
+      weightField(value),
       'decimal-pad',
     );
   };

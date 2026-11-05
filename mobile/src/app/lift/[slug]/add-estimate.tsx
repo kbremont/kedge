@@ -6,6 +6,7 @@ import { StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { useAddEstimate, useLift } from '@/api/queries';
 import type { Lift } from '@/api/schema.gen';
 import { Button, Field, Label, LoadState, Notice, Page, TextAction, useCardStyles } from '@/components/card-back';
+import { parseDecimal } from '@/lib/format';
 import { font, liftInk } from '@/theme';
 
 // The day the lifter picked, as the API writes days (YYYY-MM-DD). Read in the
@@ -45,7 +46,7 @@ function Sheet({ slug, l }: { slug: string; l: Lift }) {
     if (sending.current) return;
     sending.current = true;
     add.mutate(
-      { date: localDay(date), weight: Number(weight), reps: Number(reps) },
+      { date: localDay(date), weight: parseDecimal(weight) || 0, reps: Number(reps) },
       {
         onSuccess: () => router.back(),
         onSettled: () => {
@@ -82,7 +83,7 @@ function Sheet({ slug, l }: { slug: string; l: Lift }) {
             onChangeText={setWeight}
             keyboardType="decimal-pad"
             accessibilityLabel={`Weight in ${l.unit}`}
-            invalid={error !== '' && !(Number(weight) > 0)}
+            invalid={error !== '' && !(parseDecimal(weight) > 0)}
           />
         </View>
         <View style={{ width: 110 }}>

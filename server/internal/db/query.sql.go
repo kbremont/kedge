@@ -64,6 +64,19 @@ func (q *Queries) CountBlocks(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countLoggedTraining = `-- name: CountLoggedTraining :one
+SELECT CAST((SELECT COUNT(*) FROM workouts) + (SELECT COUNT(*) FROM past_estimates) AS INTEGER) AS logged
+`
+
+// Anything lifted or recorded in the unit the settings name: a session,
+// including one ticked off in setup, or a past estimate.
+func (q *Queries) CountLoggedTraining(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countLoggedTraining)
+	var logged int64
+	err := row.Scan(&logged)
+	return logged, err
+}
+
 const countRemainingSets = `-- name: CountRemainingSets :one
 SELECT COUNT(*) FROM sets WHERE workout_id = ? AND completed_at IS NULL
 `
@@ -97,6 +110,17 @@ type DeletePastEstimateParams struct {
 // another lift's entry.
 func (q *Queries) DeletePastEstimate(ctx context.Context, arg DeletePastEstimateParams) error {
 	_, err := q.db.ExecContext(ctx, deletePastEstimate, arg.ID, arg.LiftSlug)
+	return err
+}
+
+const deleteTrainingMaxes = `-- name: DeleteTrainingMaxes :exec
+DELETE FROM training_maxes
+`
+
+// Only when the unit changes before anything is lifted: no session was
+// performed against these, and in the new unit they would read as nonsense.
+func (q *Queries) DeleteTrainingMaxes(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteTrainingMaxes)
 	return err
 }
 
@@ -1122,6 +1146,20 @@ type SkipCycleParams struct {
 
 func (q *Queries) SkipCycle(ctx context.Context, arg SkipCycleParams) error {
 	_, err := q.db.ExecContext(ctx, skipCycle, arg.BlockID, arg.CycleIndex)
+	return err
+}
+
+const updateProgramConfig = `-- name: UpdateProgramConfig :exec
+UPDATE programs SET config = ? WHERE id = ?
+`
+
+type UpdateProgramConfigParams struct {
+	Config string
+	ID     int64
+}
+
+func (q *Queries) UpdateProgramConfig(ctx context.Context, arg UpdateProgramConfigParams) error {
+	_, err := q.db.ExecContext(ctx, updateProgramConfig, arg.Config, arg.ID)
 	return err
 }
 
