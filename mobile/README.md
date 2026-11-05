@@ -15,6 +15,11 @@ npx expo start         # Metro, for the dev client
 npx tsc --noEmit && npx expo lint && npx jest
 ```
 
+CI runs the checks on that last line on every pull request. It first runs
+`npx expo customize tsconfig.json`, which generates the typed routes without
+Metro: until they exist, `tsc` can't catch a link to a route that doesn't
+exist.
+
 `ios/` is generated (Continuous Native Generation) and ignored: configure
 native behaviour in `app.json`. (`app.config.ts` only makes it Kedge Dev,
 below.) After adding a package with native code, or
