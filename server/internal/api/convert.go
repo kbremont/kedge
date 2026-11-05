@@ -226,7 +226,7 @@ func toSettings(s *training.Settings) Settings {
 }
 
 func toSetup(s *training.Setup) Setup {
-	return Setup{Lifts: liftTMs(s.Lifts), Unit: s.Unit}
+	return Setup{Lifts: liftTMs(s.Lifts), Unit: s.Unit, CanChangeUnit: &s.CanChangeUnit}
 }
 
 func toSetupPosition(p *training.SetupPosition) SetupPosition {

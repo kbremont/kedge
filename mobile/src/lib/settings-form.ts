@@ -1,5 +1,5 @@
 import type { BBBMode, Settings, SettingsInput } from '@/api/schema.gen';
-import { fmtWeight } from '@/lib/format';
+import { parseDecimal, weightField } from '@/lib/format';
 
 // What Settings' pages save: everything but the training maxes, which save
 // one at a time. Each page edits its own part and sends the rest as saved.
@@ -16,15 +16,15 @@ export type Form = {
 
 export function toForm(s: Settings): Form {
   return {
-    barWeight: fmtWeight(s.barWeight),
-    rounding: fmtWeight(s.rounding),
-    plates: s.plates.map(fmtWeight).join(', '),
+    barWeight: weightField(s.barWeight),
+    rounding: weightField(s.rounding),
+    plates: s.plates.map(weightField).join(', '),
     warmups: s.warmups,
     restWarmupSeconds: s.restWarmupSeconds,
     restMainSeconds: s.restMainSeconds,
     restSuppSeconds: s.restSuppSeconds,
     bbb: Object.fromEntries(
-      s.bbb.map((b) => [b.slug, { mode: b.mode, value: b.value > 0 ? fmtWeight(b.value) : '' }]),
+      s.bbb.map((b) => [b.slug, { mode: b.mode, value: b.value > 0 ? weightField(b.value) : '' }]),
     ),
   };
 }
@@ -32,12 +32,13 @@ export function toForm(s: Settings): Form {
 // A field the form won't send as it stands, and what to put there.
 export type Refusal = { field: string; message: string };
 
-// A number as typed. Blank is 0, which the server reads as "keep what's
-// there", and for a BBB value as "follow the program".
+// A number as typed, with a decimal comma read as a point. Blank is 0, which
+// the server reads as "keep what's there", and for a BBB value as "follow the
+// program".
 export function parseNumber(text: string): number | undefined {
   const t = text.trim();
   if (!t) return 0;
-  const n = Number(t);
+  const n = parseDecimal(t);
   return Number.isFinite(n) ? n : undefined;
 }
 
@@ -50,7 +51,8 @@ export function toInput(f: Form, lifts: Settings['bbb']): SettingsInput | Refusa
   if (barWeight === undefined) return { field: 'barWeight', message: 'Enter the bar weight as a number.' };
   const rounding = parseNumber(f.rounding);
   if (rounding === undefined) return { field: 'rounding', message: 'Enter the rounding as a number.' };
-  // Split as the web splits them, on commas and spaces.
+  // Split as the web splits them, on commas and spaces. A comma here always
+  // separates plates, so "1,25" is two of them; the page asks for a point.
   const plates = f.plates.split(/[\s,]+/).filter(Boolean).map(Number);
   if (!plates.every(Number.isFinite)) {
     return { field: 'plates', message: 'List the plates as numbers, separated by commas.' };

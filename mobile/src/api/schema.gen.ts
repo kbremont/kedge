@@ -822,6 +822,12 @@ export interface components {
             /** @description With the current training max, or 0. */
             lifts: components["schemas"]["LiftTM"][];
             unit: string;
+            /**
+             * @description True until anything is logged: a session or a past estimate. Weights
+             *     are never converted, so the unit then stays. A server from before
+             *     kilograms leaves it out, and its unit is pounds.
+             */
+            canChangeUnit?: boolean;
         };
         /**
          * @description Asks a new user which cycle they are on. Starting fresh needs nothing
@@ -948,6 +954,13 @@ export interface components {
             tms: {
                 [key: string]: number;
             };
+            /**
+             * @description The unit the training maxes are in. Left out, the unit stays as it is.
+             *     A change is refused once Setup's canChangeUnit is false, and brings
+             *     the unit's bar, rounding, plates and training max steps with it.
+             * @enum {string}
+             */
+            unit?: "lb" | "kg";
         };
         /** @description Joins the block at a cycle, with the sessions of it already done. */
         SetupHistoryInput: {

@@ -66,6 +66,18 @@ func (h *harness) setupDone(cycleIdx int, done ...PastSession) {
 	send[Dashboard](h, http.MethodPut, fmt.Sprintf("/api/v1/setup/history/%d", cycleIdx), SetupHistoryInput{Done: append([]PastSession{}, done...)})
 }
 
+// kgTMs are training maxes in kilograms, set so the press's first main set
+// takes a 1.25 kg plate.
+var kgTMs = map[string]float64{"press": 57.5, "deadlift": 170, "bench": 87.5, "squat": 142.5}
+
+// setupKg enters training maxes in kilograms and joins the block fresh.
+func (h *harness) setupKg() {
+	h.t.Helper()
+	kg := SetupInputUnitKg
+	send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{Tms: kgTMs, Unit: &kg})
+	send[Dashboard](h, http.MethodPut, "/api/v1/setup/history/0", SetupHistoryInput{Done: []PastSession{}})
+}
+
 // rounds lists every session of the first n rounds as done, with prReps on
 // any PR set.
 func rounds(n, prReps int) []PastSession {
@@ -197,6 +209,11 @@ var screens = []struct {
 		w := h.start(firstMain)
 		return http.MethodGet, fmt.Sprintf("/api/v1/workouts/%d", w.ID), nil
 	}},
+	{name: "workout-kg", prepare: func(h *harness) (string, string, any) {
+		h.setupKg()
+		w := h.start(firstMain)
+		return http.MethodGet, fmt.Sprintf("/api/v1/workouts/%d", w.ID), nil
+	}},
 	{name: "plates", prepare: func(h *harness) (string, string, any) {
 		h.setupDone(0)
 		return http.MethodGet, "/api/v1/plates?weight=187.5", nil
@@ -279,8 +296,17 @@ var screens = []struct {
 		return http.MethodGet, "/api/v1/settings", nil
 	}},
 
+	{name: "settings-kg", prepare: func(h *harness) (string, string, any) {
+		h.setupKg()
+		return http.MethodGet, "/api/v1/settings", nil
+	}},
+
 	// Setup.
 	{name: "setup", prepare: func(h *harness) (string, string, any) {
+		return http.MethodGet, "/api/v1/setup", nil
+	}},
+	{name: "setup-locked", prepare: func(h *harness) (string, string, any) {
+		h.setupDone(0, PastSession{Round: 1, Slug: "press", PRReps: new(8)})
 		return http.MethodGet, "/api/v1/setup", nil
 	}},
 	{name: "setup-position", prepare: func(h *harness) (string, string, any) {

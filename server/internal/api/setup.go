@@ -22,7 +22,11 @@ func (s *Server) GetSetup(ctx context.Context, _ GetSetupRequestObject) (GetSetu
 // SaveSetup records the first training maxes and answers with the next
 // question: where in the programme the user is.
 func (s *Server) SaveSetup(ctx context.Context, req SaveSetupRequestObject) (SaveSetupResponseObject, error) {
-	if err := s.svc.SaveSetup(ctx, req.Body.Tms); err != nil {
+	unit := ""
+	if req.Body.Unit != nil {
+		unit = string(*req.Body.Unit)
+	}
+	if err := s.svc.SaveSetup(ctx, req.Body.Tms, unit); err != nil {
 		return nil, err
 	}
 	pos, err := s.setupPosition(ctx)

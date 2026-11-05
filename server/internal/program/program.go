@@ -106,7 +106,7 @@ type Config struct {
 // Settings holds the loading preferences needed to turn a percentage into a
 // weight that can actually be put on a bar.
 type Settings struct {
-	Unit      string    // "lb" for now; the column exists so kg can be added later
+	Unit      string    // UnitLB or UnitKG
 	Rounding  float64   // round prescribed weights to this increment
 	BarWeight float64   // empty bar, the floor for any prescription
 	Plates    []float64 // plate denominations available per side, descending
@@ -136,16 +136,53 @@ type Workout struct {
 	Sets       []Set
 }
 
+// The units a lifter can train in. Every weight is stored as a bare number in
+// the one unit the settings name.
+const (
+	UnitLB = "lb"
+	UnitKG = "kg"
+)
+
+// ValidUnit reports whether unit is one Kedge can train in.
+func ValidUnit(unit string) bool {
+	return unit == UnitLB || unit == UnitKG
+}
+
 // DefaultSettings reflects a standard US gym: pounds, a 45 lb bar, and the
 // usual plate selection.
 func DefaultSettings() Settings {
+	return DefaultSettingsFor(UnitLB)
+}
+
+// DefaultSettingsFor is a standard gym in a unit: for kilograms a 20 kg bar,
+// rounding to 2.5 and plates down to 1.25, which loads a 2.5 kg step; for
+// anything else the pound defaults.
+func DefaultSettingsFor(unit string) Settings {
+	if unit == UnitKG {
+		return Settings{
+			Unit:      UnitKG,
+			Rounding:  2.5,
+			BarWeight: 20,
+			Plates:    []float64{25, 20, 15, 10, 5, 2.5, 1.25},
+			Warmups:   true,
+		}
+	}
 	return Settings{
-		Unit:      "lb",
+		Unit:      UnitLB,
 		Rounding:  5,
 		BarWeight: 45,
 		Plates:    []float64{45, 35, 25, 10, 5, 2.5},
 		Warmups:   true,
 	}
+}
+
+// TMIncrementsFor is the book's training max step in a unit, for upper and
+// lower body lifts: 5 and 10 lb, or 2.5 and 5 kg.
+func TMIncrementsFor(unit string) (upper, lower float64) {
+	if unit == UnitKG {
+		return 2.5, 5
+	}
+	return 5, 10
 }
 
 // LeaderAnchorBBB is the default program: two leader cycles of 5's PRO with

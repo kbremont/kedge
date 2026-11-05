@@ -232,3 +232,16 @@ WHERE w.block_id = ?
   AND s.is_amrap = 1
   AND s.actual_reps IS NOT NULL
 ORDER BY w.cycle_index, w.round_number, w.id;
+
+-- name: CountLoggedTraining :one
+-- Anything lifted or recorded in the unit the settings name: a session,
+-- including one ticked off in setup, or a past estimate.
+SELECT CAST((SELECT COUNT(*) FROM workouts) + (SELECT COUNT(*) FROM past_estimates) AS INTEGER) AS logged;
+
+-- name: UpdateProgramConfig :exec
+UPDATE programs SET config = ? WHERE id = ?;
+
+-- name: DeleteTrainingMaxes :exec
+-- Only when the unit changes before anything is lifted: no session was
+-- performed against these, and in the new unit they would read as nonsense.
+DELETE FROM training_maxes;

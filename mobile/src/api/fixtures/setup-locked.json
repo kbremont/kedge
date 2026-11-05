@@ -1,0 +1,26 @@
+{
+  "canChangeUnit": false,
+  "lifts": [
+    {
+      "name": "Overhead Press",
+      "slug": "press",
+      "value": 100
+    },
+    {
+      "name": "Deadlift",
+      "slug": "deadlift",
+      "value": 300
+    },
+    {
+      "name": "Bench Press",
+      "slug": "bench",
+      "value": 200
+    },
+    {
+      "name": "Squat",
+      "slug": "squat",
+      "value": 250
+    }
+  ],
+  "unit": "lb"
+}

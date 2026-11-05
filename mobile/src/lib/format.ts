@@ -1,6 +1,22 @@
-// The server's training.FormatWeight: no trailing ".0", one decimal otherwise.
+// The server's training.FormatWeight: no trailing ".0", a weight that can be
+// loaded (a multiple of a quarter, such as a 1.25 kg plate) in full, and
+// anything else, such as an estimated max, to one decimal.
 export function fmtWeight(v: number): string {
-  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+  return Number.isInteger(v * 4) ? String(v) : v.toFixed(1);
+}
+
+// A saved weight as it goes into a field to be edited: exactly, so saving it
+// back unchanged never changes it.
+export function weightField(v: number): string {
+  return String(v);
+}
+
+// A number as typed, or NaN when it isn't one. A decimal pad types a comma
+// where the phone's region writes one, so "102,5" is 102.5. Blank is NaN, not
+// the 0 that Number('') gives.
+export function parseDecimal(text: string): number {
+  const t = text.trim().replace(',', '.');
+  return /^(\d+\.?\d*|\.\d+)$/.test(t) ? Number(t) : NaN;
 }
 
 // The server's training.FormatPct.

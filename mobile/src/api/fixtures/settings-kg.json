@@ -1,0 +1,66 @@
+{
+  "barWeight": 20,
+  "bbb": [
+    {
+      "mode": "program",
+      "name": "Overhead Press",
+      "slug": "press",
+      "value": 0
+    },
+    {
+      "mode": "program",
+      "name": "Deadlift",
+      "slug": "deadlift",
+      "value": 0
+    },
+    {
+      "mode": "program",
+      "name": "Bench Press",
+      "slug": "bench",
+      "value": 0
+    },
+    {
+      "mode": "program",
+      "name": "Squat",
+      "slug": "squat",
+      "value": 0
+    }
+  ],
+  "plates": [
+    25,
+    20,
+    15,
+    10,
+    5,
+    2.5,
+    1.25
+  ],
+  "restMainSeconds": 90,
+  "restSuppSeconds": 90,
+  "restWarmupSeconds": 90,
+  "rounding": 2.5,
+  "tms": [
+    {
+      "name": "Overhead Press",
+      "slug": "press",
+      "value": 57.5
+    },
+    {
+      "name": "Deadlift",
+      "slug": "deadlift",
+      "value": 170
+    },
+    {
+      "name": "Bench Press",
+      "slug": "bench",
+      "value": 87.5
+    },
+    {
+      "name": "Squat",
+      "slug": "squat",
+      "value": 142.5
+    }
+  ],
+  "unit": "kg",
+  "warmups": true
+}

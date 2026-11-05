@@ -2,6 +2,7 @@ package training
 
 import (
 	"database/sql"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -10,10 +11,15 @@ import (
 )
 
 // FormatWeight renders a weight without a trailing ".0", since almost every
-// prescription lands on a whole number.
+// prescription lands on a whole number. A weight that can be put on a bar, a
+// multiple of a quarter such as a 1.25 kg plate or 61.25, is written in full;
+// anything else, such as an estimated max, to one decimal.
 func FormatWeight(v float64) string {
 	if v == float64(int64(v)) {
 		return strconv.FormatInt(int64(v), 10)
+	}
+	if q := v * 4; q == math.Trunc(q) {
+		return strconv.FormatFloat(v, 'f', -1, 64)
 	}
 	return strconv.FormatFloat(v, 'f', 1, 64)
 }

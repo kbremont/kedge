@@ -1131,3 +1131,30 @@ func TestSettingsRoundTrip(t *testing.T) {
 		t.Errorf("squat TM history = %+v", l.TMHistory)
 	}
 }
+
+// TestSetupUnit takes a unit in setup until anything is logged in it, and
+// refuses one it doesn't know.
+func TestSetupUnit(t *testing.T) {
+	h := newHarness(t)
+	if got := get[Setup](h, "/api/v1/setup"); got.Unit != "lb" || got.CanChangeUnit == nil || !*got.CanChangeUnit {
+		t.Fatalf("fresh setup = %+v, want lb that can change", got)
+	}
+	h.fails(http.StatusBadRequest, http.MethodPut, "/api/v1/setup", map[string]any{"tms": startingTMs, "unit": "stone"})
+
+	kg := SetupInputUnitKg
+	send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{Tms: kgTMs, Unit: &kg})
+	if got := get[Settings](h, "/api/v1/settings"); got.Unit != "kg" || got.BarWeight != 20 {
+		t.Errorf("settings = %s with a %v bar, want kg and 20", got.Unit, got.BarWeight)
+	}
+
+	send[Dashboard](h, http.MethodPut, "/api/v1/setup/history/0", SetupHistoryInput{Done: []PastSession{{Round: 1, Slug: "press", PRReps: new(8)}}})
+	if got := get[Setup](h, "/api/v1/setup"); got.Unit != "kg" || *got.CanChangeUnit {
+		t.Errorf("setup after a session = %+v, want kg that can't change", got)
+	}
+	lb := SetupInputUnitLb
+	if msg := h.fails(http.StatusBadRequest, http.MethodPut, "/api/v1/setup", SetupInput{Tms: startingTMs, Unit: &lb}); msg != "The unit can't change once training is logged in kg." {
+		t.Errorf("change after a session: %q", msg)
+	}
+	// An app from before kilograms sends no unit, and keeps the one set.
+	send[SetupPosition](h, http.MethodPut, "/api/v1/setup", SetupInput{Tms: kgTMs})
+}

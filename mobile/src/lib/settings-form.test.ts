@@ -93,3 +93,13 @@ test.each<{ what: string; edit: (f: Form) => void; field: string; message: strin
   edit(form);
   expect(toInput(form, fixture.bbb)).toEqual({ field, message });
 });
+
+test('a kilogram setup saves back unchanged, a 1.25 plate included', () => {
+  const kg: Settings = { ...fixture, unit: 'kg', barWeight: 20, rounding: 2.5, plates: [25, 20, 15, 10, 5, 2.5, 1.25] };
+  const input = toInput(toForm(kg), kg.bbb);
+  expect(input).toMatchObject({ barWeight: 20, rounding: 2.5, plates: [25, 20, 15, 10, 5, 2.5, 1.25] });
+});
+
+test('a decimal comma reads as a point in a single number', () => {
+  expect(parseNumber('2,5')).toBe(2.5);
+});

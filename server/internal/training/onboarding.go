@@ -3,6 +3,7 @@ package training
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -27,7 +28,12 @@ func (s *Service) Setup(ctx context.Context) (*Setup, error) {
 		return nil, fmt.Errorf("list lifts: %w", err)
 	}
 
-	setup := &Setup{Unit: raw.Unit}
+	logged, err := s.q.CountLoggedTraining(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("count logged training: %w", err)
+	}
+
+	setup := &Setup{Unit: raw.Unit, CanChangeUnit: logged == 0}
 	for _, l := range lifts {
 		item := LiftTM{Slug: l.Slug, Name: l.Name}
 		if tm, err := s.q.GetCurrentTrainingMax(ctx, l.Slug); err == nil {
@@ -38,9 +44,18 @@ func (s *Service) Setup(ctx context.Context) (*Setup, error) {
 	return setup, nil
 }
 
-// SaveSetup records the first training maxes, from values by lift slug. Every
-// lift needs a positive value, or nothing is written.
-func (s *Service) SaveSetup(ctx context.Context, values map[string]float64) error {
+// SaveSetup records the first training maxes, from values by lift slug, in
+// unit, or in the unit already set when unit is empty. Every lift needs a
+// positive value, or nothing is written.
+//
+// A new unit is only taken before anything is logged, since weights are never
+// converted. It brings that unit's bar, rounding, plates and training max
+// steps, puts a BBB set as a fixed weight back to the program's percentage,
+// and replaces the training maxes entered before, which no session used.
+func (s *Service) SaveSetup(ctx context.Context, values map[string]float64, unit string) error {
+	if unit != "" && !program.ValidUnit(unit) {
+		return inputError("Choose lb or kg.")
+	}
 	lifts, err := s.q.ListLifts(ctx)
 	if err != nil {
 		return fmt.Errorf("list lifts: %w", err)
@@ -50,8 +65,33 @@ func (s *Service) SaveSetup(ctx context.Context, values map[string]float64) erro
 			return inputError(fmt.Sprintf("Enter a positive training max for %s.", l.Name))
 		}
 	}
+	raw, _, err := s.loadSettings(ctx)
+	if err != nil {
+		return err
+	}
+	change := unit != "" && unit != raw.Unit
+	var prog db.Program
+	var cfg program.Config
+	if change {
+		logged, err := s.q.CountLoggedTraining(ctx)
+		if err != nil {
+			return fmt.Errorf("count logged training: %w", err)
+		}
+		if logged > 0 {
+			return inputError("The unit can't change once training is logged in " + raw.Unit + ".")
+		}
+		// Seeded on first use, so it's there to be changed.
+		if prog, cfg, err = s.activeProgram(ctx); err != nil {
+			return err
+		}
+	}
 
 	return s.tx(ctx, func(q *db.Queries) error {
+		if change {
+			if err := switchUnit(ctx, q, raw, prog, cfg, lifts, unit); err != nil {
+				return err
+			}
+		}
 		for _, l := range lifts {
 			if _, err := q.SetTrainingMax(ctx, db.SetTrainingMaxParams{
 				LiftSlug: l.Slug,
@@ -63,6 +103,52 @@ func (s *Service) SaveSetup(ctx context.Context, values map[string]float64) erro
 		}
 		return nil
 	})
+}
+
+// switchUnit puts the settings, the program's training max steps and the BBB
+// overrides into unit, and clears the training maxes, all within q's
+// transaction.
+func switchUnit(ctx context.Context, q *db.Queries, raw db.Setting, prog db.Program, cfg program.Config, lifts []db.Lift, unit string) error {
+	def := program.DefaultSettingsFor(unit)
+	plates, err := json.Marshal(def.Plates)
+	if err != nil {
+		return fmt.Errorf("encode plates: %w", err)
+	}
+	if err := q.UpdateSettings(ctx, db.UpdateSettingsParams{
+		Unit:              unit,
+		Rounding:          def.Rounding,
+		BarWeight:         def.BarWeight,
+		Plates:            string(plates),
+		Warmups:           raw.Warmups,
+		RestWarmupSeconds: raw.RestWarmupSeconds,
+		RestMainSeconds:   raw.RestMainSeconds,
+		RestSuppSeconds:   raw.RestSuppSeconds,
+	}); err != nil {
+		return fmt.Errorf("update settings: %w", err)
+	}
+
+	cfg.TMIncrementUpper, cfg.TMIncrementLower = program.TMIncrementsFor(unit)
+	encoded, err := json.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("encode program: %w", err)
+	}
+	if err := q.UpdateProgramConfig(ctx, db.UpdateProgramConfigParams{Config: string(encoded), ID: prog.ID}); err != nil {
+		return fmt.Errorf("update program %d: %w", prog.ID, err)
+	}
+
+	for _, l := range lifts {
+		if l.BbbMode != "weight" {
+			continue
+		}
+		if err := q.SetLiftBBB(ctx, db.SetLiftBBBParams{BbbMode: "program", BbbValue: 0, Slug: l.Slug}); err != nil {
+			return fmt.Errorf("set BBB for %s: %w", l.Slug, err)
+		}
+	}
+
+	if err := q.DeleteTrainingMaxes(ctx); err != nil {
+		return fmt.Errorf("clear training maxes: %w", err)
+	}
+	return nil
 }
 
 // SetupPosition returns the cycles a new user can say they are on.

@@ -30,7 +30,8 @@ func (h *Handler) SaveSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	values := formTMs(r.PostForm)
-	err := h.svc.SaveSetup(ctx, values)
+	unit := r.PostForm.Get("unit")
+	err := h.svc.SaveSetup(ctx, values, unit)
 	var input *training.InputError
 	switch {
 	case errors.As(err, &input):
@@ -42,6 +43,9 @@ func (h *Handler) SaveSetup(w http.ResponseWriter, r *http.Request) {
 		}
 		for i, l := range setup.Lifts {
 			setup.Lifts[i].Value = values[l.Slug]
+		}
+		if setup.CanChangeUnit && unit != "" {
+			setup.Unit = unit
 		}
 		w.WriteHeader(http.StatusBadRequest)
 		h.render(w, r, Setup(SetupPage{Setup: *setup, Error: input.Msg}))

@@ -66,7 +66,7 @@ Success means the lifter never does 5/3/1 arithmetic or keeps a notebook, loggin
 
 **Backups:** not in the app. The server's web UI downloads one, and the API keeps `GET /backup`.
 
-**Units:** pounds only for now. The database has a unit column for later.
+**Units:** pounds or kilograms, chosen in setup with each unit's bar, rounding, plates and training max steps (5 and 10 lb, or 2.5 and 5 kg). The unit stays once a session or past estimate is logged, because weights are stored as plain numbers and never converted.
 
 **Terminology:** use these terms consistently.
 - **Structure:** a *session* is one lift's workout, a *round* is four sessions, and a *block* is the eleven-round sequence.

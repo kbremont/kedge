@@ -24,7 +24,7 @@ import {
   ToneMark,
   useCardStyles,
 } from '@/components/card-back';
-import { cycleText, fmtWeight, shortName, times } from '@/lib/format';
+import { cycleText, fmtWeight, parseDecimal, shortName, times, weightField } from '@/lib/format';
 import { displayScaleCap, font, liftInk, radius, space } from '@/theme';
 
 export default function TodayScreen() {
@@ -223,8 +223,8 @@ function TestResult({ r }: { r: TMTestResult }) {
   const { p, s } = useCardStyles();
   const indent = useMarkIndent(22);
   const decide = useDecideTMTest();
-  const [tm, setTm] = useState(fmtWeight(r.proposed));
-  const valid = Number(tm) > 0;
+  const [tm, setTm] = useState(weightField(r.proposed));
+  const valid = parseDecimal(tm) > 0;
   return (
     <Panel>
       <LiftBand slim slug={r.liftSlug} title={`${r.liftName} TM test`} right={`${fmtWeight(r.tested)} × ${r.reps}`} />
@@ -269,7 +269,7 @@ function TestResult({ r }: { r: TMTestResult }) {
             label={valid ? `Lower to ${tm} ${r.unit}` : 'Lower training max'}
             disabled={!valid || decide.isPending}
             style={local.decideButton}
-            onPress={() => decide.mutate({ id: r.workoutId, action: 'lower', tm: Number(tm) })}
+            onPress={() => decide.mutate({ id: r.workoutId, action: 'lower', tm: parseDecimal(tm) })}
           />
           <Button
             secondary
@@ -291,10 +291,10 @@ function Review({ review }: { review: TMReview }) {
   const indent = useMarkIndent(18);
   const accept = useAcceptReview();
   const [values, setValues] = useState(() =>
-    Object.fromEntries(review.rows.map((r) => [r.slug, fmtWeight(r.proposed)])),
+    Object.fromEntries(review.rows.map((r) => [r.slug, weightField(r.proposed)])),
   );
-  const valid = review.rows.every((r) => Number(values[r.slug]) > 0);
-  const tms = Object.fromEntries(review.rows.map((r) => [r.slug, Number(values[r.slug])]));
+  const valid = review.rows.every((r) => parseDecimal(values[r.slug]) > 0);
+  const tms = Object.fromEntries(review.rows.map((r) => [r.slug, parseDecimal(values[r.slug])]));
   return (
     <Panel>
       <View style={[local.inkBand, { backgroundColor: p.button }]}>
@@ -330,7 +330,7 @@ function Review({ review }: { review: TMReview }) {
               onChangeText={(v) => setValues((x) => ({ ...x, [row.slug]: v }))}
               keyboardType="decimal-pad"
               accessibilityLabel={`New ${row.name} training max, ${review.unit}`}
-              invalid={!(Number(values[row.slug]) > 0)}
+              invalid={!(parseDecimal(values[row.slug]) > 0)}
               style={[local.cNew, local.reviewField]}
             />
           </View>

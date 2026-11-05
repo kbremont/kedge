@@ -50,7 +50,7 @@ func (s *Service) loadSettings(ctx context.Context) (db.Setting, program.Setting
 		// A malformed plate list should not take the whole app down; fall
 		// back to a standard set and carry on.
 		s.log.WarnContext(ctx, "settings.plates is not valid JSON, using defaults", "value", raw.Plates)
-		plates = program.DefaultSettings().Plates
+		plates = program.DefaultSettingsFor(raw.Unit).Plates
 	}
 	sort.Sort(sort.Reverse(sort.Float64Slice(plates)))
 
@@ -69,6 +69,9 @@ func (s *Service) activeProgram(ctx context.Context) (db.Program, program.Config
 	row, err := s.q.GetActiveProgram(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		cfg := program.LeaderAnchorBBB()
+		if raw, sErr := s.q.GetSettings(ctx); sErr == nil {
+			cfg.TMIncrementUpper, cfg.TMIncrementLower = program.TMIncrementsFor(raw.Unit)
+		}
 		encoded, mErr := json.Marshal(cfg)
 		if mErr != nil {
 			return db.Program{}, program.Config{}, fmt.Errorf("encode default program: %w", mErr)

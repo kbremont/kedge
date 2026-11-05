@@ -219,6 +219,9 @@ type LiftBBB struct {
 type Setup struct {
 	Lifts []LiftTM // with the current training max, if there is one
 	Unit  string
+	// CanChangeUnit is true until anything is logged in the unit: a session or
+	// a past estimate. Weights are never converted, so it then stays.
+	CanChangeUnit bool
 }
 
 // SetupPosition asks a new user which cycle they are currently on, so the

@@ -8,6 +8,7 @@ import setupHistoryAnchor from '@/api/fixtures/setup-history-anchor.json';
 import setupHistoryLeader from '@/api/fixtures/setup-history-leader.json';
 import setupHistoryTMTest from '@/api/fixtures/setup-history-tm-test.json';
 import setupPosition from '@/api/fixtures/setup-position.json';
+import setupLocked from '@/api/fixtures/setup-locked.json';
 import setupFixture from '@/api/fixtures/setup.json';
 import { keys, makeQueryClient } from '@/api/queries';
 import type { Dashboard, Setup, SetupHistory, SetupPosition } from '@/api/schema.gen';
@@ -122,8 +123,42 @@ describe('training maxes', () => {
     expect(sentTo(server, 'PUT /setup')).toHaveLength(1);
     expect(sentTo(server, 'PUT /setup')[0].body).toEqual({
       tms: { press: 115, deadlift: 365, bench: 205, squat: 302.5 },
+      unit: 'lb',
     });
     expect(await screen.findByRole('radio', { name: /^Anchor/ })).toBeOnTheScreen();
+  });
+
+  test('choosing kilograms clears what was typed, labels the fields in kg, and sends the unit', async () => {
+    const { server } = await openSetup({ 'PUT /setup': position });
+    await enter({ 'Overhead Press': '115' });
+    await fireEvent(screen.getByTestId('Picker'), 'selectionChange', 'kg');
+
+    expect(screen.queryByLabelText('Squat training max, lb')).not.toBeOnTheScreen();
+    expect(screen.getByLabelText('Overhead Press training max, kg')).toHaveDisplayValue('');
+    const kg = { 'Overhead Press': '52,5', Deadlift: '170', 'Bench Press': '87.5', Squat: '142.5' };
+    for (const [name, value] of Object.entries(kg)) {
+      await fireEvent.changeText(screen.getByLabelText(`${name} training max, kg`), value);
+    }
+    await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() => expect(screen).toHavePathname('/setup/position'));
+    // A decimal comma, as a phone in much of the world types it, is a point.
+    expect(sentTo(server, 'PUT /setup')[0].body).toEqual({
+      tms: { press: 52.5, deadlift: 170, bench: 87.5, squat: 142.5 },
+      unit: 'kg',
+    });
+  });
+
+  test.each([
+    ['once training is logged', setupLocked as Setup],
+    ['on a server from before kilograms', { lifts: setup.lifts, unit: 'lb' } as Setup],
+  ])('%s there is no unit to choose, and none is sent', async (_, answer) => {
+    const { server } = await openSetup({ 'GET /setup': answer, 'PUT /setup': position });
+    expect(screen.queryByTestId('Picker')).not.toBeOnTheScreen();
+    await enter({ 'Overhead Press': '115', Deadlift: '365', 'Bench Press': '205', Squat: '302.5' });
+    await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(sentTo(server, 'PUT /setup')).toHaveLength(1));
+    expect(sentTo(server, 'PUT /setup')[0].body).not.toHaveProperty('unit');
   });
 
   test('running setup again starts from the training maxes saved', async () => {
@@ -141,7 +176,10 @@ describe('training maxes', () => {
 
     expect(await screen.findByText(message)).toBeOnTheScreen();
     // The server is the one that says no: an empty field goes as 0.
-    expect(sentTo(server, 'PUT /setup')[0].body).toEqual({ tms: { press: 115, deadlift: 365, bench: 205, squat: 0 } });
+    expect(sentTo(server, 'PUT /setup')[0].body).toEqual({
+      tms: { press: 115, deadlift: 365, bench: 205, squat: 0 },
+      unit: 'lb',
+    });
     expect(screen).toHavePathname('/setup');
     expect(screen.getByLabelText('Squat training max, lb')).toHaveStyle({ borderWidth: 2 });
     expect(screen.getByLabelText('Deadlift training max, lb')).not.toHaveStyle({ borderWidth: 2 });

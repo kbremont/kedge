@@ -98,7 +98,7 @@ templ tmTestResult(t training.TMTestResult) {
 					id={ fmt.Sprintf("tm-%d", t.WorkoutID) }
 					type="number"
 					name="tm"
-					step="0.5"
+					step="any"
 					min="1"
 					max={ FmtWeight(t.Current) }
 					inputmode="decimal"
@@ -133,7 +133,7 @@ templ tmReview(r training.TMReview) {
 						id={ tmField(row.Slug) }
 						type="number"
 						name={ tmField(row.Slug) }
-						step="0.5"
+						step="any"
 						min="1"
 						inputmode="decimal"
 						required
@@ -223,7 +223,7 @@ templ LiftDetail(l LiftPage) {
 					</div>
 					<div class="field">
 						<label for="weight">Weight ({ l.Unit })</label>
-						<input id="weight" type="number" name="weight" step="0.5" min="1" inputmode="decimal" required/>
+						<input id="weight" type="number" name="weight" step="any" min="1" inputmode="decimal" required/>
 					</div>
 					<div class="field">
 						<label for="reps">Reps</label>
@@ -314,7 +314,7 @@ templ Settings(s SettingsPage) {
 					<input type="hidden" name="lift" value={ tm.Slug }/>
 					<div class="field">
 						<label>{ tm.Name }</label>
-						<input type="number" name="value" step="0.5" inputmode="decimal" value={ FmtWeight(tm.Value) }/>
+						<input type="number" name="value" step="any" inputmode="decimal" value={ FmtWeight(tm.Value) }/>
 					</div>
 					<button class="btn" type="submit">Save</button>
 				</form>
@@ -325,11 +325,11 @@ templ Settings(s SettingsPage) {
 			<div class="card">
 				<div class="field">
 					<label for="bar">Bar weight ({ s.Unit })</label>
-					<input id="bar" type="number" name="bar_weight" step="0.5" inputmode="decimal" value={ FmtWeight(s.BarWeight) }/>
+					<input id="bar" type="number" name="bar_weight" step="any" inputmode="decimal" value={ FmtWeight(s.BarWeight) }/>
 				</div>
 				<div class="field">
 					<label for="rounding">Round weights to ({ s.Unit })</label>
-					<input id="rounding" type="number" name="rounding" step="0.5" inputmode="decimal" value={ FmtWeight(s.Rounding) }/>
+					<input id="rounding" type="number" name="rounding" step="any" inputmode="decimal" value={ FmtWeight(s.Rounding) }/>
 				</div>
 				<div class="field">
 					<label for="plates">Plates available, per side</label>
@@ -378,7 +378,7 @@ templ Settings(s SettingsPage) {
 						</div>
 						<div class="field">
 							<label for={ "bbb-value-" + b.Slug }>Value</label>
-							<input id={ "bbb-value-" + b.Slug } type="number" name={ bbbValueField(b.Slug) } step="0.5" inputmode="decimal" value={ FmtWeight(b.Value) }/>
+							<input id={ "bbb-value-" + b.Slug } type="number" name={ bbbValueField(b.Slug) } step="any" inputmode="decimal" value={ FmtWeight(b.Value) }/>
 						</div>
 					</div>
 				}
@@ -435,14 +435,28 @@ templ Setup(s SetupPage) {
 		}
 		<form method="post" action="/setup">
 			<div class="card">
+				if s.CanChangeUnit {
+					// Until anything is logged; weights are never converted.
+					<div class="field">
+						<label for="unit">Unit</label>
+						<select id="unit" name="unit">
+							<option value="lb" selected?={ s.Unit == "lb" }>Pounds (lb)</option>
+							<option value="kg" selected?={ s.Unit == "kg" }>Kilograms (kg)</option>
+						</select>
+					</div>
+				}
 				for _, l := range s.Lifts {
 					<div class="field">
-						<label for={ "tm-" + l.Slug }>{ l.Name } ({ s.Unit })</label>
+						if s.CanChangeUnit {
+							<label for={ "tm-" + l.Slug }>{ l.Name }</label>
+						} else {
+							<label for={ "tm-" + l.Slug }>{ l.Name } ({ s.Unit })</label>
+						}
 						<input
 							id={ "tm-" + l.Slug }
 							type="number"
 							name={ tmField(l.Slug) }
-							step="0.5"
+							step="any"
 							inputmode="decimal"
 							required
 							if l.Value > 0 {

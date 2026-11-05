@@ -22,7 +22,7 @@ the clock, so it stays right while the phone sleeps.
 - **History and charts:** a career table of every round, a chart of each
   lift's estimated max, and room for the numbers from your paper notebook.
 
-No account, and nothing you log leaves your server. Weights are in pounds.
+No account, and nothing you log leaves your server. Train in pounds or kilograms.
 
 ## Try it
 

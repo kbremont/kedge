@@ -243,5 +243,6 @@ const local = StyleSheet.create({
   sectionRow: { minHeight: 64, gap: 12 },
   chevron: { marginLeft: 8 },
   settingRow: { minHeight: 64, gap: 12 },
-  fieldUnit: { width: 20 },
+  // Wide enough for the widest unit, kg, so every field lines up.
+  fieldUnit: { width: 24 },
 });
